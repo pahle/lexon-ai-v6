@@ -9,7 +9,12 @@ import {
   ChatSnapshotFrameSchema,
   ChatTreeSchema,
 } from '@lexon/contracts';
-import type { ChatMessage, ChatTree } from '@lexon/contracts';
+import type {
+  ChatMessage,
+  ChatOperationSnapshot,
+  ChatTree,
+  OperationStatus,
+} from '@lexon/contracts';
 import {
   OrganizationSummarySchema,
   SwitchResultSchema,
@@ -186,6 +191,26 @@ export function chatTree(state: string): ChatTree {
       updatedAt: timestamp,
     });
   }
+  const f5 = f5States[state];
+  if (f5) {
+    return ChatTreeSchema.parse({
+      id: chatId,
+      title: f5.title,
+      messages: [
+        { ...userMessage(), text: f5.user },
+        {
+          ...assistantMessage('answer-complete'),
+          text: f5.text,
+          status: f5.status,
+          reasoningDurationMs: f5.reasoningDurationMs,
+          operations: [...f5.operations],
+        },
+      ],
+      viewedLeafId: assistantMessageId,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+  }
   return ChatTreeSchema.parse({
     id: chatId,
     title: fileNames.newChat,
@@ -196,9 +221,487 @@ export function chatTree(state: string): ChatTree {
   });
 }
 
+// ---- F5 (r17): tool rows, question docks, approvals and decision records ----
+// The r17 prototype states run on the production operation components: the
+// tree's `operations` rebuild rows and records through the same path the
+// canonical tree uses after a reload, and the paused/running states resume
+// the deterministic snapshot stream (f5RunFrames). Titles, the user's turn,
+// the question texts and the Indonesian copy are the prototype's.
+
+export const deadlineOperationId = '00000000-0000-4000-8000-000000000201';
+export const askOperationId = '00000000-0000-4000-8000-000000000202';
+export const renameOperationId = '00000000-0000-4000-8000-000000000203';
+// The prototype's expiry line reads "Expires 24 Nov 2026, 10:42" (WIB).
+export const operationExpiresAt = '2026-11-24T03:42:00.000Z';
+const operationDecidedAt = '2026-11-14T03:42:00.000Z';
+const operationHash = 'c'.repeat(64);
+
+export const f5Chat = {
+  tool: {
+    title: 'Batas waktu banding',
+    user: 'Kapan batas akhir mengajukan banding jika putusan dibacakan pada 3 Agustus 2027?',
+    pre: 'Saya hitung tenggatnya dengan kalender hari kerja Indonesia.',
+  },
+  ask: {
+    title: 'Masa berlaku kontrak',
+    user: 'Apakah kontrak ini masih berlaku?',
+    pre: 'Saya perlu satu informasi sebelum menjawab.',
+    preMulti: 'Saya perlu beberapa informasi sebelum menjawab.',
+  },
+  ren: {
+    title: 'Draf somasi wanprestasi',
+    user: 'Ganti judul chat ini jadi “Somasi PT Sinar”.',
+    pre: 'Saya akan mengganti judul chat ini menjadi “Somasi PT Sinar”.',
+  },
+  nda: {
+    title: 'Draf NDA vendor',
+    user: 'Buatkan draf NDA untuk kerja sama dengan vendor kami.',
+    pre: 'Saya perlu beberapa informasi sebelum menyusun drafnya.',
+  },
+} as const;
+
+const deadlineAnswer =
+  'Batas akhir pengajuan banding jatuh pada **Rabu, 18 Agustus 2027**.\n\nPerhitungan memakai 14 hari kalender sejak hari setelah putusan dibacakan. Hari ke-14 jatuh pada Selasa, 17 Agustus 2027 (Hari Kemerdekaan), sehingga digeser ke hari kerja berikutnya. Periksa kembali tenggang waktu yang berlaku untuk perkara Anda.';
+const deadlineFailedAnswer =
+  'Saya belum dapat menghitung tanggalnya secara otomatis. Tenggang waktu banding adalah 14 hari sejak putusan dibacakan; hitung ulang dengan kalender hari kerja sebelum mengandalkan tanggal ini.';
+const askAnsweredText =
+  'Untuk perjanjian kerja, masa berlakunya bergantung pada jenisnya. PKWT berakhir pada tanggal atau saat pekerjaan yang disepakati selesai, sedangkan PKWTT tidak memiliki batas waktu. Kirimkan tanggal mulai dan jangka waktu dalam kontrak, dan saya akan memeriksanya.';
+const askDismissedText =
+  'Baik. Jelaskan jenis kontraknya di chat, dan saya akan melanjutkan.';
+const renApprovedText = 'Judul chat sudah diganti menjadi “Somasi PT Sinar”.';
+const renRejectedText = 'Baik, judul chat tidak diubah.';
+const renExpiredText =
+  'Permintaan ganti judul kedaluwarsa, jadi judul chat tidak diubah.';
+
+const deadlineInput = {
+  startDate: '2027-08-03',
+  amount: 14,
+  unit: 'calendar_days',
+  countStartDay: false,
+  nonWorkingDayRule: 'next_working_day',
+};
+const deadlineOutput = {
+  deadline: '2027-08-18',
+  weekday: 'Wednesday',
+  skippedDays: [{ date: '2027-08-17', name: 'Proklamasi Kemerdekaan RI' }],
+  calendarVersion: 'id-national@2027.1',
+};
+
+const askSingleInput = {
+  questions: [
+    {
+      questionId: 'q1',
+      text: 'Kontrak jenis apa yang Anda maksud?',
+      kind: 'single',
+      options: [
+        { label: 'Perjanjian kerja', description: 'PKWT atau PKWTT' },
+        {
+          label: 'Sewa-menyewa',
+          description: 'Tanah, bangunan, atau kendaraan',
+        },
+        { label: 'Jual beli', description: 'Barang atau aset' },
+        {
+          label: 'Kerja sama usaha',
+          description: 'Kemitraan atau joint venture',
+        },
+      ],
+      allowFreeText: true,
+    },
+  ],
+};
+const askMultiInput = {
+  questions: [
+    askSingleInput.questions[0],
+    {
+      questionId: 'q2',
+      text: 'Siapa pihak dalam kontrak ini?',
+      kind: 'single',
+      options: [
+        {
+          label: 'Perusahaan dan karyawan',
+          description: 'Hubungan kerja',
+        },
+        { label: 'Dua perusahaan', description: 'Hubungan bisnis' },
+        { label: 'Perorangan', description: 'Antarindividu' },
+      ],
+      allowFreeText: true,
+    },
+    {
+      questionId: 'q3',
+      text: 'Kapan kontrak ditandatangani?',
+      kind: 'single',
+      options: [
+        { label: 'Kurang dari 1 tahun lalu' },
+        { label: '1 sampai 3 tahun lalu' },
+        { label: 'Lebih dari 3 tahun lalu' },
+      ],
+      allowFreeText: true,
+    },
+  ],
+};
+const ndaInput = {
+  questions: [
+    {
+      questionId: 'q1',
+      text: 'NDA ini untuk siapa?',
+      kind: 'single',
+      options: [
+        { label: 'Perusahaan dan vendor' },
+        { label: 'Dua perusahaan' },
+        { label: 'Perorangan' },
+      ],
+      allowFreeText: true,
+    },
+    {
+      questionId: 'q2',
+      text: 'Siapa nama pihak pertama?',
+      kind: 'text',
+    },
+    {
+      questionId: 'q3',
+      text: 'Informasi apa saja yang dilindungi?',
+      kind: 'multiple',
+      options: [
+        {
+          label: 'Data keuangan',
+          description: 'Laporan, harga, dan anggaran',
+        },
+        {
+          label: 'Rahasia dagang',
+          description: 'Proses, formula, dan metode kerja',
+        },
+        {
+          label: 'Data pelanggan',
+          description: 'Identitas dan riwayat transaksi',
+        },
+        { label: 'Kode sumber dan dokumentasi teknis' },
+      ],
+      allowFreeText: true,
+    },
+    {
+      questionId: 'q4',
+      text: 'Hukum mana yang berlaku?',
+      kind: 'single',
+      options: [
+        { label: 'Hukum Indonesia' },
+        { label: 'Hukum Singapura' },
+        { label: 'Arbitrase' },
+      ],
+      allowFreeText: true,
+    },
+    {
+      questionId: 'q5',
+      text: 'Bagaimana sengketa diselesaikan?',
+      kind: 'single',
+      options: [
+        { label: 'Pengadilan Negeri' },
+        { label: 'Arbitrase BANI' },
+        { label: 'Musyawarah' },
+      ],
+      allowFreeText: true,
+    },
+  ],
+};
+const renameInput = { newTitle: 'Somasi PT Sinar' };
+const renameDisplay = { currentTitle: f5Chat.ren.title };
+
+/** The operation snapshot the tree and the snapshot stream both carry. */
+function f5Operation(options: {
+  readonly operationId: string;
+  readonly kind: 'approval' | 'question';
+  readonly toolName: string;
+  readonly approvalRequired: boolean;
+  readonly status: OperationStatus;
+  readonly input: Record<string, unknown>;
+  readonly display?: Record<string, unknown>;
+  readonly output?: unknown;
+}): ChatOperationSnapshot {
+  const waiting = options.status === 'awaiting_approval';
+  return {
+    operationId: options.operationId,
+    kind: options.kind,
+    status: options.status,
+    approvalRequired: options.approvalRequired,
+    snapshotHash: operationHash,
+    expiresAt: waiting ? operationExpiresAt : null,
+    decidedAt:
+      waiting || options.status === 'pending' ? null : operationDecidedAt,
+    toolName: options.toolName,
+    input: options.input,
+    ...(options.display ? { display: options.display } : {}),
+    ...(options.output !== undefined ? { output: options.output } : {}),
+  };
+}
+
+// `deadline_calculator` is a read tool: its row is not gated, so the stored
+// kind is the 'approval' default and approvalRequired stays false.
+const deadlineOperation = (status: OperationStatus, output?: unknown) =>
+  f5Operation({
+    operationId: deadlineOperationId,
+    kind: 'approval',
+    toolName: 'deadline_calculator',
+    approvalRequired: false,
+    status,
+    input: deadlineInput,
+    ...(output !== undefined ? { output } : {}),
+  });
+const askOperation = (
+  status: OperationStatus,
+  input: Record<string, unknown>,
+  output?: unknown,
+) =>
+  f5Operation({
+    operationId: askOperationId,
+    kind: 'question',
+    toolName: 'ask_user',
+    approvalRequired: true,
+    status,
+    input,
+    ...(output !== undefined ? { output } : {}),
+  });
+const renameOperation = (status: OperationStatus, output?: unknown) =>
+  f5Operation({
+    operationId: renameOperationId,
+    kind: 'approval',
+    toolName: 'rename_chat',
+    approvalRequired: true,
+    status,
+    input: renameInput,
+    display: renameDisplay,
+    ...(output !== undefined ? { output } : {}),
+  });
+
+export type F5State = {
+  /** The chat title (the approved rename keeps the new title). */
+  readonly title: string;
+  /** The user's turn text. */
+  readonly user: string;
+  /** The assistant turn's text and run status. */
+  readonly text: string;
+  readonly status: 'running' | 'awaiting_approval' | 'completed';
+  readonly reasoningDurationMs: number;
+  readonly operations: readonly ChatOperationSnapshot[];
+  /** The Recent/Chats rows show the "Waiting for you" markers. */
+  readonly waiting?: boolean;
+};
+
+// The paused/running states resume the snapshot stream; their keys are the
+// `capture_state` values installRunStreamFixture selects frames by.
+export const f5States: Record<string, F5State> = {
+  'tool-activity': {
+    title: f5Chat.tool.title,
+    user: f5Chat.tool.user,
+    text: `${f5Chat.tool.pre}\n\n${deadlineAnswer}`,
+    status: 'completed',
+    reasoningDurationMs: 7_000,
+    operations: [deadlineOperation('completed', deadlineOutput)],
+  },
+  'tool-expanded': {
+    title: f5Chat.tool.title,
+    user: f5Chat.tool.user,
+    text: `${f5Chat.tool.pre}\n\n${deadlineAnswer}`,
+    status: 'completed',
+    reasoningDurationMs: 7_000,
+    operations: [deadlineOperation('completed', deadlineOutput)],
+  },
+  'tool-running': {
+    title: f5Chat.tool.title,
+    user: f5Chat.tool.user,
+    text: f5Chat.tool.pre,
+    status: 'running',
+    reasoningDurationMs: 7_000,
+    operations: [deadlineOperation('pending')],
+  },
+  'tool-failed': {
+    title: f5Chat.tool.title,
+    user: f5Chat.tool.user,
+    text: `${f5Chat.tool.pre}\n\n${deadlineFailedAnswer}`,
+    status: 'completed',
+    reasoningDurationMs: 9_000,
+    operations: [deadlineOperation('failed', { errorCode: 'AI_TOOL_TIMEOUT' })],
+  },
+  'question-single': {
+    title: f5Chat.ask.title,
+    user: f5Chat.ask.user,
+    text: f5Chat.ask.pre,
+    status: 'awaiting_approval',
+    reasoningDurationMs: 3_000,
+    operations: [askOperation('awaiting_approval', askSingleInput)],
+    waiting: true,
+  },
+  'question-multi': {
+    title: f5Chat.ask.title,
+    user: f5Chat.ask.user,
+    text: f5Chat.ask.preMulti,
+    status: 'awaiting_approval',
+    reasoningDurationMs: 4_000,
+    operations: [askOperation('awaiting_approval', askMultiInput)],
+    waiting: true,
+  },
+  'question-nda': {
+    title: f5Chat.nda.title,
+    user: f5Chat.nda.user,
+    text: f5Chat.nda.pre,
+    status: 'awaiting_approval',
+    reasoningDurationMs: 4_000,
+    operations: [askOperation('awaiting_approval', ndaInput)],
+    waiting: true,
+  },
+  'question-answered': {
+    title: f5Chat.ask.title,
+    user: f5Chat.ask.user,
+    text: `${f5Chat.ask.preMulti}\n\n${askAnsweredText}`,
+    status: 'completed',
+    reasoningDurationMs: 4_000,
+    operations: [
+      askOperation('answered', askMultiInput, {
+        answers: [
+          { questionId: 'q1', choice: { kind: 'option', index: 0 } },
+          { questionId: 'q2', choice: { kind: 'option', index: 0 } },
+          { questionId: 'q3', choice: { kind: 'skipped' } },
+        ],
+      }),
+    ],
+  },
+  'question-dismissed': {
+    title: f5Chat.ask.title,
+    user: f5Chat.ask.user,
+    text: `${f5Chat.ask.pre}\n\n${askDismissedText}`,
+    status: 'completed',
+    reasoningDurationMs: 3_000,
+    operations: [
+      askOperation('dismissed', askSingleInput, {
+        answered_in_chat: true,
+      }),
+    ],
+  },
+  'approval-pending': {
+    title: f5Chat.ren.title,
+    user: f5Chat.ren.user,
+    text: f5Chat.ren.pre,
+    status: 'awaiting_approval',
+    reasoningDurationMs: 2_000,
+    operations: [renameOperation('awaiting_approval')],
+    waiting: true,
+  },
+  'approval-approved': {
+    title: 'Somasi PT Sinar',
+    user: f5Chat.ren.user,
+    text: `${f5Chat.ren.pre}\n\n${renApprovedText}`,
+    status: 'completed',
+    reasoningDurationMs: 2_000,
+    operations: [
+      renameOperation('completed', {
+        renamed: true,
+        previousTitle: f5Chat.ren.title,
+      }),
+    ],
+  },
+  'approval-rejected': {
+    title: f5Chat.ren.title,
+    user: f5Chat.ren.user,
+    text: `${f5Chat.ren.pre}\n\n${renRejectedText}`,
+    status: 'completed',
+    reasoningDurationMs: 2_000,
+    operations: [renameOperation('rejected', { denied: true })],
+  },
+  'approval-expired': {
+    title: f5Chat.ren.title,
+    user: f5Chat.ren.user,
+    text: `${f5Chat.ren.pre}\n\n${renExpiredText}`,
+    status: 'completed',
+    reasoningDurationMs: 2_000,
+    operations: [renameOperation('expired', { expired: 'approval' })],
+  },
+};
+
+/** The resumed stream of a paused or running F5 state (snapshot protocol). */
+export function f5RunFrames(state: string) {
+  const spec = f5States[state];
+  const operation = spec?.operations[0];
+  if (!spec || !operation)
+    throw new Error(`Unknown streamed F5 chat state "${state}".`);
+  const parts = [
+    {
+      type: 'snapshot-part',
+      version: 1,
+      partIndex: 0,
+      chunkIndex: 0,
+      partType: 'reasoning',
+      id: 'f5-reasoning',
+      text: reasoning,
+      final: true,
+    },
+    {
+      type: 'snapshot-part',
+      version: 1,
+      partIndex: 1,
+      chunkIndex: 0,
+      partType: 'text',
+      id: 'f5-answer',
+      text: spec.text,
+      final: true,
+    },
+    {
+      type: 'snapshot-part',
+      version: 1,
+      partIndex: 2,
+      chunkIndex: 0,
+      partType: 'tool',
+      id: 'f5-tool',
+      toolCallId: operation.operationId,
+      toolName: operation.toolName,
+      operationId: operation.operationId,
+      input: operation.input,
+      ...(operation.output !== undefined ? { output: operation.output } : {}),
+      outcome: operation.status,
+      final: true,
+    },
+  ];
+  return [
+    {
+      type: 'snapshot-start',
+      version: 1,
+      reset: true,
+      snapshot: {
+        runId,
+        messageId: assistantMessageId,
+        attemptId: null,
+        generation: null,
+        revision: 0,
+        eventId: null,
+        status: spec.status,
+        errorCode: null,
+        reasoningDurationMs: spec.reasoningDurationMs,
+      },
+      partCount: parts.length,
+      operationCount: spec.operations.length,
+    },
+    ...parts,
+    {
+      type: 'snapshot-operation',
+      version: 1,
+      index: 0,
+      operation,
+    },
+    {
+      type: 'snapshot-end',
+      version: 1,
+      partCount: parts.length,
+      operationCount: spec.operations.length,
+    },
+  ].map((frame) => ChatSnapshotFrameSchema.parse(frame));
+}
+
 export function chatList(state: string) {
+  const f5 = f5States[state];
   const records = [
-    [chatId, fileNames.newChat, chatTimes.newChat.at],
+    [
+      chatId,
+      f5?.title ??
+        (state === 'chats-waiting' ? f5Chat.ask.title : fileNames.newChat),
+      chatTimes.newChat.at,
+    ],
     [
       '00000000-0000-4000-8000-000000000111',
       fileNames.acquisition,
@@ -225,12 +728,14 @@ export function chatList(state: string) {
     items:
       state === 'chats-empty'
         ? []
-        : records.map(([id, title, updatedAt]) => ({
+        : records.map(([id, title, updatedAt], index) => ({
             id,
             title,
             updatedAt,
             lastMessageAt: updatedAt,
-            awaitingUser: false,
+            awaitingUser:
+              index === 0 &&
+              (f5?.waiting === true || state === 'chats-waiting'),
           })),
     pageInfo: { nextCursor: null },
   });
@@ -352,9 +857,11 @@ export function validateFixtures() {
     'stopped-before-answer',
   ])
     chatTree(state);
+  for (const state of Object.keys(f5States)) chatTree(state);
   for (const state of ['new-chat', 'chats-history', 'chat-actions-menu'])
     chatList(state);
   chatList('chats-empty');
+  chatList('chats-waiting');
   searchPage('chats-search', 'wanprestasi');
   searchPage('chats-no-results', 'hak tanggungan');
   ChatSearchMatchSchema.parse({
@@ -363,6 +870,14 @@ export function validateFixtures() {
   });
   activeRunFrames('thinking');
   activeRunFrames('streaming-answer');
+  for (const state of [
+    'tool-running',
+    'question-single',
+    'question-multi',
+    'question-nda',
+    'approval-pending',
+  ])
+    f5RunFrames(state);
 }
 
 export async function installChatFixtures(
@@ -420,10 +935,15 @@ export async function installChatFixtures(
 }
 
 export async function installRunStreamFixture(page: Page) {
-  const frames = {
+  const frames: Record<string, unknown[]> = {
     thinking: activeRunFrames('thinking'),
-    streaming: activeRunFrames('streaming-answer'),
+    'streaming-answer': activeRunFrames('streaming-answer'),
     reconnecting: activeRunFrames('reconnecting'),
+    'tool-running': f5RunFrames('tool-running'),
+    'question-single': f5RunFrames('question-single'),
+    'question-multi': f5RunFrames('question-multi'),
+    'question-nda': f5RunFrames('question-nda'),
+    'approval-pending': f5RunFrames('approval-pending'),
   };
   await page.addInitScript(
     ({
@@ -431,11 +951,7 @@ export async function installRunStreamFixture(page: Page) {
       frames,
     }: {
       fixtureRunId: string;
-      frames: {
-        thinking: unknown[];
-        streaming: unknown[];
-        reconnecting: unknown[];
-      };
+      frames: Record<string, unknown[]>;
     }) => {
       const nativeFetch = window.fetch.bind(window);
       let reconnectAttempts = 0;
@@ -475,11 +991,10 @@ export async function installRunStreamFixture(page: Page) {
 
         const disconnectAfterPartialAnswer = state === 'reconnecting';
         if (disconnectAfterPartialAnswer) reconnectAttempts += 1;
-        const streamFrames = disconnectAfterPartialAnswer
-          ? frames.reconnecting
-          : state === 'streaming-answer'
-            ? frames.streaming
-            : frames.thinking;
+        const streamFrames =
+          (disconnectAfterPartialAnswer
+            ? frames.reconnecting
+            : (state !== null && frames[state]) || frames.thinking) ?? [];
         const encoder = new TextEncoder();
         const frameSeparator = '\n\n';
         const body = new ReadableStream<Uint8Array>({

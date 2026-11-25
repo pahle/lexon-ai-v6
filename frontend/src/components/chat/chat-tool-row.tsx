@@ -1,10 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import {
   CalendarDaysIcon,
   ChevronDownIcon,
+  ChevronRightIcon,
   CircleAlertIcon,
+  CircleCheckIcon,
+  CircleXIcon,
   HourglassIcon,
   MessageCircleQuestionIcon,
   PencilLineIcon,
@@ -15,6 +18,12 @@ import {
   isDecidedOperationStatus,
   useChatAwaiting,
 } from '@/components/chat/chat-runtime';
+import {
+  deadlineDateLabel,
+  deadlineInputFields,
+  deadlineResultFields,
+  type DeadlineField,
+} from '@/components/chat/deadline-format';
 import { cn } from '@/lib/utils';
 
 /**
@@ -38,16 +47,24 @@ export interface ChatToolRowProps {
     | undefined;
 }
 
-/** §5.3 "Waiting for you" pill — tint chip with a red-text dot, polite. */
+/** §5.3 "Waiting for you" pill — tint chip with a haloed red-text dot. */
 export function ChatWaitingPill() {
   return (
     <span
       role="status"
-      className="inline-flex h-6 items-center gap-1.5 rounded-full bg-(--lexon-tint) px-3 text-[13px] font-medium text-(--lexon-red-text)"
+      // self-start: the pill is an inline pill, not a full-width band — the
+      // message column stretches its flex children, so it must opt out
+      // (prototype `.wait { align-self: flex-start }`). In the history row it
+      // is the tallest item, so the self-align is a no-op there.
+      className="inline-flex h-6 items-center gap-[7px] self-start rounded-full bg-(--lexon-tint) pr-2.5 pl-2 text-[13px] font-medium whitespace-nowrap text-(--lexon-red-text)"
     >
       <span
         aria-hidden="true"
         className="size-2 rounded-full bg-(--lexon-red-text)"
+        style={{
+          boxShadow:
+            '0 0 0 3px color-mix(in srgb, var(--lexon-red-text) 22%, transparent)',
+        }}
       />
       Waiting for you
     </span>
@@ -135,7 +152,7 @@ const TOOL_COPY: Record<
   deadline_calculator: {
     running: 'Calculating the deadline…',
     done: 'Calculated the deadline',
-    failed: "Couldn't calculate the deadline",
+    failed: 'Couldn’t calculate the deadline',
     rejected: 'You rejected the calculation',
     dismissed: 'You dismissed the calculation',
     expired: 'The calculation expired',
@@ -143,7 +160,7 @@ const TOOL_COPY: Record<
   rename_chat: {
     running: 'Renaming this chat…',
     done: 'Renamed this chat',
-    failed: "Couldn't rename this chat",
+    failed: 'Couldn’t rename this chat',
     rejected: 'You rejected the rename',
     dismissed: 'You dismissed the rename',
     expired: 'Rename expired after 24 hours',
@@ -151,7 +168,7 @@ const TOOL_COPY: Record<
   ask_user: {
     running: 'Asking you a question…',
     done: 'Asked you a question',
-    failed: "Couldn't ask the question",
+    failed: 'Couldn’t ask the question',
     rejected: 'You rejected the question',
     dismissed: 'Answered in chat',
     expired: 'The question expired unanswered',
@@ -171,9 +188,14 @@ function toolIcon(toolName: string) {
   }
 }
 
+// Field labels read sentence-case ("Current title"), never Title Case.
 const prettifyKey = (key: string) =>
   key
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(
+      /([a-z0-9])([A-Z])/g,
+      (_match, lower: string, upper: string) =>
+        `${lower} ${upper.toLowerCase()}`,
+    )
     .replace(/[_-]+/g, ' ')
     .replace(/^./, (char) => char.toUpperCase());
 
@@ -197,28 +219,43 @@ function fieldValue(value: unknown): string {
     .join(' · ');
 }
 
-function FieldList({
+function genericFields(
+  record: Record<string, unknown> | undefined,
+): DeadlineField[] {
+  if (!record) return [];
+  return Object.entries(record).map(([key, value]) => ({
+    label: prettifyKey(key),
+    value: fieldValue(value),
+  }));
+}
+
+/** One `.tsec` card of the expanded tool panel: title over a kv grid. */
+function ToolSection({
   title,
   fields,
 }: {
   readonly title: string;
-  readonly fields: Record<string, unknown>;
+  readonly fields: readonly DeadlineField[];
 }) {
-  const entries = Object.entries(fields);
-  if (entries.length === 0) return null;
+  if (fields.length === 0) return null;
   return (
-    <div>
-      <p className="text-muted-foreground mb-1.5 text-[13px] font-medium">
+    <div className="bg-muted flex flex-col rounded-xl px-3.5 pt-2.5 pb-3 text-sm leading-normal">
+      <p className="text-muted-foreground mb-1.5 text-[12.5px] font-medium">
         {title}
       </p>
-      <dl className="flex flex-col gap-1">
-        {entries.map(([key, value]) => (
-          <div key={key} className="flex items-baseline gap-3 text-[13px]">
-            <dt className="text-muted-foreground shrink-0">
-              {prettifyKey(key)}
-            </dt>
-            <dd className="text-foreground min-w-0">{fieldValue(value)}</dd>
-          </div>
+      <dl className="grid grid-cols-[230px_1fr] gap-x-4 gap-y-1 max-md:grid-cols-1 max-md:gap-0">
+        {fields.map((field) => (
+          <Fragment key={field.label}>
+            <dt className="text-muted-foreground">{field.label}</dt>
+            <dd
+              className={cn(
+                'min-w-0 max-md:mb-1.5',
+                field.strong && 'font-semibold',
+              )}
+            >
+              {field.value}
+            </dd>
+          </Fragment>
         ))}
       </dl>
     </div>
@@ -229,26 +266,31 @@ function answerChoiceLabel(
   question: DockQuestion | undefined,
   choice: Record<string, unknown> | undefined,
   status: OperationStatus | undefined,
-): string {
+): { readonly text: string; readonly muted: boolean } {
   if (!choice) {
-    if (status === 'expired') return 'Unanswered (expired)';
-    if (status === 'dismissed') return 'Answered in chat';
-    return 'Skipped';
+    if (status === 'expired')
+      return { text: 'Unanswered (expired)', muted: true };
+    if (status === 'dismissed')
+      return { text: 'Answered in chat', muted: true };
+    return { text: 'Skipped', muted: true };
   }
-  if (choice.kind === 'skipped') return 'Skipped';
+  if (choice.kind === 'skipped') return { text: 'Skipped', muted: true };
   if (choice.kind === 'text' && typeof choice.text === 'string')
-    return `“${choice.text}”`;
+    return { text: `“${choice.text}”`, muted: false };
   if (choice.kind === 'option' && typeof choice.index === 'number')
-    return (
-      question?.options?.[choice.index]?.label ?? `Option ${choice.index + 1}`
-    );
+    return {
+      text:
+        question?.options?.[choice.index]?.label ??
+        `Option ${choice.index + 1}`,
+      muted: false,
+    };
   if (choice.kind === 'options' && Array.isArray(choice.indexes)) {
     const labels = (choice.indexes as number[]).map(
       (index) => question?.options?.[index]?.label ?? `Option ${index + 1}`,
     );
-    return labels.join(', ');
+    return { text: labels.join(', '), muted: false };
   }
-  return 'Answered';
+  return { text: 'Answered', muted: false };
 }
 
 function QuestionDecisionRecord({
@@ -271,29 +313,40 @@ function QuestionDecisionRecord({
         choice?: Record<string, unknown>;
       }>)
     : undefined;
-  const single =
-    stored?.answered_in_chat === true
-      ? 'Answered in chat'
-      : status === 'expired'
-        ? 'The question expired unanswered'
-        : undefined;
+  // A dismissed question was answered in chat: every stored question gets the
+  // muted "Answered in chat" line (§6.4 item 5), not just the first.
+  const answeredInChat =
+    status === 'dismissed' || stored?.answered_in_chat === true;
+  const fallback = answeredInChat
+    ? 'Answered in chat'
+    : status === 'expired'
+      ? 'The question expired unanswered'
+      : 'Answered';
   return (
     <div
       data-slot="decision-record"
       role="status"
-      className="border-border my-1 flex max-w-[640px] flex-col gap-2.5 rounded-xl border p-3 text-sm"
+      className="border-border my-1 flex max-w-[640px] flex-col gap-2 rounded-xl border px-4 py-3 text-[15px] leading-[1.5]"
     >
-      {single !== undefined || questions.length === 0 ? (
-        <p className="text-muted-foreground">{single ?? 'Answered in chat'}</p>
+      {questions.length === 0 ? (
+        <p className="text-muted-foreground">{fallback}</p>
       ) : (
         questions.map((question) => {
-          const answer = answers?.find(
-            (entry) => entry.questionId === question.questionId,
-          );
+          const answer = answeredInChat
+            ? ({ text: 'Answered in chat', muted: true } as const)
+            : answerChoiceLabel(
+                question,
+                answers?.find(
+                  (entry) => entry.questionId === question.questionId,
+                )?.choice,
+                status,
+              );
           return (
             <div key={question.questionId} className="flex flex-col gap-0.5">
-              <p className="text-muted-foreground">{question.text}</p>
-              <p>{answerChoiceLabel(question, answer?.choice, status)}</p>
+              <p className="text-muted-foreground text-sm">{question.text}</p>
+              <p className={answer.muted ? 'text-muted-foreground' : undefined}>
+                {answer.text}
+              </p>
             </div>
           );
         })
@@ -345,55 +398,71 @@ export function ChatToolRow(props: ChatToolRowProps) {
     status === 'outcome_unknown' ||
     (props.isError === true && !DENIED.has(status as OperationStatus));
   const deniedStatus = status !== undefined && DENIED.has(status);
+  // A granted approval gets the neutral circle-check (the prototype's
+  // `checkc`); tool icons stay for everything else.
+  const approvedApproval =
+    props.approval?.approved === true ||
+    status === 'approved' ||
+    (operation?.approvalRequired === true && decided && !deniedStatus);
 
   let icon = toolIcon(props.toolName);
-  let label: string;
+  let label: ReactNode;
   let tone: 'default' | 'running' | 'bad' | 'muted' = 'default';
   if (notRun) {
     icon = HourglassIcon;
     label = 'Not run — the user replied in chat';
     tone = 'muted';
   } else if (deniedStatus) {
-    icon = HourglassIcon;
+    // All three denied outcomes are the red `bad` tone; expiry keeps the
+    // hourglass while rejection and dismissal get the circle-X (`xc`).
+    icon = status === 'expired' ? HourglassIcon : CircleXIcon;
     label =
       status === 'rejected'
         ? (copy?.rejected ?? `You rejected ${prettifyKey(props.toolName)}`)
         : status === 'dismissed'
           ? (copy?.dismissed ?? `You dismissed ${prettifyKey(props.toolName)}`)
           : (copy?.expired ?? `${prettifyKey(props.toolName)} expired`);
-    tone = 'muted';
+    tone = 'bad';
   } else if (failed) {
     icon = CircleAlertIcon;
-    label = copy?.failed ?? `Couldn't finish ${prettifyKey(props.toolName)}`;
+    label = copy?.failed ?? `Couldn’t finish ${prettifyKey(props.toolName)}`;
     tone = 'bad';
-  } else if (!decided && props.result === undefined) {
+  } else if (!decided && props.result === undefined && !approvedApproval) {
     label = copy?.running ?? `Running ${prettifyKey(props.toolName)}…`;
     tone = 'running';
   } else {
-    label = copy?.done ?? prettifyKey(props.toolName);
+    if (approvedApproval) icon = CircleCheckIcon;
+    const deadline = deadlineDateLabel(output);
+    label =
+      props.toolName === 'deadline_calculator' && deadline !== undefined ? (
+        <>
+          {copy?.done ?? 'Calculated the deadline'}:{' '}
+          <span className="text-foreground font-medium">{deadline}</span>
+        </>
+      ) : (
+        (copy?.done ?? prettifyKey(props.toolName))
+      );
   }
 
-  const keyResult =
-    props.toolName === 'deadline_calculator' &&
-    output &&
-    typeof output === 'object'
-      ? fieldValue(
-          (output as Record<string, unknown>).deadline ??
-            (output as Record<string, unknown>).weekday,
-        )
-      : undefined;
-  const hasDetails =
-    (input !== undefined && Object.keys(input).length > 0) ||
-    (output !== undefined &&
-      output !== null &&
-      typeof output === 'object' &&
-      Object.keys(output).length > 0);
+  const isDeadline = props.toolName === 'deadline_calculator';
+  const inputFields = isDeadline
+    ? deadlineInputFields(input)
+    : genericFields(input);
+  const resultFields = isDeadline
+    ? deadlineResultFields(output)
+    : genericFields(
+        output !== null && typeof output === 'object' && !Array.isArray(output)
+          ? (output as Record<string, unknown>)
+          : undefined,
+      );
+  const hasDetails = inputFields.length > 0 || resultFields.length > 0;
   const Icon = icon;
+  const Chevron = expanded ? ChevronDownIcon : ChevronRightIcon;
 
   return (
     <div
       data-slot={decided || deniedStatus ? 'decision-record' : 'tool-row'}
-      className="my-1 flex max-w-[640px] flex-col gap-1"
+      className="my-1 flex max-w-[640px] flex-col gap-2.5"
       {...(decided || deniedStatus ? { role: 'status' } : {})}
     >
       <button
@@ -401,7 +470,7 @@ export function ChatToolRow(props: ChatToolRowProps) {
         aria-expanded={expanded}
         onClick={() => hasDetails && setExpanded((open) => !open)}
         className={cn(
-          'text-muted-foreground flex w-full items-center gap-2 text-left text-[15px] leading-[normal]',
+          'text-muted-foreground inline-flex max-w-full items-center gap-[7px] self-start text-left text-[15px] leading-[1.5]',
           tone === 'bad' && 'text-(--lexon-red-text)',
           tone === 'running' && 'animate-pulse',
         )}
@@ -413,36 +482,15 @@ export function ChatToolRow(props: ChatToolRowProps) {
             tone === 'bad' && 'text-(--lexon-red-text)',
           )}
         />
-        <span className="min-w-0 flex-1 truncate">{label}</span>
-        {keyResult !== undefined && keyResult !== '—' ? (
-          <span className="text-foreground shrink-0 font-medium">
-            {keyResult}
-          </span>
-        ) : null}
+        <span className="min-w-0 truncate">{label}</span>
         {hasDetails ? (
-          <ChevronDownIcon
-            aria-hidden="true"
-            className={cn(
-              'size-3.5 shrink-0 transition-transform',
-              expanded && 'rotate-180',
-            )}
-          />
+          <Chevron aria-hidden="true" className="size-3.5 shrink-0" />
         ) : null}
       </button>
       {expanded && hasDetails ? (
-        <div className="bg-muted flex flex-col gap-3 rounded-xl p-3">
-          {input !== undefined && Object.keys(input).length > 0 ? (
-            <FieldList title="Input" fields={input} />
-          ) : null}
-          {output !== undefined &&
-          output !== null &&
-          typeof output === 'object' &&
-          Object.keys(output as Record<string, unknown>).length > 0 ? (
-            <FieldList
-              title="Result"
-              fields={output as Record<string, unknown>}
-            />
-          ) : null}
+        <div className="flex flex-col gap-2">
+          <ToolSection title="Input" fields={inputFields} />
+          <ToolSection title="Result" fields={resultFields} />
         </div>
       ) : null}
     </div>

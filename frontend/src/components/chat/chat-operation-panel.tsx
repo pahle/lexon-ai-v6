@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -10,8 +11,10 @@ import {
 import { useAuiState } from '@assistant-ui/react';
 import {
   CheckIcon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  PencilLineIcon,
   XIcon,
 } from 'lucide-react';
 import type {
@@ -25,13 +28,18 @@ import {
   type ChatOperationRecord,
 } from '@/components/chat/chat-runtime';
 import { readDockQuestions } from '@/components/chat/chat-tool-row';
-import { composerClasses } from '@/components/chat/composer-styles';
+import { formatPlatformDateTime } from '@/components/platform/platform-format';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
+// Descriptor labels read sentence-case ("Current title"), never Title Case.
 const prettifyKey = (key: string) =>
   key
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(
+      /([a-z0-9])([A-Z])/g,
+      (_match, lower: string, upper: string) =>
+        `${lower} ${upper.toLowerCase()}`,
+    )
     .replace(/[_-]+/g, ' ')
     .replace(/^./, (char) => char.toUpperCase());
 
@@ -46,16 +54,12 @@ const fieldValue = (value: unknown): string => {
     .join(' · ');
 };
 
+// "Expires 24 Nov 2026, 10:42" — the platform date-time, viewer-local.
 const formatExpiry = (expiresAt: string | null | undefined) => {
   if (!expiresAt) return 'No expiry';
   const date = new Date(expiresAt);
   if (Number.isNaN(date.getTime())) return 'No expiry';
-  return `Expires ${new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(date)}`;
+  return `Expires ${formatPlatformDateTime(date)}`;
 };
 
 function DescriptorFields({
@@ -68,27 +72,51 @@ function DescriptorFields({
   const fields = { ...(display ?? {}), ...(input ?? {}) };
   const entries = Object.entries(fields);
   if (entries.length === 0) return null;
+  // `.dbox` sits 12px from the dock sides with 4px above it; `.dbox .kv` is a
+  // 110px label column with 16px column gap; on mobile the grid collapses to
+  // stacked label/value rows with 6px under each value (prototype
+  // `.app.mobile .kv { grid-template-columns: 1fr; gap: 0 }`,
+  // `.kv dd { margin-bottom: 6px }`).
   return (
-    <dl className="bg-muted flex flex-col gap-1 rounded-xl p-3">
+    <dl className="bg-muted mx-3 mt-1 flex flex-col gap-1 rounded-[10px] px-3 py-2.5 max-md:gap-0">
       {entries.map(([key, value]) => (
-        <div key={key} className="flex items-baseline gap-3 text-[13px]">
-          <dt className="text-muted-foreground w-28 shrink-0">
+        <div
+          key={key}
+          className="flex items-baseline gap-4 text-sm max-md:flex-col max-md:gap-0"
+        >
+          <dt className="text-muted-foreground w-[110px] shrink-0 max-md:w-auto">
             {prettifyKey(key)}
           </dt>
-          <dd className="text-foreground min-w-0">{fieldValue(value)}</dd>
+          <dd
+            className={cn(
+              'text-foreground min-w-0 max-md:mb-1.5',
+              // The proposed title is the headline value of a rename dock.
+              key === 'newTitle' && 'font-semibold',
+            )}
+          >
+            {fieldValue(value)}
+          </dd>
         </div>
       ))}
     </dl>
   );
 }
 
+// The prototype's `.btn.sm`: 30px high, 10px side padding, 13px/500 text and
+// the base `.btn` 8px radius — compact and rectangular, never pill-shaped.
 const buttonClasses = {
-  ghost: 'text-muted-foreground hover:text-foreground text-[13px] font-medium',
+  ghost:
+    'text-muted-foreground hover:text-foreground inline-flex h-[30px] items-center justify-center gap-1 rounded-lg px-2.5 text-[13px] font-medium',
   outline:
-    'border-border hover:bg-muted h-9 rounded-full border px-4 text-[13px] font-medium',
+    'border-border hover:bg-muted inline-flex h-[30px] items-center justify-center gap-1 rounded-lg border px-2.5 text-[13px] font-medium',
   primary:
-    'bg-primary text-primary-foreground hover:bg-primary/90 h-9 rounded-full px-4 text-[13px] font-medium disabled:opacity-40',
+    'bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-[30px] items-center justify-center gap-1 rounded-lg px-2.5 text-[13px] font-medium disabled:opacity-40',
 } as const;
+
+// The dock's `.dtext .inp`: a 40px field, 8px radius, `--input` border, and
+// the prototype's focus ring — `--ring` border plus a 3px ring at 22%.
+const dockInputClasses =
+  'border-input bg-background focus:border-ring focus:ring-3 focus:ring-ring/22 h-10 w-full rounded-lg border px-3 text-[14.5px] outline-none';
 
 /**
  * The docked decision panel: approvals and questions park above the composer
@@ -188,6 +216,10 @@ const approvalSummaryText = (toolName: string | undefined) =>
     ? 'Lexon wants to rename this chat'
     : `Lexon wants to run ${prettifyKey(toolName ?? 'this operation')}`;
 
+// The `.kbd2` hint chip: a subtle currentColor wash inside the button.
+const kbdClasses =
+  'ml-1.5 inline-flex h-[18px] items-center rounded px-[5px] bg-[color-mix(in_srgb,currentColor_14%,transparent)] text-[11px] font-medium max-md:hidden';
+
 function ApprovalDock({
   operationId,
   summary,
@@ -200,6 +232,12 @@ function ApprovalDock({
   readonly missingDetail: boolean;
 }) {
   const [send, error, sending] = useDecisionSender(awaiting, operationId);
+  // "Ctrl ↵" on Windows/Linux, "⌃↵" on Apple platforms — same convention as
+  // the sidebar shortcut hints.
+  const [isApple, setIsApple] = useState(false);
+  useEffect(() => {
+    setIsApple(/^(Mac|iPhone|iPad|iPod)/.test(window.navigator.platform));
+  }, []);
   const snapshotHash = summary.snapshotHash;
   const reject = () => {
     if (snapshotHash) send({ snapshotHash, action: 'reject' });
@@ -225,12 +263,20 @@ function ApprovalDock({
       role="status"
       aria-label="Approval needed"
       onKeyDown={onKeyDown}
-      className={cn(composerClasses.wrapper, 'mb-2 pb-0! max-md:pb-0!')}
+      // The dock parks inside the same padded column as the composer, so it
+      // spans exactly the composer shell's width (prototype `.dock` inside
+      // `.cw`); the composer wrapper's own padding must not be repeated here.
+      className="mb-2 w-full"
     >
-      <div className="border-border bg-background flex flex-col gap-3 rounded-2xl border p-4 shadow-[0_10px_30px_-14px_rgba(8,6,6,.22),0_2px_6px_-2px_rgba(8,6,6,.06)]">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-[15px] font-medium">
+      <div className="border-border bg-background flex flex-col overflow-hidden rounded-2xl border shadow-[0_10px_30px_-14px_rgba(8,6,6,.22),0_2px_6px_-2px_rgba(8,6,6,.06)]">
+        {/* `.dh` — header row, padded 12px/10px/6px/16px. */}
+        <div className="flex items-center justify-between gap-3 pt-3 pr-2.5 pb-1.5 pl-4">
+          <h2 className="flex items-center gap-1.5 text-[15px] font-medium">
             {approvalSummaryText(summary.toolName)}
+            <ChevronDownIcon
+              aria-hidden="true"
+              className="text-muted-foreground size-3.5"
+            />
           </h2>
         </div>
         {missingDetail ? (
@@ -238,7 +284,7 @@ function ApprovalDock({
           // slots until the tree refetch lands (LEX-DS-001 §5.1).
           <div
             aria-hidden="true"
-            className="bg-muted flex flex-col gap-2 rounded-xl p-3"
+            className="bg-muted mx-3 mt-1 flex flex-col gap-2 rounded-[10px] px-3 py-2.5"
           >
             <Skeleton className="w-24" />
             <Skeleton className="h-5 w-full" />
@@ -248,15 +294,17 @@ function ApprovalDock({
           <DescriptorFields input={summary.input} display={summary.display} />
         )}
         {error ? (
-          <p role="alert" className="text-destructive text-sm">
+          <p role="alert" className="text-destructive px-4 text-sm">
             {error}
           </p>
         ) : null}
-        <div className="flex items-center justify-between gap-3">
+        {/* `.df` — footer, padded 6px/12px/12px/16px with the approval
+            variant's 10px top padding. */}
+        <div className="flex items-center justify-between gap-3 pt-2.5 pr-3 pb-3 pl-4">
           <span className="text-muted-foreground max-md:hidden text-[13px]">
             {formatExpiry(summary.expiresAt)}
           </span>
-          <span className="flex items-center gap-2">
+          <span className="ms-auto flex items-center gap-2">
             <button
               type="button"
               className={buttonClasses.outline}
@@ -265,9 +313,7 @@ function ApprovalDock({
               aria-keyshortcuts="Escape"
             >
               Reject
-              <kbd className="text-muted-foreground ml-1.5 max-md:hidden">
-                Esc
-              </kbd>
+              <kbd className={cn(kbdClasses, 'text-muted-foreground')}>Esc</kbd>
             </button>
             <button
               type="button"
@@ -277,7 +323,7 @@ function ApprovalDock({
               aria-keyshortcuts="Control+Enter"
             >
               Approve
-              <kbd className="ml-1.5 opacity-70 max-md:hidden">⌃↵</kbd>
+              <kbd className={kbdClasses}>{isApple ? '⌃↵' : 'Ctrl ↵'}</kbd>
             </button>
           </span>
         </div>
@@ -429,6 +475,51 @@ function QuestionDock({
     current.kind !== 'text' &&
     current.allowFreeText !== false;
   const isReady = !missingDetail && current !== undefined;
+  // The question text in the header labels the option group, like the
+  // prototype's `aria-labelledby="aq"`.
+  const questionTextId = useId();
+
+  // The free-text row lives inside `.ol` after the option rows; like any
+  // `.orow` it draws the top rule only when a row precedes it.
+  const freeTextSeparator = (current?.options?.length ?? 0) > 0;
+  const freeTextRow = !showFreeText ? null : freeTextOpen ? (
+    <div
+      className={cn(
+        'border-border px-2 py-[9px]',
+        freeTextSeparator && 'border-t',
+      )}
+    >
+      <input
+        ref={freeTextInputRef}
+        aria-label="Write another answer"
+        value={freeText}
+        onChange={(event) => setFreeText(event.target.value)}
+        className={dockInputClasses}
+        placeholder="Write another answer"
+        autoFocus
+      />
+    </div>
+  ) : (
+    // `.orow`-shaped free-text row: a pen tile then the muted prompt.
+    <button
+      type="button"
+      className={cn(
+        'border-border flex items-start gap-3 rounded-[10px] px-2 py-[9px] text-left',
+        freeTextSeparator && 'rounded-t-none border-t',
+      )}
+      onClick={() => setFreeTextOpen(true)}
+    >
+      <span
+        className="bg-muted text-muted-foreground mt-px flex size-6 shrink-0 items-center justify-center rounded-[7px]"
+        aria-hidden="true"
+      >
+        <PencilLineIcon className="size-[13px]" />
+      </span>
+      <span className="text-muted-foreground text-[14.5px] leading-[26px]">
+        Write another answer
+      </span>
+    </button>
+  );
 
   return (
     <section
@@ -437,39 +528,54 @@ function QuestionDock({
       aria-label={
         total > 1
           ? `Question ${page + 1} of ${total} from Lexon`
-          : 'A question from Lexon'
+          : 'Question from Lexon'
       }
       onKeyDown={onKeyDown}
-      className={cn(composerClasses.wrapper, 'mb-2 pb-0! max-md:pb-0!')}
+      // Same width contract as the approval dock: the composer column already
+      // carries the side padding, so the dock is simply full width.
+      className="mb-2 w-full"
     >
-      <div className="border-border bg-background flex flex-col gap-3 rounded-2xl border p-4 shadow-[0_10px_30px_-14px_rgba(8,6,6,.22),0_2px_6px_-2px_rgba(8,6,6,.06)]">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-[15px] font-medium">
+      <div className="border-border bg-background flex flex-col overflow-hidden rounded-2xl border shadow-[0_10px_30px_-14px_rgba(8,6,6,.22),0_2px_6px_-2px_rgba(8,6,6,.06)]">
+        {/* `.dh` — header row, padded 12px/10px/6px/16px. */}
+        <div className="flex items-center justify-between gap-3 pt-3 pr-2.5 pb-1.5 pl-4">
+          {/* The question text itself heads the dock; the "Question N of M"
+              label stays in the DOM for assistive tech only. */}
+          <h2 className="sr-only">
             {total > 1
               ? `Question ${page + 1} of ${total} from Lexon`
-              : 'A question from Lexon'}
+              : 'Question from Lexon'}
           </h2>
-          <span className="flex items-center gap-1">
+          {current !== undefined ? (
+            <p
+              id={questionTextId}
+              className="min-w-0 text-[15px] leading-[1.45] font-medium"
+            >
+              {current.text}
+            </p>
+          ) : (
+            <Skeleton aria-hidden="true" className="h-5 w-2/5" />
+          )}
+          <span className="text-muted-foreground inline-flex shrink-0 items-center gap-0.5 text-[13px] font-normal">
             {total > 1 ? (
               <>
                 <button
                   type="button"
                   aria-label="Previous question"
                   aria-keyshortcuts="ArrowLeft"
-                  className="text-muted-foreground hover:text-foreground p-1"
+                  className="hover:text-foreground flex size-7 items-center justify-center disabled:opacity-40"
                   onClick={() => setPage((page) => Math.max(0, page - 1))}
                   disabled={page === 0}
                 >
                   <ChevronLeftIcon aria-hidden="true" className="size-4" />
                 </button>
-                <span className="text-muted-foreground text-[13px]">
+                <span className="min-w-11 text-center">
                   {page + 1} of {total}
                 </span>
                 <button
                   type="button"
                   aria-label="Next question"
                   aria-keyshortcuts="ArrowRight"
-                  className="text-muted-foreground hover:text-foreground p-1"
+                  className="hover:text-foreground flex size-7 items-center justify-center disabled:opacity-40"
                   onClick={() =>
                     setPage((page) => Math.min(total - 1, page + 1))
                   }
@@ -477,12 +583,16 @@ function QuestionDock({
                 >
                   <ChevronRightIcon aria-hidden="true" className="size-4" />
                 </button>
+                <span
+                  aria-hidden="true"
+                  className="bg-border mx-1 h-[18px] w-px"
+                />
               </>
             ) : null}
             <button
               type="button"
               aria-label="Answer in chat instead"
-              className="text-muted-foreground hover:text-foreground p-1"
+              className="hover:text-foreground flex size-7 items-center justify-center"
               onClick={dismiss}
             >
               <XIcon aria-hidden="true" className="size-4" />
@@ -491,20 +601,23 @@ function QuestionDock({
         </div>
         {!isReady ? (
           // Same §9-cap fallback as the approval dock: skeleton rows shaped
-          // like a question and its option rows (LEX-DS-001 §5.1).
-          <div aria-hidden="true" className="flex flex-col gap-3">
-            <Skeleton className="h-5 w-3/4" />
+          // like a question and its option rows (LEX-DS-001 §5.1), inset
+          // like the `.ol` they stand in for.
+          <div
+            aria-hidden="true"
+            className="flex flex-col gap-3 px-2 pt-0.5 pb-1"
+          >
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
           </div>
         ) : (
           <>
-            <p className="text-[15px] font-medium">{current.text}</p>
             {current.kind === 'single' ? (
+              // `.ol` — the 8px side padding insets every row separator.
               <div
                 role="radiogroup"
-                aria-label={current.text}
-                className="flex flex-col"
+                aria-labelledby={questionTextId}
+                className="flex flex-col px-2 pt-0.5 pb-1"
               >
                 {current.options?.map((option, index) => {
                   const chosen =
@@ -518,118 +631,142 @@ function QuestionDock({
                       role="radio"
                       aria-checked={chosen}
                       onClick={() => selectSingle(index)}
-                      className="border-border flex items-center gap-3 border-t px-1 py-2.5 text-left first:border-t-0"
+                      // `.orow` 9px/8px padding; `.orow+.orow` draws the
+                      // top rule and squares the row's top corners.
+                      className={cn(
+                        'border-border flex items-start gap-3 rounded-[10px] px-2 py-[9px] text-left',
+                        index > 0 && 'rounded-t-none border-t',
+                      )}
                     >
                       <span
                         className={cn(
-                          'flex size-6 shrink-0 items-center justify-center rounded-lg text-[13px]',
+                          'mt-px flex size-6 shrink-0 items-center justify-center rounded-[7px] text-[12.5px]',
                           chosen
                             ? 'bg-(--lexon-tint) text-(--lexon-red-text)'
                             : 'bg-muted text-muted-foreground',
                         )}
                         aria-hidden="true"
                       >
-                        {chosen ? (
-                          <CheckIcon className="size-3.5" />
-                        ) : (
-                          index + 1
-                        )}
+                        {index + 1}
                       </span>
-                      <span className="flex min-w-0 flex-col">
-                        <span className="text-[14.5px]">{option.label}</span>
+                      <span className="flex min-w-0 flex-col gap-px leading-[1.45]">
+                        <span
+                          className={cn(
+                            'text-[14.5px]',
+                            chosen && 'font-medium',
+                          )}
+                        >
+                          {option.label}
+                        </span>
                         {option.description ? (
                           <span className="text-muted-foreground text-[13px]">
                             {option.description}
                           </span>
                         ) : null}
                       </span>
+                      {chosen ? (
+                        <CheckIcon
+                          aria-hidden="true"
+                          className="ml-auto size-4 shrink-0 self-center text-(--lexon-red-text)"
+                        />
+                      ) : null}
                     </button>
                   );
                 })}
+                {freeTextRow}
               </div>
             ) : null}
             {current.kind === 'multiple' ? (
-              <div role="group" aria-label={current.text}>
-                <p className="text-muted-foreground mb-1 text-[13px]">
+              <>
+                {/* `.dhint` — padded like the header's 16px column. */}
+                <p className="text-muted-foreground px-4 pb-1 text-[13px]">
                   Select all that apply
                 </p>
-                {current.options?.map((option, index) => {
-                  const on = checked.has(index);
-                  return (
-                    <button
-                      key={option.label}
-                      type="button"
-                      role="checkbox"
-                      aria-checked={on}
-                      onClick={() => toggleChecked(index)}
-                      className="border-border flex items-center gap-3 border-t px-1 py-2.5 text-left first:border-t-0"
-                    >
-                      <span
-                        className={cn(
-                          'flex size-[18px] shrink-0 items-center justify-center rounded-[5px] border',
-                          on
-                            ? 'border-(--lexon-red-text) bg-(--lexon-red-text) text-background'
-                            : 'border-border bg-background',
-                        )}
-                        aria-hidden="true"
+                {/* `.ol` — every row carries the top rule; the first one is
+                    the separator under the hint. */}
+                <div
+                  role="group"
+                  aria-labelledby={questionTextId}
+                  className="flex flex-col px-2 pt-0.5 pb-1"
+                >
+                  {current.options?.map((option, index) => {
+                    const on = checked.has(index);
+                    return (
+                      <button
+                        key={option.label}
+                        type="button"
+                        role="checkbox"
+                        aria-checked={on}
+                        onClick={() => toggleChecked(index)}
+                        className="border-border flex items-start gap-3 rounded-[10px] rounded-t-none border-t px-2 py-[9px] text-left"
                       >
-                        {on ? <CheckIcon className="size-3" /> : null}
-                      </span>
-                      <span className="flex min-w-0 flex-col">
-                        <span className="text-[14.5px]">{option.label}</span>
-                        {option.description ? (
-                          <span className="text-muted-foreground text-[13px]">
-                            {option.description}
+                        <span
+                          className={cn(
+                            'mx-[3px] mt-1 flex size-[18px] shrink-0 items-center justify-center rounded-[5px] border-[1.5px]',
+                            on
+                              ? 'border-(--lexon-red-text) bg-(--lexon-red-text) text-background'
+                              : 'border-input bg-background',
+                          )}
+                          aria-hidden="true"
+                        >
+                          {on ? <CheckIcon className="size-3" /> : null}
+                        </span>
+                        <span className="flex min-w-0 flex-col gap-px leading-[1.45]">
+                          <span
+                            className={cn('text-[14.5px]', on && 'font-medium')}
+                          >
+                            {option.label}
                           </span>
-                        ) : null}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+                          {option.description ? (
+                            <span className="text-muted-foreground text-[13px]">
+                              {option.description}
+                            </span>
+                          ) : null}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {freeTextRow}
+                </div>
+              </>
             ) : null}
             {current.kind === 'text' ? (
-              <input
-                aria-label={current.text}
-                value={textValue}
-                onChange={(event) => setTextValue(event.target.value)}
-                className="border-border focus:border-input bg-background h-10 w-full rounded-xl border px-3 text-[14.5px] outline-none"
-                placeholder="Type your answer"
-              />
-            ) : null}
-            {showFreeText ? (
-              freeTextOpen ? (
+              // `.dtext` — the single answer field, padded 4px/16px/6px.
+              <div className="px-4 pt-1 pb-1.5">
                 <input
-                  ref={freeTextInputRef}
-                  aria-label="Write another answer"
-                  value={freeText}
-                  onChange={(event) => setFreeText(event.target.value)}
-                  className="border-border focus:border-input bg-background h-10 w-full rounded-xl border px-3 text-[14.5px] outline-none"
-                  placeholder="Write another answer"
+                  aria-label={current.text}
+                  value={textValue}
+                  onChange={(event) => setTextValue(event.target.value)}
+                  className={dockInputClasses}
+                  placeholder="Type your answer"
                   autoFocus
                 />
-              ) : (
-                <button
-                  type="button"
-                  className="text-muted-foreground hover:text-foreground border-border flex items-center gap-3 border-t px-1 py-2.5 text-left text-[14.5px]"
-                  onClick={() => setFreeTextOpen(true)}
-                >
-                  Write another answer
-                </button>
-              )
+              </div>
             ) : null}
           </>
         )}
         {error ? (
-          <p role="alert" className="text-destructive text-sm">
+          <p role="alert" className="text-destructive px-4 text-sm">
             {error}
           </p>
         ) : null}
-        <div className="flex items-center justify-between gap-3">
+        {/* `.df` — footer, padded 6px/12px/12px/16px. */}
+        <div className="flex items-center justify-between gap-3 pt-1.5 pr-3 pb-3 pl-4">
           <span className="text-muted-foreground max-md:hidden text-[13px]">
             {formatExpiry(summary.expiresAt)}
           </span>
-          <span className="flex items-center gap-3">
+          {/* `.df` keeps 4px between ghost buttons; once the expiry hides on
+              mobile, footers shaped like the paged/text variants pin right
+              (`margin-left:auto`), the single-question footer stays left. */}
+          <span
+            className={cn(
+              'flex items-center gap-1',
+              (total > 1 ||
+                (isReady &&
+                  (current.kind === 'multiple' || current.kind === 'text'))) &&
+                'ms-auto',
+            )}
+          >
             {total > 1 ? (
               <button
                 type="button"

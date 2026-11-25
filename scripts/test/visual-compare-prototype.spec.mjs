@@ -246,6 +246,6 @@ test('the comparison names the prototype revision the README calls current', () 
   const revisions = [...lead.matchAll(/revision (\d+)(?:\.\d+)?/g)].map(
     (match) => Number(match[1]),
   );
-  assert.equal(PROTOTYPE_REVISION, 16);
+  assert.equal(PROTOTYPE_REVISION, 17);
   assert.equal(PROTOTYPE_REVISION, Math.max(...revisions));
 });

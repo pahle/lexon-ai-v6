@@ -941,7 +941,14 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
   onEffortChange,
 }) => {
   const serverActive = useChatActiveRun();
-  const paused = useChatAwaiting()?.paused ?? false;
+  const awaiting = useChatAwaiting();
+  const paused = awaiting?.paused ?? false;
+  // "Or reply in your own words…" is the question dock's hint only — an
+  // approval dock keeps the default placeholder (prototype `docked(adock())`
+  // passes none; only the question variants pass the own-words hint).
+  const ownWordsHint =
+    paused &&
+    awaiting?.getOperation(awaiting.pendingOperationId)?.kind === 'question';
   const running =
     (useAuiState((state) => state.thread.isRunning) || serverActive) && !paused;
   const loading = useAuiState((state) => state.thread.isLoading);
@@ -996,7 +1003,7 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
       <div data-slot="aui_composer-shell" className={composerClasses.shell}>
         <ComposerPrimitive.Input
           placeholder={
-            paused
+            ownWordsHint
               ? 'Or reply in your own words…'
               : running
                 ? 'Lexon is answering…'
