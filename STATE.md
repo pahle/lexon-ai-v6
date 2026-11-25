@@ -1,8 +1,10 @@
 # Project state
 
-Last updated: 2026-11-23 by the brief generator.
+Last updated: 2026-11-25 by the brief generator.
 
 ## Next action
+
+**2026-11-25: F5 COMPLETE. PR #76 squash-merged by me on owner instruction (b333477f) after gh pr checks 76 exit 0 on bd9e13fd. Review: reviews/F5-review.md (4 deferred minors). Remote branches deleted on owner instruction: all f5-* (incl. f5-tools-approvals) and review/f5-visual-r3; remote = main + brief-generator. Local implementer worktrees (../lexon-f5-*) still exist; implementer removes them at the start of the next slice. Next: owner picks the next slice (F6 per roadmap); I ask scope questions and write the brief.**
 
 **2026-11-24 (F5 decision 8, during execution): owner asked where Mike's clarifying questions come from (answer: model's general knowledge + a generic system-prompt rule; domain checklists only via workflows/templates -> Lexon F10). Owner approved three question kinds (single, multiple = select all that apply, text only) and 1-5 questions per call; document questions -> F7. PR #77 (docs): brief decision 8, LEX-DS-001 v3.5, prototype r17 + chat-question-text / chat-question-select (8 PNGs, 60 planned views), spec deviation 2, plan counts. Implementer must hold before task 2 until #77 merges, then merge main into f5-tools-approvals.**
 
