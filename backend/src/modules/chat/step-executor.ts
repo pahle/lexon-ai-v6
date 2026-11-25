@@ -1,10 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { RunErrorCodeSchema, type RunStreamEvent } from '@lexon/contracts';
+import {
+  RunErrorCodeSchema,
+  type OperationStatus,
+  type RunStreamEvent,
+} from '@lexon/contracts';
 import type {
   AiOperationRepository,
   AiRunRepository,
   AiStepRepository,
+  OperationRecord,
   RunActorFactsRepository,
   RunRecord,
   StepClaim,
@@ -15,9 +20,13 @@ import {
   hashOperationArgs,
   isRunStepJob,
   jsonbTextBytes,
+  requireSession,
   TenantTransactionTimeoutError,
 } from '../../infrastructure/db/index.js';
+import { capRequiredEvent } from '../../infrastructure/queue/run-stream-parts.js';
+import { MAX_COMMITTED_EVENTS_PER_PUBLICATION } from '../../infrastructure/queue/index.js';
 import type {
+  JsonValue,
   ModelEvent,
   ModelGateway,
   ModelInput,
@@ -54,6 +63,7 @@ import {
   ToolPolicyOutcome,
   toolResultsAsMessages,
 } from './tool-executor.js';
+import { DeadlineCalculatorRefusalError } from './deadline-calculator.js';
 
 const CHECKPOINT_INTERVAL_MS = 1000;
 const CHECKPOINT_BYTES = 8192;
@@ -74,6 +84,19 @@ export interface StepExecutorOptions {
   readonly cancelSignals?: CancelSignals;
   readonly modelCallTimeoutMs?: number;
   readonly chatTitles?: ChatTitleService;
+}
+
+/**
+ * The chat that started the run rides `resolvedConfig.resourceIds[0]` — the
+ * same extraction chat-tools.ts applies for rename_chat.
+ */
+function pausedRunChatId(resolvedConfig: unknown): string | null {
+  if (resolvedConfig === null || typeof resolvedConfig !== 'object')
+    return null;
+  const resources = (resolvedConfig as Record<string, unknown>).resourceIds;
+  if (!Array.isArray(resources)) return null;
+  const chatId = resources[0];
+  return typeof chatId === 'string' ? chatId : null;
 }
 
 export class StepExecutor {
@@ -646,6 +669,53 @@ export class StepExecutor {
                       ))
                     )
                       throw new Error('AI operation timeout receipt failed');
+                    await this.#appendToolAudit(
+                      tx,
+                      claim,
+                      operation.id,
+                      'failed',
+                    );
+                  },
+                },
+              );
+              if (recorded === 'committed') {
+                await heartbeat.stop();
+                const recordedRun = await this.options.database.withTenant(
+                  { orgId: claim.orgId, userId: claim.userId },
+                  (tx) => this.options.runs.find(tx, claim.runId),
+                );
+                if (recordedRun)
+                  await this.#publishCommittedLifecycle(claim, recordedRun, [
+                    operation.id,
+                  ]);
+              }
+              setRunSpanStatus('continued');
+              setStepSpanStatus('failed');
+              return { kind: 'done' };
+            }
+            if (error instanceof DeadlineCalculatorRefusalError) {
+              // The deadline tool's typed refusal lands as the `failed` op
+              // result verbatim — the model reads it on the next generation.
+              const recorded = await this.options.coordinator.commit(
+                job,
+                claim,
+                {
+                  state: 'committed',
+                  text: '',
+                  data: { operationId: operation.id },
+                  advancement: 'continuation',
+                  terminal: false,
+                  outcome: 'succeeded',
+                  transactionTimeoutMs: 5_000,
+                  transactionWork: async (tx) => {
+                    if (
+                      !(await this.options.operations!.complete(
+                        tx,
+                        operation.id,
+                        { status: 'failed', result: error.refusal },
+                      ))
+                    )
+                      throw new Error('AI operation refusal receipt failed');
                     await this.#appendToolAudit(
                       tx,
                       claim,
@@ -1486,10 +1556,12 @@ export class StepExecutor {
                 proposals,
                 this.options.registry,
                 activeCapabilities,
+                operationHistory,
               )
-          : [];
+          : { operations: [], refusals: [] };
       const invalidProposals = prepared === null;
-      const operationProposals = prepared ?? [];
+      const operationProposals = prepared?.operations ?? [];
+      const refusedProposals = prepared?.refusals ?? [];
       const requiresApproval = operationProposals.some(
         (operation) => operation.approvalRequired,
       );
@@ -1530,9 +1602,13 @@ export class StepExecutor {
         budgetExceeded ||= settlement.budgetExceeded;
       }
       if (unknown) attemptReserved = false;
+      // A generation with only refused proposals is not terminal: the
+      // refusals are stored results the model reads on the next generation.
       const terminal =
         invalidProposals ||
-        (!continueLength && operationProposals.length === 0);
+        (!continueLength &&
+          operationProposals.length === 0 &&
+          refusedProposals.length === 0);
       const committed = await this.options.coordinator.commit(job, claim, {
         state: requiresApproval ? 'awaiting_approval' : 'committed',
         text,
@@ -1571,6 +1647,36 @@ export class StepExecutor {
                       }
                     : {}),
         ...(operationProposals.length ? { operationProposals } : {}),
+        ...(refusedProposals.length
+          ? {
+              transactionTimeoutMs: 5_000,
+              transactionWork: async (tx: TenantSession) => {
+                for (const refusal of refusedProposals) {
+                  // Every tool call keeps a stored result: a refused
+                  // proposal persists as a `failed` op in the same commit.
+                  const operation = await this.options.operations!.persist(
+                    tx,
+                    claim,
+                    refusal.operation,
+                  );
+                  if (
+                    !(await this.options.operations!.complete(
+                      tx,
+                      operation.id,
+                      { status: 'failed', result: refusal.result },
+                    ))
+                  )
+                    throw new Error('AI operation refusal receipt failed');
+                  await this.#appendToolAudit(
+                    tx,
+                    claim,
+                    operation.id,
+                    'failed',
+                  );
+                }
+              },
+            }
+          : {}),
         ...(!unknown
           ? {
               attemptSettlement: {
@@ -1935,16 +2041,44 @@ export class StepExecutor {
   ): Promise<void> {
     if (!this.options.streams) return;
     if (run.status === 'queued' || run.status === 'cancelling') return;
-    const operations = this.options.operations
+    const pausedChatId =
+      run.status === 'awaiting_approval'
+        ? pausedRunChatId(run.resolvedConfig)
+        : null;
+    const { operations, chatTitle } = this.options.operations
       ? await this.options.database.withTenant(
           { orgId: claim.orgId, userId: claim.userId },
-          (tx) =>
-            this.options.operations!.forRun(tx, {
+          async (tx) => {
+            const ops = await this.options.operations!.forRun(tx, {
               runId: claim.runId,
               throughSequence: claim.sequence + 1,
-            }),
+            });
+            let title: string | null = null;
+            if (pausedChatId) {
+              const { client } = requireSession(tx);
+              if (
+                ops.some((operation) => operation.toolName === 'rename_chat')
+              ) {
+                const row = await client.query<{ title: string }>(
+                  'SELECT title FROM app.chats WHERE id=$1',
+                  [pausedChatId],
+                );
+                title = row.rows[0]?.title ?? null;
+              }
+              // §6.5: a pause invalidates the chat view — the notify fires at
+              // this read transaction's commit, after the pause committed.
+              await client.query(`SELECT pg_notify('lexon_chat_title', $1)`, [
+                JSON.stringify({
+                  orgId: claim.orgId,
+                  userId: claim.userId,
+                  chatId: pausedChatId,
+                }),
+              ]);
+            }
+            return { operations: ops, chatTitle: title };
+          },
         )
-      : [];
+      : { operations: [], chatTitle: null };
     const reference = {
       runId: claim.runId,
       orgId: claim.orgId,
@@ -1957,7 +2091,13 @@ export class StepExecutor {
       committedStatus: run.status,
     };
     const terminal = ['completed', 'failed', 'cancelled'].includes(run.status);
-    const events: RunStreamEvent[] = terminal
+    // §9 + the F3/F4 32-event writer bound: the durable lifecycle spine (run
+    // status, every op status, pending decision panels) publishes ahead of
+    // the tool-* replay frames. With ~3 replay frames per op the batch outgrew
+    // the bound, so publication slices into ordered chunks — and a bounded
+    // partial write always lands the authoritative op states first, which is
+    // exactly the partial state consumers resync from.
+    const lifecycle: RunStreamEvent[] = terminal
       ? []
       : [
           {
@@ -1967,36 +2107,134 @@ export class StepExecutor {
             status: run.status,
           },
         ];
+    const replay: RunStreamEvent[] = [];
     for (const operation of operations.filter(
       (entry) =>
         entry.stepId === claim.stepId || operationIds.includes(entry.id),
     )) {
-      events.push({
+      const wireStatus: OperationStatus =
+        operation.status === 'succeeded' ? 'completed' : operation.status;
+      lifecycle.push({
         version: 1,
         runId: claim.runId,
         type: 'operation-status',
         operationId: operation.id,
-        status:
-          operation.status === 'succeeded' ? 'completed' : operation.status,
+        status: wireStatus,
       });
+      // §9: rows render from tool-* events bound to the operation; the stored
+      // decision is replayed identically for decided ops.
+      const args =
+        operation.args !== null &&
+        typeof operation.args === 'object' &&
+        !Array.isArray(operation.args)
+          ? (operation.args as Record<string, unknown>)
+          : {};
+      const summary = {
+        operationId: operation.id,
+        kind: operation.kind,
+        status: wireStatus,
+        approvalRequired: operation.approvalRequired,
+        snapshotHash: operation.snapshotHash,
+        expiresAt: operation.expiresAt
+          ? operation.expiresAt.toISOString()
+          : null,
+        decidedAt: operation.decidedAt
+          ? operation.decidedAt.toISOString()
+          : null,
+        toolName: operation.toolName,
+        input: args,
+        ...(operation.toolName === 'rename_chat' && chatTitle !== null
+          ? { display: { currentTitle: chatTitle } }
+          : {}),
+        ...(operation.result !== null && operation.result !== undefined
+          ? { output: operation.result }
+          : {}),
+      };
       if (operation.status === 'awaiting_approval')
-        events.push({
+        lifecycle.push(
+          ...capRequiredEvent(
+            operation.kind === 'question'
+              ? {
+                  version: 1,
+                  runId: claim.runId,
+                  type: 'question-required',
+                  operationId: operation.id,
+                  kind: 'question' as const,
+                  operation: {
+                    ...summary,
+                    kind: 'question' as const,
+                  },
+                }
+              : {
+                  version: 1,
+                  runId: claim.runId,
+                  type: 'approval-required',
+                  operationId: operation.id,
+                  kind: 'approval' as const,
+                  operation: {
+                    ...summary,
+                    kind: 'approval' as const,
+                  },
+                },
+          ),
+        );
+      replay.push({
+        version: 1,
+        runId: claim.runId,
+        type: 'tool-input-available',
+        toolCallId: operation.id,
+        toolName: operation.toolName,
+        operationId: operation.id,
+        input: args,
+      });
+      if (
+        operation.status === 'succeeded' ||
+        operation.status === 'failed' ||
+        operation.status === 'outcome_unknown' ||
+        operation.status === 'answered'
+      )
+        replay.push({
           version: 1,
           runId: claim.runId,
-          type: 'approval-required',
+          type: 'tool-output-available',
+          toolCallId: operation.id,
           operationId: operation.id,
+          output: operation.result ?? null,
+        });
+      if (
+        operation.status === 'rejected' ||
+        operation.status === 'dismissed' ||
+        operation.status === 'expired'
+      )
+        replay.push({
+          version: 1,
+          runId: claim.runId,
+          type: 'tool-output-denied',
+          toolCallId: operation.id,
         });
     }
     const safeCode = RunErrorCodeSchema.safeParse(run.errorCode);
     if (!terminal && safeCode.success)
-      events.push({
+      lifecycle.push({
         version: 1,
         runId: claim.runId,
         type: 'error',
         code: safeCode.data,
       });
-    if (events.length)
-      await this.options.streams.publishCommitted(reference, events);
+    const events = [...lifecycle, ...replay];
+    for (
+      let start = 0;
+      start < events.length;
+      start += MAX_COMMITTED_EVENTS_PER_PUBLICATION
+    ) {
+      const published = await this.options.streams.publishCommitted(
+        reference,
+        events.slice(start, start + MAX_COMMITTED_EVENTS_PER_PUBLICATION),
+      );
+      // A stale or deadline-bound chunk ends the batch: later chunks share the
+      // same lineage and deadline, and the committed prefix is recoverable.
+      if (published !== 'written') break;
+    }
   }
 
   async #appendToolAudit(
@@ -2056,12 +2294,43 @@ export class StepExecutor {
   }
 }
 
-function prepareOperationProposals(
+/** A proposal refused by the pause rules; it still persists as a `failed`
+ * op carrying the safe result so no tool call is dropped. */
+export interface RefusedOperationProposal {
+  readonly operation: OperationProposal;
+  readonly result: JsonValue;
+}
+
+export interface PreparedOperationProposals {
+  readonly operations: OperationProposal[];
+  readonly refusals: RefusedOperationProposal[];
+}
+
+/**
+ * Builds operation proposals for a generation's tool calls. Returns null
+ * when any proposal fails the closed-world checks (unknown tool, missing
+ * capability, oversized input, schema-invalid input) — the caller maps that
+ * to AI_INVALID_TOOL. Validated proposals can still be refused by the pause
+ * rules: at most one pause-required op may enter `awaiting_approval` per
+ * generation (one-pause fires first for same-generation extras), and a
+ * tool's `maxPerRun` counts every proposal by tool name — prior ops plus
+ * same-generation calls. Refusals keep their `failed` stored result.
+ */
+export function prepareOperationProposals(
   proposals: readonly Extract<ModelEvent, { type: 'tool-proposal' }>[],
   registry: RunRegistry,
   capabilities: readonly string[],
-): OperationProposal[] | null {
+  priorOperations: readonly Pick<OperationRecord, 'toolName'>[] = [],
+): PreparedOperationProposals | null {
   const operations: OperationProposal[] = [];
+  const refusals: RefusedOperationProposal[] = [];
+  const proposalCounts = new Map<string, number>();
+  for (const prior of priorOperations)
+    proposalCounts.set(
+      prior.toolName,
+      (proposalCounts.get(prior.toolName) ?? 0) + 1,
+    );
+  let pauseConsumed = false;
   for (const [callOccurrence, proposal] of proposals.entries()) {
     const tool = registry.tool(proposal.toolName);
     if (
@@ -2079,8 +2348,9 @@ function prepareOperationProposals(
     if (inputBytes > (tool.maxInputBytes ?? 16_384)) return null;
     const parsed = tool.inputSchema.safeParse(proposal.input);
     if (!parsed.success) return null;
+    let operation: OperationProposal;
     try {
-      operations.push({
+      operation = {
         callOccurrence,
         toolName: tool.id,
         toolVersion: tool.version,
@@ -2092,16 +2362,35 @@ function prepareOperationProposals(
           toolVersion: tool.version,
           args: parsed.data,
         }),
-        approvalRequired: tool.requiresApproval,
-      });
+        approvalRequired: tool.pauseKind !== null,
+        kind: tool.pauseKind ?? 'approval',
+      };
     } catch {
       return null;
     }
+    const priorCount = proposalCounts.get(tool.id) ?? 0;
+    proposalCounts.set(tool.id, priorCount + 1);
+    if (tool.pauseKind !== null && pauseConsumed) {
+      refusals.push({
+        operation: { ...operation, approvalRequired: false },
+        result: { refused: 'one_decision_at_a_time' },
+      });
+      continue;
+    }
+    if (tool.maxPerRun !== undefined && priorCount >= tool.maxPerRun) {
+      refusals.push({
+        operation: { ...operation, approvalRequired: false },
+        result: { refused: 'question_limit', maxPerRun: tool.maxPerRun },
+      });
+      continue;
+    }
+    if (tool.pauseKind !== null) pauseConsumed = true;
+    operations.push(operation);
   }
-  return operations;
+  return { operations, refusals };
 }
 
-function permittedToolSchemas(
+export function permittedToolSchemas(
   registry: RunRegistry,
   capabilities: readonly string[],
 ): Record<string, import('../../infrastructure/ai/index.js').JsonValue> {

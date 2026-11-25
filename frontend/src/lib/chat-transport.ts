@@ -9,6 +9,7 @@ import type { ChatTransport, UIMessage, UIMessageChunk } from 'ai';
 import { createChatClient } from '@/lib/chat-client';
 import { chatClientError, ChatClientError } from '@/lib/chat-errors';
 import { createChatUIMessageStream } from '@/lib/chat-stream';
+import type { StreamOperationUpdate } from '@/lib/chat-stream';
 import { notifyIdentityFallbackHint } from '@/lib/identity-client';
 
 const CURSOR_PATTERN = /^[1-9]\d{0,8}:\d{1,20}-\d{1,10}$/;
@@ -34,6 +35,10 @@ export interface LexonChatTransportOptions {
   readonly fetch?: typeof fetch;
   readonly onRunId?: (runId: string | undefined) => void;
   readonly onStreamState?: (state: 'reconnecting' | 'connected') => void;
+  /** Operation payloads for the runtime's operation store (§9 wire events). */
+  readonly onOperation?: (operation: StreamOperationUpdate) => void;
+  /** A §9-capped frame dropped the detail; the runtime refetches the tree. */
+  readonly onOperationSummaryMissing?: (operationId: string) => void;
 }
 
 export interface ChatMessageMetadata {
@@ -387,6 +392,9 @@ export class LexonChatTransport implements ChatTransport<ChatUIMessage> {
           this.activeStreams.delete(stream);
           releaseRequest();
         },
+        onOperation: (operation) => this.options.onOperation?.(operation),
+        onOperationSummaryMissing: (operationId) =>
+          this.options.onOperationSummaryMissing?.(operationId),
       },
       requestController.signal,
     );

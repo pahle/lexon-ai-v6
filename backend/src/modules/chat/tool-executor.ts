@@ -147,7 +147,8 @@ export class ToolExecutor {
       (tool.kind === 'read' && operation.mode !== 'read') ||
       (tool.kind === 'write' &&
         (tool.idempotency.mode !== 'transactional' ||
-          operation.mode !== 'transactional'))
+          operation.mode !== 'transactional')) ||
+      tool.kind === 'pause'
     )
       throw new ToolPolicyOutcome('AI_INVALID_TOOL');
     if (
@@ -156,7 +157,7 @@ export class ToolExecutor {
       )
     )
       throw new ToolPolicyOutcome('AI_ACCESS_REVOKED');
-    if (tool.requiresApproval && operation.decision !== 'approve')
+    if (tool.pauseKind !== null && operation.decision !== 'approve')
       throw new ToolApprovalRequiredOutcome();
     const actorScope = this.authorization.workerActorScope(tx, actorFacts);
     const rawResult = await actorScope.run((actor) => {
@@ -223,11 +224,16 @@ export function boundToolResult(value: unknown, maxBytes: number): JsonValue {
 export function toolResultsAsMessages(
   operations: readonly OperationRecord[],
 ): ModelMessage[] {
+  // Stored decisions (answered/dismissed/expired) are tool results too —
+  // for a pause op the decision payload IS the result the model reads.
   const completed = operations.filter(
     (operation) =>
       operation.status === 'succeeded' ||
       operation.status === 'failed' ||
-      operation.status === 'rejected',
+      operation.status === 'rejected' ||
+      operation.status === 'answered' ||
+      operation.status === 'dismissed' ||
+      operation.status === 'expired',
   );
   const messages: ModelMessage[] = [];
   for (const operation of completed) {
@@ -253,9 +259,18 @@ export function toolResultsAsMessages(
           result: {
             untrusted: fenceUntrusted(
               canonicalJson(
-                operation.result ?? {
-                  errorCode: operation.errorCode ?? 'AI_INTERNAL',
-                },
+                // Stored decisions name their status beside the payload so
+                // the model sees how the pause resolved.
+                operation.status === 'answered' ||
+                  operation.status === 'dismissed' ||
+                  operation.status === 'expired'
+                  ? {
+                      status: operation.status,
+                      result: operation.result ?? null,
+                    }
+                  : (operation.result ?? {
+                      errorCode: operation.errorCode ?? 'AI_INTERNAL',
+                    }),
               ),
               `Tool result ${operation.id}`,
             ),

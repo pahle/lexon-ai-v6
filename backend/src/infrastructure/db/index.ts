@@ -112,6 +112,7 @@ export type {
   OperationRecord,
   AiOperationMode,
   AiOperationStatus,
+  ExpiredOperationCandidate,
 } from './ai-records.js';
 export type {
   AdminSetupOperator,

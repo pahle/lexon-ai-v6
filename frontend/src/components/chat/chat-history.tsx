@@ -21,6 +21,10 @@ import {
   Trash,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  ChatWaitingDot,
+  ChatWaitingPill,
+} from '@/components/chat/chat-tool-row';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { formatActivityDate } from '@/lib/date-time';
@@ -340,6 +344,7 @@ function RecentChatRow({
         }
       >
         <span className="truncate">{item.title}</span>
+        {item.awaitingUser ? <ChatWaitingDot /> : null}
       </SidebarMenuButton>
       <ChatHistoryActions
         item={item}
@@ -391,9 +396,12 @@ function ChatHistoryRow({
       >
         {item.title}
       </Link>
-      <time className="text-muted-foreground shrink-0 text-xs font-normal whitespace-nowrap group-hover/row:invisible group-focus-within/row:invisible">
-        {formatActivityDate(item.updatedAt, { yesterday: true })}
-      </time>
+      <span className="flex shrink-0 items-center gap-2.5 group-hover/row:invisible group-focus-within/row:invisible">
+        {item.awaitingUser ? <ChatWaitingPill /> : null}
+        <time className="text-muted-foreground text-xs font-normal whitespace-nowrap">
+          {formatActivityDate(item.updatedAt, { yesterday: true })}
+        </time>
+      </span>
       <div className="absolute top-1/2 right-1.5 z-10 -translate-y-1/2 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100">
         <ChatHistoryActions
           item={item}

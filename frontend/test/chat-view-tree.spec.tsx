@@ -70,6 +70,7 @@ const tree: ChatTree = {
       reasoningSummary: null,
       reasoningDurationMs: null,
       feedback: null,
+      operations: [],
       createdAt: '2026-11-11T00:00:01.000Z',
     },
   ],

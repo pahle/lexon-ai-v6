@@ -162,5 +162,12 @@ export function createChatClient(options: ChatClientOptions): ChatApi {
         contracts.RenameChatInputSchema.parse(input),
       ),
     delete: (chatId) => call(`/chats/${id(chatId)}`, null, 'DELETE'),
+    decideOperation: (runId, operationId, input) =>
+      call(
+        `/runs/${id(runId)}/operations/${id(operationId)}/decision`,
+        contracts.OperationDecisionResultSchema,
+        'POST',
+        contracts.OperationDecisionInputSchema.parse(input),
+      ),
   };
 }

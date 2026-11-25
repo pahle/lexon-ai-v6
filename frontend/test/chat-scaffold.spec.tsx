@@ -212,6 +212,7 @@ function makeCanonicalBranchTree(active: boolean): ChatTree {
         reasoningSummary: null,
         reasoningDurationMs: null,
         feedback: null,
+        operations: [],
         createdAt: '2026-11-11T00:00:01.000Z',
       },
       {
@@ -224,6 +225,7 @@ function makeCanonicalBranchTree(active: boolean): ChatTree {
         reasoningSummary: null,
         reasoningDurationMs: null,
         feedback: null,
+        operations: [],
         createdAt: '2026-11-11T00:00:02.000Z',
       },
     ],
@@ -410,6 +412,7 @@ it('preserves the regenerated assistant sibling across canonical active and term
         reasoningSummary: null,
         reasoningDurationMs: null,
         feedback: null,
+        operations: [],
         createdAt: '2026-11-11T00:00:01.000Z',
       },
       ...(state === 'initial'
@@ -436,6 +439,7 @@ it('preserves the regenerated assistant sibling across canonical active and term
                 reasoningSummary: null,
                 reasoningDurationMs: null,
                 feedback: null,
+                operations: [],
                 createdAt: '2026-11-11T00:00:03.000Z',
               },
             ];
@@ -459,6 +463,7 @@ it('preserves the regenerated assistant sibling across canonical active and term
                 reasoningSummary: null,
                 reasoningDurationMs: null,
                 feedback: null,
+                operations: [],
                 createdAt: '2026-11-11T00:00:04.000Z',
               },
             ];
@@ -767,6 +772,7 @@ it('keeps the edited answer as a regenerate sibling after the edit run ends thro
     reasoningSummary: null,
     reasoningDurationMs: null,
     feedback: null,
+    operations: [],
     createdAt,
   });
   const makeTree = (state: 'initial' | 'edited' | 'regenerated'): ChatTree => {
@@ -1056,6 +1062,7 @@ it('keeps off-branch run B active when run A finishes after canonical refresh', 
         reasoningSummary: null,
         reasoningDurationMs: null,
         feedback: null,
+        operations: [],
         createdAt: '2026-11-11T00:00:01.000Z',
       },
     ];
@@ -1070,6 +1077,7 @@ it('keeps off-branch run B active when run A finishes after canonical refresh', 
         reasoningSummary: null,
         reasoningDurationMs: null,
         feedback: null,
+        operations: [],
         createdAt: '2026-11-11T00:00:02.000Z',
       });
     return {
@@ -1361,6 +1369,7 @@ it('reconciles a viewed active answer from canonical terminal state while SSE st
         reasoningSummary: null,
         reasoningDurationMs: null,
         feedback: null,
+        operations: [],
         createdAt: '2026-11-11T00:00:01.000Z',
       },
     ],
@@ -1538,6 +1547,7 @@ it('plays the indicator finish and announces Answer complete once through the te
         reasoningSummary: null,
         reasoningDurationMs: null,
         feedback: null,
+        operations: [],
         createdAt: '2026-11-11T00:00:01.000Z',
       },
     ],
@@ -1779,6 +1789,7 @@ it('reconciles terminal state while the initial active-run request awaits header
         reasoningSummary: null,
         reasoningDurationMs: null,
         feedback: null,
+        operations: [],
         createdAt: '2026-11-11T00:00:01.000Z',
       },
     ],

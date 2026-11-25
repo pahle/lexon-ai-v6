@@ -1,6 +1,6 @@
 # F4.1 prototype: brand v4.1 and chat experience
 
-**Approved by the product owner on 2026-11-18 (revision 14.9); revision 15 adds the F4.2 failure states (2026-11-19); revision 16 adds the data views kit and the F4.3 platform console (approved 2026-11-21).** This is the visual
+**Approved by the product owner on 2026-11-18 (revision 14.9); revision 15 adds the F4.2 failure states (2026-11-19); revision 16 adds the data views kit and the F4.3 platform console (approved 2026-11-21); revision 17 adds the F5 tool, question, and approval states (approved 2026-11-24).** This is the visual
 target for [F4.1](../../briefs/F4.1-brand-refresh.md). Screens are built **1:1**
 with it: layout, sizes, spacing, type, copy, and states. shadcn `base-nova` and
 assistant-ui provide structure, behavior, and accessibility (LEX-DS-001 v3.1 §5).
@@ -44,9 +44,9 @@ state of the same name.
 
 Fifteen new states for [F5](../../briefs/F5-tools-approvals.md), drawn from the
 brief's contracts on top of revision 16 (two added on 2026-11-24 with F5 decision 8). Their 60 views are listed in
-`docs/references/F4.1-visual/index.json` `planned`. The lead line above still
-names revision 16 as current: the F5 slice moves it to revision 17 together
-with `PROTOTYPE_REVISION` in `scripts/visual-compare-prototype.mjs`.
+`docs/references/F4.1-visual/index.json` `pending`. The lead line above and
+`PROTOTYPE_REVISION` in `scripts/visual-compare-prototype.mjs` name revision 17
+as current.
 
 - **Interaction model** (F5 brief decision 7): tool rows follow the
   assistant's text; pending questions and approvals are panels docked above

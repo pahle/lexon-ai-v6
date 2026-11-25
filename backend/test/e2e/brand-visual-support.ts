@@ -363,7 +363,8 @@ export async function captureBrandViews(
   state: string,
   hooks: {
     open?: (viewport: BrandViewport) => Promise<void>;
-    close?: (viewport: BrandViewport) => Promise<void>;
+    /** `captured` is the path captureBrandView wrote (or compared). */
+    close?: (viewport: BrandViewport, captured: string) => Promise<void>;
     /** Passed to captureBrandView; see its `axe` option. */
     axe?: boolean;
     /** Keep focus as the state left it, for a state that is about focus. */
@@ -379,7 +380,7 @@ export async function captureBrandViews(
         await applyTheme(page, theme);
         await hooks.open(viewport);
       }
-      await captureBrandView(
+      const captured = await captureBrandView(
         page,
         state,
         { theme, viewport },
@@ -388,6 +389,6 @@ export async function captureBrandViews(
           ...(hooks.keepFocus ? { keepFocus: true } : {}),
         },
       );
-      await hooks.close?.(viewport);
+      await hooks.close?.(viewport, captured);
     }
 }

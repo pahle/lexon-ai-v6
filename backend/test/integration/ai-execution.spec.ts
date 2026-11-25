@@ -1293,7 +1293,7 @@ test('cancellation wins before transactional tool effect commit', async ({
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -1370,7 +1370,7 @@ test('transactional tool effect commits before later cancellation', async ({
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -1449,7 +1449,7 @@ test('stale transactional-tool commit ends run and step spans as failed without 
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -1540,7 +1540,7 @@ test('proposal commits before each transactional effect and all results enter fe
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -1707,7 +1707,7 @@ test('model history preserves text and tool-result chronology across generations
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -1866,7 +1866,7 @@ test('read tool proposal commits a durable result before the next model request'
       version: 1,
       kind: 'read',
       inputSchema: z.strictObject({ key: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -1965,7 +1965,7 @@ test('tool execution rechecks current tool capabilities before its effect', asyn
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: ['case:write'],
@@ -2035,7 +2035,7 @@ test('tool execution intersects saved capabilities with the current profile floo
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: ['case:write'],
@@ -2136,7 +2136,7 @@ test('new approval requirement stages the pending operation without an effect', 
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -2157,7 +2157,7 @@ test('new approval requirement stages the pending operation without an effect', 
       profile,
       streams,
     );
-    Object.assign(tool, { requiresApproval: true });
+    Object.assign(tool, { pauseKind: 'approval' });
 
     await h.executor.execute(job(h.runId, h.tenant, 2, 2, 'run.advance.v1'), {
       signal: new AbortController().signal,
@@ -2236,7 +2236,7 @@ test('model input advertises permitted input schemas and excludes denied tools',
         key: z.string().transform((value) => value.trim()),
         label: z.string().default('default label'),
       }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [capability],
@@ -2292,7 +2292,7 @@ test('transformed operation input is normalized once and executed as stored', as
       version: 1,
       kind: 'read',
       inputSchema: z.strictObject({ value: z.string().transform(Number) }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -2358,7 +2358,7 @@ test('tool continuation does not admit a generation past the iteration ceiling',
       version: 1,
       kind: 'read',
       inputSchema: z.strictObject({ key: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -2434,7 +2434,7 @@ test('large structured tool results truncate before JSONB storage completion', a
       version: 1,
       kind: 'read',
       inputSchema: z.strictObject({ key: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 16_384,
       capabilities: [],
@@ -2470,7 +2470,7 @@ test('tool result persistence failure propagates without acknowledging the job',
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -2540,7 +2540,7 @@ test('tool claim loss propagates unchanged without terminally acknowledging the 
       version: 1,
       kind: 'read',
       inputSchema: z.strictObject({ key: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -2608,7 +2608,7 @@ test('SIGKILL after operation effect and result commit replays the stored result
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -2786,7 +2786,7 @@ test('approval-required transactional operations remain staged and produce no ef
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: true,
+      pauseKind: 'approval',
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -2898,7 +2898,7 @@ test('approval-required transactional operations remain staged and produce no ef
       approvalStreams,
     );
     await actorScope(h.tenant, h.authorization, (actor) =>
-      approvals.decide(actor, {
+      approvals.decideOperation(actor, {
         runId: h.runId,
         operationId: operations[0]!.id,
         snapshotHash: operations[0]!.snapshotHash,
@@ -2997,7 +2997,7 @@ test('proposal limits preserve every accepted approval event and refuse excess b
     version: 1,
     kind: 'write',
     inputSchema: z.strictObject({ value: z.string() }),
-    requiresApproval: true,
+    pauseKind: 'approval',
     timeoutMs: 1000,
     maxResultBytes: 512,
     capabilities: [],
@@ -3112,7 +3112,15 @@ test('proposal limits preserve every accepted approval event and refuse excess b
       if (scenario.accepted) {
         expect(run.status).toBe('awaiting_approval');
         expect(operations).toHaveLength(scenario.count);
-        expect(publishedApprovalIds).toEqual(operationIds);
+        // One pause per generation: the first pauses, the rest persist
+        // failed with the safe refusal result.
+        expect(operations[0]!.status).toBe('awaiting_approval');
+        for (const extra of operations.slice(1))
+          expect(extra).toMatchObject({
+            status: 'failed',
+            result: { refused: 'one_decision_at_a_time' },
+          });
+        expect(publishedApprovalIds).toEqual([operations[0]!.id]);
         expect(
           events
             .filter((event) => event.type === 'operation-status')
@@ -3183,7 +3191,7 @@ test('a missing 31-event approval batch resets from all 15 durable operation sta
     version: 1,
     kind: 'write',
     inputSchema: z.strictObject({ value: z.string() }),
-    requiresApproval: true,
+    pauseKind: 'approval',
     timeoutMs: 1000,
     maxResultBytes: 512,
     capabilities: [],
@@ -3288,10 +3296,10 @@ test('a missing 31-event approval batch resets from all 15 durable operation sta
       ).map(([, fields]) => JSON.parse(fields[1]!) as Record<string, unknown>);
       expect(
         partialEvents.filter((event) => event.type === 'operation-status'),
-      ).toHaveLength(8);
+      ).toHaveLength(14);
       expect(
         partialEvents.filter((event) => event.type === 'approval-required'),
-      ).toHaveLength(7);
+      ).toHaveLength(1);
     } finally {
       redis.disconnect();
     }
@@ -3301,8 +3309,18 @@ test('a missing 31-event approval batch resets from all 15 durable operation sta
       h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
     );
     expect(persisted).toHaveLength(15);
+    // One pause per generation: the first pauses, the remaining fourteen
+    // persist as failed one-decision refusals.
+    expect(persisted[0]!.status).toBe('awaiting_approval');
     expect(
-      persisted.every((operation) => operation.status === 'awaiting_approval'),
+      persisted
+        .slice(1)
+        .every(
+          (operation) =>
+            operation.status === 'failed' &&
+            (operation.result as { refused?: string }).refused ===
+              'one_decision_at_a_time',
+        ),
     ).toBe(true);
     expect(await ai.toolEffectCountForRun(0, h.runId)).toBe(0);
     await waitForSse(() => {
@@ -3337,13 +3355,18 @@ test('a missing 31-event approval batch resets from all 15 durable operation sta
         Array.from({ length: 15 }, (_, index) => index),
       );
       expect(
-        operationFrames.every(
-          (frame) =>
-            (frame.operation as Record<string, unknown>).status ===
-              'awaiting_approval' &&
-            (frame.operation as Record<string, unknown>).approvalRequired ===
-              true,
-        ),
+        (operationFrames[0]!.operation as Record<string, unknown>).status ===
+          'awaiting_approval' &&
+          (operationFrames[0]!.operation as Record<string, unknown>)
+            .approvalRequired === true,
+      ).toBe(true);
+      expect(
+        operationFrames
+          .slice(1)
+          .every(
+            (frame) =>
+              (frame.operation as Record<string, unknown>).status === 'failed',
+          ),
       ).toBe(true);
       expect(decoded.at(-1)).toMatchObject({
         type: 'snapshot-end',
@@ -3385,7 +3408,7 @@ test('approved operation resumes from a fresh sequence and executes one transact
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: true,
+      pauseKind: 'approval',
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -3463,7 +3486,7 @@ test('approved operation resumes from a fresh sequence and executes one transact
         { orgId: h.tenant.orgId, userId: randomUUID() },
         h.authorization,
         (actor) =>
-          approvals.decide(actor, {
+          approvals.decideOperation(actor, {
             runId: h.runId,
             operationId: operation.id,
             snapshotHash: operation.snapshotHash,
@@ -3478,7 +3501,7 @@ test('approved operation resumes from a fresh sequence and executes one transact
     const decisions = await Promise.allSettled(
       Array.from({ length: 2 }, () =>
         actorScope(h.tenant, h.authorization, (actor) =>
-          approvals.decide(actor, {
+          approvals.decideOperation(actor, {
             runId: h.runId,
             operationId: operation.id,
             snapshotHash: operation.snapshotHash,
@@ -3487,9 +3510,11 @@ test('approved operation resumes from a fresh sequence and executes one transact
         ),
       ),
     );
+    // One call wins the CAS + resume; the loser re-reads the decided row and
+    // returns the stored outcome — decisions are idempotent on the op id.
     expect(
       decisions.filter((item) => item.status === 'fulfilled'),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
     const resume = await ai.outboxForRunSequence(0, h.runId, 2);
     expect(resume).toMatchObject({ type: 'run.resume.v1' });
     expect(resume!.id).not.toBe(stepJobId(h.runId, 1));
@@ -3567,7 +3592,7 @@ test('rejected operation is returned to the next model generation without effect
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: true,
+      pauseKind: 'approval',
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -3632,7 +3657,7 @@ test('rejected operation is returned to the next model generation without effect
       )
     )[0]!;
     await actorScope(h.tenant, h.authorization, (actor) =>
-      approvals.decide(actor, {
+      approvals.decideOperation(actor, {
         runId: h.runId,
         operationId: operation.id,
         snapshotHash: operation.snapshotHash,
@@ -3757,7 +3782,7 @@ test('initiator access loss before a decision finishes the stream from the actua
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: true,
+      pauseKind: 'approval',
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -3822,7 +3847,7 @@ test('initiator access loss before a decision finishes the stream from the actua
         { orgId: foreignTeam.id, userId: foreignUser.profile.id },
         h.authorization,
         (actor) =>
-          approvals.decide(actor, {
+          approvals.decideOperation(actor, {
             runId: h.runId,
             operationId: operation.id,
             snapshotHash: operation.snapshotHash,
@@ -3847,7 +3872,7 @@ test('initiator access loss before a decision finishes the stream from the actua
         { orgId: team.id, userId: remainingOwner.profile.id },
         h.authorization,
         (actor) =>
-          approvals.decide(actor, {
+          approvals.decideOperation(actor, {
             runId: h.runId,
             operationId: operation.id,
             snapshotHash: operation.snapshotHash,
@@ -3860,7 +3885,7 @@ test('initiator access loss before a decision finishes the stream from the actua
         { orgId: team.id, userId: remainingOwner.profile.id },
         h.authorization,
         (actor) =>
-          approvals.decide(actor, {
+          approvals.decideOperation(actor, {
             runId: h.runId,
             operationId: operation.id,
             snapshotHash: operation.snapshotHash,
@@ -3876,7 +3901,7 @@ test('initiator access loss before a decision finishes the stream from the actua
     await organizations.mutateMember(team.members[0]!.id, 'delete');
     await expect(
       actorScope(tenant, h.authorization, (actor) =>
-        approvals.decide(actor, {
+        approvals.decideOperation(actor, {
           runId: h.runId,
           operationId: operation.id,
           snapshotHash: operation.snapshotHash,
@@ -3903,16 +3928,20 @@ test('initiator access loss before a decision finishes the stream from the actua
     expect(await audit.count('chat.tool_operation.v1')).toBe(
       toolAuditBeforeForeign + 1,
     );
-    await expect(
-      actorScope(tenant, h.authorization, (actor) =>
-        approvals.decide(actor, {
-          runId: h.runId,
-          operationId: operation.id,
-          snapshotHash: operation.snapshotHash,
-          decision: 'approve',
-        }),
-      ),
-    ).rejects.toThrow('AI approval decision refused');
+    // A retry on the decided row returns the stored outcome, not a refusal.
+    const retried = await actorScope(tenant, h.authorization, (actor) =>
+      approvals.decideOperation(actor, {
+        runId: h.runId,
+        operationId: operation.id,
+        snapshotHash: operation.snapshotHash,
+        decision: 'approve',
+      }),
+    );
+    expect(retried).toMatchObject({
+      operationId: operation.id,
+      status: 'rejected',
+      decision: 'reject',
+    });
     expect(await audit.count('chat.tool_operation.v1')).toBe(
       toolAuditBeforeForeign + 1,
     );
@@ -3979,7 +4008,7 @@ test('resume enforces the current profile capability floor before a tool effect'
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: true,
+      pauseKind: 'approval',
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: ['documents:write'],
@@ -4038,7 +4067,7 @@ test('resume enforces the current profile capability floor before a tool effect'
       )
     )[0]!;
     await actorScope(h.tenant, h.authorization, (actor) =>
-      approvals.decide(actor, {
+      approvals.decideOperation(actor, {
         runId: h.runId,
         operationId: operation.id,
         snapshotHash: operation.snapshotHash,
@@ -4110,7 +4139,7 @@ test('resume refuses a registered tool version change after approval', async ({
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: true,
+      pauseKind: 'approval',
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -4126,7 +4155,7 @@ test('resume refuses a registered tool version change after approval', async ({
     };
     const { h, approvals, operation, tenant } = await prepareApproval(ai, tool);
     await actorScope(tenant, h.authorization, (actor) =>
-      approvals.decide(actor, {
+      approvals.decideOperation(actor, {
         runId: h.runId,
         operationId: operation.id,
         snapshotHash: operation.snapshotHash,
@@ -4198,7 +4227,7 @@ test('proposal is refused when the current profile removed its capability', asyn
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: true,
+      pauseKind: 'approval',
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: ['fixture.write'],
@@ -4277,7 +4306,7 @@ test('resume fails a tool removed from the current registry without an effect', 
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: true,
+      pauseKind: 'approval',
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -4293,7 +4322,7 @@ test('resume fails a tool removed from the current registry without an effect', 
     };
     const { h, approvals, operation, tenant } = await prepareApproval(ai, tool);
     await actorScope(tenant, h.authorization, (actor) =>
-      approvals.decide(actor, {
+      approvals.decideOperation(actor, {
         runId: h.runId,
         operationId: operation.id,
         snapshotHash: operation.snapshotHash,
@@ -4372,7 +4401,7 @@ test('decision uses the current organization two-factor requirement', async ({
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: true,
+      pauseKind: 'approval',
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -4393,7 +4422,7 @@ test('decision uses the current organization two-factor requirement', async ({
     await audit.rejectInserts();
     await expect(
       actorScope(tenant, h.authorization, (actor) =>
-        approvals.decide(actor, {
+        approvals.decideOperation(actor, {
           runId: h.runId,
           operationId: operation.id,
           snapshotHash: operation.snapshotHash,
@@ -4422,7 +4451,7 @@ test('decision uses the current organization two-factor requirement', async ({
     audit = createAuditInspector(services);
     await expect(
       actorScope(tenant, h.authorization, (actor) =>
-        approvals.decide(actor, {
+        approvals.decideOperation(actor, {
           runId: h.runId,
           operationId: operation.id,
           snapshotHash: operation.snapshotHash,
@@ -4454,16 +4483,20 @@ test('decision uses the current organization two-factor requirement', async ({
     expect(await audit.count('chat.run_finished.v1')).toBe(
       finishAuditBefore + 1,
     );
-    await expect(
-      actorScope(tenant, h.authorization, (actor) =>
-        approvals.decide(actor, {
-          runId: h.runId,
-          operationId: operation.id,
-          snapshotHash: operation.snapshotHash,
-          decision: 'approve',
-        }),
-      ),
-    ).rejects.toThrow('AI approval decision refused');
+    // The retry resolves to the stored outcome — idempotent on the op id.
+    const retried = await actorScope(tenant, h.authorization, (actor) =>
+      approvals.decideOperation(actor, {
+        runId: h.runId,
+        operationId: operation.id,
+        snapshotHash: operation.snapshotHash,
+        decision: 'approve',
+      }),
+    );
+    expect(retried).toMatchObject({
+      operationId: operation.id,
+      status: 'rejected',
+      decision: 'reject',
+    });
     expect(await audit.count('chat.tool_operation.v1')).toBe(
       toolAuditBefore + 1,
     );
@@ -4497,7 +4530,7 @@ test('initiator membership loss after approval fails resume without an effect', 
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: true,
+      pauseKind: 'approval',
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -4556,7 +4589,7 @@ test('initiator membership loss after approval fails resume without an effect', 
       )
     )[0]!;
     await actorScope(tenant, h.authorization, (actor) =>
-      approvals.decide(actor, {
+      approvals.decideOperation(actor, {
         runId: h.runId,
         operationId: operation.id,
         snapshotHash: operation.snapshotHash,
@@ -4634,7 +4667,7 @@ test('mixed pending and approved operations terminate on membership loss before 
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -4646,7 +4679,7 @@ test('mixed pending and approved operations terminate on membership loss before 
     const approvedTool: TransactionalWriteToolDefinition = {
       ...pendingTool,
       id: 'mixed-approved-write',
-      requiresApproval: true,
+      pauseKind: 'approval',
     };
     const h = await setup(
       ai,
@@ -4703,17 +4736,24 @@ test('mixed pending and approved operations terminate on membership loss before 
       h.operations.forRun(tx, { runId: h.runId, throughSequence: 2 }),
     );
     expect(operations).toHaveLength(3);
+    // One pause per generation: only the first approval write pauses; the
+    // second persists as a failed one-decision refusal.
     expect(operations.map(({ status }) => status)).toEqual([
       'pending',
       'awaiting_approval',
-      'awaiting_approval',
+      'failed',
     ]);
+    expect(operations[2]!.result).toEqual({
+      refused: 'one_decision_at_a_time',
+    });
+    // Two coordinator persist audits (pending + proposed) plus the refusal's
+    // failed audit.
     expect(await audit.count('chat.tool_operation.v1')).toBe(
       toolAuditBefore + 3,
     );
     const approved = operations[1]!;
     await actorScope(tenant, h.authorization, (actor) =>
-      approvals.decide(actor, {
+      approvals.decideOperation(actor, {
         runId: h.runId,
         operationId: approved.id,
         snapshotHash: approved.snapshotHash,
@@ -4759,15 +4799,17 @@ test('mixed pending and approved operations terminate on membership loss before 
         decision: 'approve',
         errorCode: 'AI_ACCESS_REVOKED',
       }),
+      // The already-refused op is untouched by the access-revoked sweep.
       expect.objectContaining({
         id: operations[2]!.id,
-        status: 'rejected',
-        decision: 'reject',
-        errorCode: 'AI_ACCESS_REVOKED',
+        status: 'failed',
+        decision: null,
+        result: { refused: 'one_decision_at_a_time' },
       }),
     ]);
+    // Two more outcome audits for the revoked ops; the refused op has none.
     expect(await audit.count('chat.tool_operation.v1')).toBe(
-      toolAuditBefore + 6,
+      toolAuditBefore + 5,
     );
     await h.executor.execute(
       job(
@@ -4780,7 +4822,7 @@ test('mixed pending and approved operations terminate on membership loss before 
       { signal: new AbortController().signal },
     );
     expect(await audit.count('chat.tool_operation.v1')).toBe(
-      toolAuditBefore + 6,
+      toolAuditBefore + 5,
     );
     expect(await ai.outboxForTenantRunSequence(tenant, h.runId, 3)).toBeNull();
     expect(await ai.toolEffectCountFor(tenant)).toBe(0);
@@ -4809,7 +4851,7 @@ test('late transactional tool callback sees an expired tenant session and cannot
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 100,
       maxResultBytes: 512,
       capabilities: [],
@@ -4941,7 +4983,7 @@ test('active PostgreSQL tool timeout is durably reported to the next model input
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 100,
       maxResultBytes: 512,
       capabilities: [],
@@ -5062,7 +5104,7 @@ test('tool effect and operation receipt roll back when continuation outbox appen
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],
@@ -6002,7 +6044,7 @@ test('unknown over-reservation fails the run and drops staged proposals', async 
       version: 1,
       kind: 'write',
       inputSchema: z.strictObject({ value: z.string() }),
-      requiresApproval: false,
+      pauseKind: null,
       timeoutMs: 1000,
       maxResultBytes: 512,
       capabilities: [],

@@ -16,6 +16,7 @@ export interface ChatMessageRecord {
   readonly feedback: 'good' | 'bad' | null;
   readonly runId: string | null;
   readonly status: string | null;
+  readonly operations: readonly unknown[];
   readonly createdAt: Date;
 }
 
@@ -51,6 +52,7 @@ interface TreeRow {
   reasoning_summary: string | null;
   reasoning_duration_ms: number | null;
   feedback: 'good' | 'bad' | null;
+  operations: unknown[] | null;
   created_at: Date;
 }
 
@@ -71,6 +73,7 @@ export const TREE_SELECTED_COLUMNS = [
   'reasoning_summary',
   'reasoning_duration_ms',
   'feedback',
+  'operations',
   'created_at',
   'viewed_leaf_id',
 ] as const;
@@ -87,7 +90,8 @@ export const TREE_SQL = `SELECT m.id,m.parent_message_id,m.role,m.user_text,m.ef
       ELSE COALESCE(r.partial_output,'') END AS assistant_text,
     CASE WHEN m.role='assistant' THEN r.reasoning_summary ELSE NULL END AS reasoning_summary,
     CASE WHEN m.role='assistant' THEN r.reasoning_duration_ms ELSE NULL END AS reasoning_duration_ms,
-    feedback.rating AS feedback,m.created_at,c.viewed_leaf_id
+    feedback.rating AS feedback,m.created_at,c.viewed_leaf_id,
+    COALESCE(ops.operations,'[]'::jsonb) AS operations
   FROM app.chats c
   LEFT JOIN app.chat_messages m ON m.org_id=c.org_id AND m.chat_id=c.id
   LEFT JOIN app.ai_runs r ON r.org_id=m.org_id AND r.id=m.run_id
@@ -108,6 +112,30 @@ export const TREE_SQL = `SELECT m.id,m.parent_message_id,m.role,m.user_text,m.ef
       AND current_step.sequence=r.next_sequence AND current_step.state='claimed'
     ORDER BY checkpoint.created_at DESC,checkpoint.id DESC LIMIT 1
   ) cp ON true
+  LEFT JOIN LATERAL (
+    SELECT jsonb_agg(op.document ORDER BY op.step_sequence,op.call_occurrence) AS operations
+    FROM (
+      SELECT s.sequence AS step_sequence,o.call_occurrence,
+        (jsonb_build_object(
+          'operationId',o.id,
+          'kind',o.kind,
+          'status',CASE WHEN o.status='succeeded' THEN 'completed' ELSE o.status END,
+          'approvalRequired',o.approval_required,
+          'snapshotHash',o.snapshot_hash,
+          'expiresAt',to_char(o.expires_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+          'decidedAt',to_char(o.decided_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+          'toolName',o.tool_name,
+          'input',o.args,
+          'output',o.result
+        ) || CASE WHEN o.tool_name='rename_chat'
+          THEN jsonb_build_object('display',jsonb_build_object('currentTitle',c.title))
+          ELSE '{}'::jsonb END) AS document
+      FROM app.ai_operations o
+      JOIN app.ai_steps s ON s.org_id=o.org_id AND s.run_id=o.run_id AND s.id=o.step_id
+      WHERE o.org_id=m.org_id AND o.run_id=m.run_id
+        AND s.state IN ('committed','awaiting_approval')
+    ) op
+  ) ops ON true
   WHERE c.org_id=$1 AND c.owner_user_id=$2 AND c.id=$3 AND c.deleted_at IS NULL
   ORDER BY m.created_at,m.id`;
 
@@ -354,6 +382,7 @@ export class ChatMessageRepository {
         feedback: row.feedback,
         runId: row.run_id,
         status: row.status,
+        operations: row.operations ?? [],
         createdAt: row.created_at,
       })),
     };

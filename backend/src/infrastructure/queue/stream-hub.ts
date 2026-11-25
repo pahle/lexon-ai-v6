@@ -9,8 +9,10 @@ import {
   type ChatSnapshot,
   type ChatStreamRecoveryMode,
 } from '@lexon/contracts';
+import { capSnapshotOperation } from './run-stream-parts.js';
 
 const SUBSCRIBER_QUEUE_BYTES = 65_536;
+const SNAPSHOT_FRAME_BYTE_LIMIT = 4096;
 const SNAPSHOT_FRAME_BYTE_RESERVE = 32;
 const MAX_DEDUP_IDS = 1024;
 const SNAPSHOT_RESYNC_INTERVAL_MS = 1000;
@@ -260,6 +262,10 @@ export class StreamHub {
       checkpointId?: string,
     ): Promise<boolean> => {
       const { parts, operations, ...metadata } = snapshot;
+      // Tool parts replay as snapshot-part frames so the client rebuilds the
+      // tool rows identically to the live stream (§9); input/output blocks
+      // that would overflow the frame cap are dropped — ids always survive.
+      const streamParts = parts;
       if (
         !(await enqueue({
           data: JSON.stringify(
@@ -268,15 +274,50 @@ export class StreamHub {
               type: 'snapshot-start',
               reset: true,
               snapshot: metadata,
-              partCount: parts.length,
+              partCount: streamParts.length,
               operationCount: operations.length,
             }),
           ),
         }))
       )
         return false;
-      for (let partIndex = 0; partIndex < parts.length; partIndex++) {
-        const part = parts[partIndex]!;
+      for (let partIndex = 0; partIndex < streamParts.length; partIndex++) {
+        const part = streamParts[partIndex]!;
+        if (part.type === 'tool') {
+          const toolFrame = {
+            version: 1 as const,
+            type: 'snapshot-part' as const,
+            partIndex,
+            chunkIndex: 0,
+            partType: 'tool' as const,
+            id: part.id,
+            toolCallId: part.toolCallId,
+            toolName: part.toolName,
+            operationId: part.operationId,
+            ...(part.input === undefined ? {} : { input: part.input }),
+            ...(part.output === undefined ? {} : { output: part.output }),
+            outcome: part.outcome,
+            final: true,
+          };
+          let frame = ChatSnapshotFrameSchema.parse(toolFrame);
+          if (
+            Buffer.byteLength(JSON.stringify(frame), 'utf8') >
+            SNAPSHOT_FRAME_BYTE_LIMIT
+          ) {
+            frame = ChatSnapshotFrameSchema.parse({
+              ...toolFrame,
+              input: undefined,
+              output: undefined,
+            });
+          }
+          if (
+            Buffer.byteLength(JSON.stringify(frame), 'utf8') >
+            SNAPSHOT_FRAME_BYTE_LIMIT
+          )
+            throw new Error('Stream event exceeds limit');
+          if (!(await enqueue({ data: JSON.stringify(frame) }))) return false;
+          continue;
+        }
         const chunks: string[] = [];
         const frameBase = {
           version: 1 as const,
@@ -338,12 +379,7 @@ export class StreamHub {
         if (
           !(await enqueue({
             data: JSON.stringify(
-              ChatSnapshotFrameSchema.parse({
-                version: 1,
-                type: 'snapshot-operation',
-                index,
-                operation: operations[index],
-              }),
+              capSnapshotOperation(operations[index]!, index),
             ),
           }))
         )
@@ -355,7 +391,7 @@ export class StreamHub {
           ChatSnapshotFrameSchema.parse({
             version: 1,
             type: 'snapshot-end',
-            partCount: parts.length,
+            partCount: streamParts.length,
             operationCount: operations.length,
           }),
         ),

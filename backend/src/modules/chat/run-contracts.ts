@@ -74,11 +74,21 @@ interface ToolBase {
   readonly id: string;
   readonly version: number;
   readonly inputSchema: import('zod').ZodType;
-  readonly requiresApproval: boolean;
+  /**
+   * Whether a proposal for this tool pauses the run awaiting an owner
+   * decision, and which kind of pause it is (`requiresApproval` ≡
+   * `pauseKind !== null`). Persisted operations take `kind` from it.
+   */
+  readonly pauseKind: 'approval' | 'question' | null;
   readonly timeoutMs: number;
   readonly maxInputBytes?: number;
   readonly maxResultBytes: number;
   readonly capabilities: readonly string[];
+  /**
+   * Maximum accepted proposals for this tool per run, counted by tool name
+   * across every step and including same-generation proposals.
+   */
+  readonly maxPerRun?: number;
 }
 
 export interface ReadToolDefinition extends ToolBase {
@@ -117,11 +127,24 @@ export interface ReconcileWriteToolDefinition extends ToolBase {
   ): Promise<'committed' | 'not_committed' | 'unknown'>;
 }
 
+/**
+ * A pause-only tool: the model proposes it, the run pauses awaiting the
+ * owner, and the stored decision IS the result — it has no execute. The
+ * single in-transaction decision is its once-semantics.
+ */
+export interface PauseToolDefinition extends ToolBase {
+  readonly kind: 'pause';
+  readonly interaction: 'approval' | 'question';
+  readonly pauseKind: 'approval' | 'question';
+  readonly idempotency: { readonly mode: 'transactional' };
+}
+
 export type ToolDefinition =
   | ReadToolDefinition
   | TransactionalWriteToolDefinition
   | IdempotencyKeyWriteToolDefinition
-  | ReconcileWriteToolDefinition;
+  | ReconcileWriteToolDefinition
+  | PauseToolDefinition;
 
 export interface EngineRegistrations {
   readonly profiles: readonly RunProfile[];

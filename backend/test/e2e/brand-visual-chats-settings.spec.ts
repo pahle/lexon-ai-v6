@@ -5,6 +5,7 @@ import {
   installRunStreamFixture,
   fileNames,
   chatId,
+  f5Chat,
 } from './chat-state-fixtures.js';
 import {
   brandFixedTime,
@@ -388,6 +389,22 @@ test('Chats history, search with highlights, and no results', async ({
         await expect(
           page.locator('#main').getByText(title, { exact: true }).first(),
         ).toBeVisible();
+    },
+  });
+
+  // F5 revision 17: the first chat's run waits on the user, so the row
+  // carries the "Waiting for you" pill next to its time and the Recent row
+  // the primary dot.
+  await captureBrandViews(page, 'chats-waiting', {
+    open: async () => {
+      await openChats('chats-waiting');
+      const main = page.locator('#main');
+      await expect(
+        main.getByText('Waiting for you', { exact: true }),
+      ).toBeVisible();
+      await expect(
+        main.getByText(f5Chat.ask.title, { exact: true }).first(),
+      ).toBeVisible();
     },
   });
 

@@ -1,6 +1,76 @@
-import { RunStreamEventSchema, type RunStreamEvent } from '@lexon/contracts';
+import {
+  ChatOperationSnapshotSchema,
+  ChatSnapshotFrameSchema,
+  RunStreamEventSchema,
+  type ChatOperationSnapshot,
+  type ChatSnapshotFrame,
+  type RunStreamEvent,
+} from '@lexon/contracts';
 
 const DEFAULT_MAX_BYTES = 4096;
+
+/**
+ * §9 snapshot-operation byte-cap fallback: frames that would overflow the
+ * stream limit are emitted without `input`/`display`/`output` — ids, status
+ * and `snapshotHash` always survive; the client refetches the tree for the
+ * missing summary.
+ */
+export function capSnapshotOperation(
+  operation: ChatOperationSnapshot,
+  index: number,
+  maxBytes = DEFAULT_MAX_BYTES,
+): ChatSnapshotFrame {
+  const build = (op: ChatOperationSnapshot) => ({
+    version: 1 as const,
+    type: 'snapshot-operation' as const,
+    index,
+    operation: op,
+  });
+  const full = build(operation);
+  if (Buffer.byteLength(JSON.stringify(full), 'utf8') <= maxBytes)
+    return ChatSnapshotFrameSchema.parse(full);
+  const stripped = ChatOperationSnapshotSchema.parse(
+    Object.fromEntries(
+      Object.entries(operation).filter(
+        ([key]) => !['input', 'display', 'output'].includes(key),
+      ),
+    ),
+  );
+  const trimmed = build(stripped);
+  if (Buffer.byteLength(JSON.stringify(trimmed), 'utf8') > maxBytes)
+    throw new Error('Stream event exceeds limit');
+  return ChatSnapshotFrameSchema.parse(trimmed);
+}
+
+/**
+ * §9 live-event byte-cap fallback: `approval-required`/`question-required`
+ * frames that overflow are re-emitted as `{operationId,kind}` only — the
+ * client detects the missing summary and fetches the tree.
+ */
+export function capRequiredEvent(
+  event: Extract<
+    RunStreamEvent,
+    { type: 'approval-required' | 'question-required' }
+  >,
+  maxBytes = DEFAULT_MAX_BYTES,
+): RunStreamEvent[] {
+  const parsed = RunStreamEventSchema.safeParse(event);
+  if (!parsed.success) throw new Error('Invalid run stream event');
+  if (Buffer.byteLength(JSON.stringify(parsed.data), 'utf8') <= maxBytes)
+    return [parsed.data];
+  const minimal = {
+    version: event.version,
+    runId: event.runId,
+    type: event.type,
+    operationId: event.operationId,
+    kind: event.kind,
+  };
+  const reparsed = RunStreamEventSchema.safeParse(minimal);
+  if (!reparsed.success) throw new Error('Invalid run stream event');
+  if (Buffer.byteLength(JSON.stringify(reparsed.data), 'utf8') > maxBytes)
+    throw new Error('Stream event exceeds limit');
+  return [reparsed.data];
+}
 
 /** Split large textual stream parts without breaking UTF-8 or JSON escaping. */
 export function encodeStreamParts(
@@ -49,17 +119,18 @@ function encodeStreamPartsWithBudget(
   if (snapshot.type === 'tool-output-available') {
     if (!snapshot.operationId)
       throw new Error('Tool result requires durable operation metadata');
-    return encodeStreamPartsWithBudget(
-      {
-        version: snapshot.version,
-        runId: snapshot.runId,
-        type: 'operation-status',
-        operationId: snapshot.operationId,
-        status: 'completed',
-      },
-      maxBytes,
-      maxParts,
-    );
+    if (Buffer.byteLength(JSON.stringify(snapshot), 'utf8') <= maxBytes)
+      return [snapshot];
+    // §9: the output block is droppable — ids always reach the client.
+    const trimmed = RunStreamEventSchema.parse({
+      version: snapshot.version,
+      runId: snapshot.runId,
+      type: 'tool-output-available',
+      toolCallId: snapshot.toolCallId,
+      operationId: snapshot.operationId,
+    });
+    assertSerializedSize(trimmed, maxBytes);
+    return [trimmed];
   }
   assertSerializedSize(snapshot, maxBytes);
   return [snapshot];

@@ -105,11 +105,16 @@ export interface CommittedStreamReference extends TerminalStreamReference {
 
 export type AiOperationMode =
   'read' | 'transactional' | 'idempotency-key' | 'reconcile';
+export type AiOperationKind = 'approval' | 'question';
+export type AiOperationDecision = 'approve' | 'reject' | 'answer' | 'dismiss';
 export type AiOperationStatus =
   | 'pending'
   | 'awaiting_approval'
   | 'approved'
   | 'rejected'
+  | 'answered'
+  | 'dismissed'
+  | 'expired'
   | 'succeeded'
   | 'failed'
   | 'outcome_unknown';
@@ -123,6 +128,8 @@ export interface OperationProposal {
   readonly argsHash: string;
   readonly snapshotHash: string;
   readonly approvalRequired: boolean;
+  /** Persisted op kind; absent proposals default to 'approval'. */
+  readonly kind?: AiOperationKind;
 }
 
 export interface OperationRecord extends OperationProposal {
@@ -130,12 +137,14 @@ export interface OperationRecord extends OperationProposal {
   readonly orgId: string;
   readonly runId: string;
   readonly stepId: string;
+  readonly kind: AiOperationKind;
   readonly status: AiOperationStatus;
   readonly result: unknown | null;
   readonly errorCode: string | null;
   readonly createdAt: Date;
   readonly completedAt: Date | null;
-  readonly decision?: 'approve' | 'reject' | null;
+  readonly expiresAt: Date | null;
+  readonly decision?: AiOperationDecision | null;
   readonly decidedByUserId?: string | null;
   readonly decidedAt?: Date | null;
 }
@@ -144,6 +153,19 @@ export interface StepCommit {
   readonly state: 'committed' | 'awaiting_approval';
   readonly text: string;
   readonly data: unknown;
+}
+
+/**
+ * §7 sweep discovery: one `app.ai_expired_operations` row. The function is
+ * SECURITY DEFINER and deliberately returns ids only — never args, results
+ * or any K1 field. `initiatingUserId` opens the per-candidate tenant
+ * transaction and supplies the `run.resume.v1` job ctx.
+ */
+export interface ExpiredOperationCandidate {
+  readonly orgId: string;
+  readonly id: string;
+  readonly runId: string;
+  readonly initiatingUserId: string;
 }
 
 export interface AttemptRecord {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  OperationKindSchema,
   OperationStatusSchema,
   RunErrorCodeSchema,
   RunJobSchema,
@@ -337,6 +338,134 @@ describe('run contracts', () => {
         operationId: '00000000-0000-4000-8000-000000000004',
         status: 'outcome_unknown',
         rawError: 'raw provider exception',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('accepts the widened decision and expiry operation statuses', () => {
+    for (const status of ['answered', 'dismissed', 'expired'] as const) {
+      expect(OperationStatusSchema.safeParse(status).success).toBe(true);
+      expect(
+        RunStreamEventSchema.safeParse({
+          version: 1,
+          type: 'operation-status',
+          runId,
+          operationId,
+          status,
+        }).success,
+      ).toBe(true);
+    }
+    expect(OperationKindSchema.safeParse('approval').success).toBe(true);
+    expect(OperationKindSchema.safeParse('question').success).toBe(true);
+    expect(OperationKindSchema.safeParse('write').success).toBe(false);
+  });
+
+  it('carries an optional kind and operation summary on pause events', () => {
+    const operationSummary = {
+      operationId: '00000000-0000-4000-8000-000000000004',
+      kind: 'approval',
+      status: 'awaiting_approval',
+      approvalRequired: true,
+      snapshotHash: 'a'.repeat(64),
+      expiresAt: '2026-11-25T00:00:00.000Z',
+      decidedAt: null,
+      toolName: 'rename_chat',
+      input: { newTitle: 'Proposed title' },
+      display: { currentTitle: 'Current title' },
+      output: { renamed: true, previousTitle: 'Current title' },
+    };
+    const base = {
+      version: 1,
+      type: 'approval-required',
+      runId,
+      operationId,
+    };
+    // The stored F3 shape (operationId only) still parses.
+    expect(RunStreamEventSchema.safeParse(base).success).toBe(true);
+    // Normal emission: the operation summary rides the event.
+    expect(
+      RunStreamEventSchema.safeParse({
+        ...base,
+        kind: 'approval',
+        operation: operationSummary,
+      }).success,
+    ).toBe(true);
+    expect(
+      RunStreamEventSchema.safeParse({
+        ...base,
+        operation: operationSummary,
+      }).success,
+    ).toBe(true);
+    // Event-cap fallback: ids + kind only, no summary.
+    expect(
+      RunStreamEventSchema.safeParse({ ...base, kind: 'approval' }).success,
+    ).toBe(true);
+    // A kind contradicting the event type is rejected.
+    expect(
+      RunStreamEventSchema.safeParse({ ...base, kind: 'question' }).success,
+    ).toBe(false);
+    expect(
+      RunStreamEventSchema.safeParse({
+        ...base,
+        operation: { operationId },
+      }).success,
+    ).toBe(false);
+    expect(
+      RunStreamEventSchema.safeParse({
+        ...base,
+        operation: { ...operationSummary, kind: 'question' },
+      }).success,
+    ).toBe(false);
+
+    const question = { ...base, type: 'question-required' };
+    const questionSummary = { ...operationSummary, kind: 'question' };
+    expect(
+      RunStreamEventSchema.safeParse({
+        ...question,
+        operation: questionSummary,
+      }).success,
+    ).toBe(true);
+    expect(
+      RunStreamEventSchema.safeParse({
+        ...question,
+        kind: 'question',
+        operation: questionSummary,
+      }).success,
+    ).toBe(true);
+    expect(
+      RunStreamEventSchema.safeParse({ ...question, kind: 'question' }).success,
+    ).toBe(true);
+    expect(
+      RunStreamEventSchema.safeParse({ ...question, kind: 'approval' }).success,
+    ).toBe(false);
+    // An operation summary whose kind contradicts the event type is rejected.
+    expect(
+      RunStreamEventSchema.safeParse({
+        ...question,
+        operation: operationSummary,
+      }).success,
+    ).toBe(false);
+  });
+
+  it('registers the expiry sweep job envelope with empty data', () => {
+    expect(
+      RunJobSchema.safeParse({ type: 'ai.operation-expiry.v1', data: {} })
+        .success,
+    ).toBe(true);
+    expect(
+      RunJobSchema.safeParse({
+        type: 'ai.operation-expiry.v1',
+        data: { runId },
+      }).success,
+    ).toBe(false);
+    expect(
+      RunJobSchema.safeParse({ type: 'ai.operation-expiry.v1' }).success,
+    ).toBe(false);
+    expect(
+      RunJobSchema.safeParse({
+        type: 'ai.operation-expiry.v1',
+        data: {},
+        ctx,
       }).success,
     ).toBe(false);
   });

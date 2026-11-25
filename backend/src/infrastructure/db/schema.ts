@@ -158,11 +158,16 @@ export const aiOperations = app.table(
     argsHash: text('args_hash').notNull(),
     snapshotHash: text('snapshot_hash').notNull(),
     approvalRequired: boolean('approval_required').notNull(),
+    kind: text().notNull().default('approval'),
     status: text().notNull(),
     result: jsonb(),
     errorCode: text('error_code'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
     completedAt: timestamp('completed_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    decision: text(),
+    decisionByUserId: uuid('decision_by_user_id'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
   },
   (table) => [
     uniqueIndex('ai_operations_step_occurrence').on(
@@ -183,6 +188,9 @@ export const aiOperations = app.table(
       table.stepId,
       table.callOccurrence,
     ),
+    index('ai_operations_expiry_idx')
+      .on(table.expiresAt)
+      .where(sql`status = 'awaiting_approval'`),
     foreignKey({
       name: 'ai_operations_run_fk',
       columns: [table.orgId, table.runId],

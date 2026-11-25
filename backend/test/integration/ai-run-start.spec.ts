@@ -280,7 +280,7 @@ test('chat profile resolves high and max budgets into immutable run snapshots', 
       outputBudgetTokens: 16_384,
       resolvedConfig: {
         resolvedEffort: 'high',
-        instructionVersion: 'chat.instructions.v1',
+        instructionVersion: 'chat.instructions.v2',
         maxOutputTokens: 16_384,
       },
     });
@@ -289,7 +289,7 @@ test('chat profile resolves high and max budgets into immutable run snapshots', 
       outputBudgetTokens: 32_768,
       resolvedConfig: {
         resolvedEffort: 'max',
-        instructionVersion: 'chat.instructions.v1',
+        instructionVersion: 'chat.instructions.v2',
         maxOutputTokens: 32_768,
       },
     });
@@ -341,7 +341,7 @@ test('chat profile resolves high and max budgets into immutable run snapshots', 
     });
     expect(ledger).toEqual({
       resolved_effort: 'max',
-      instruction_version: 'chat.instructions.v1',
+      instruction_version: 'chat.instructions.v2',
     });
   } finally {
     await ai.close();

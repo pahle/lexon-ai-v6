@@ -59,6 +59,7 @@ export class QueueConsumer {
   #failedCursor = new Map<string, number>();
   #registryValue: JobHandlerRegistry | undefined;
   #closing = false;
+  #expirySchedulerQueue: Queue | undefined;
   readonly #timing: QueueConsumerTiming;
   readonly #permitReferences?: StepPermitReferenceRepository;
 
@@ -168,6 +169,36 @@ export class QueueConsumer {
     }
   }
 
+  /**
+   * §7 scheduler: idempotent per replica — upserts with the same scheduler id
+   * converge to one scheduler producing `ai.operation-expiry.v1` on the
+   * `ai-interactive` queue every 60 s, with at most one pending iteration.
+   */
+  async scheduleOperationExpiry(): Promise<void> {
+    if (!this.#expirySchedulerQueue) {
+      this.#expirySchedulerQueue = new Queue('ai-interactive', {
+        connection: {
+          url: this.options.url,
+          maxRetriesPerRequest: 1,
+          connectTimeout: 2000,
+          commandTimeout: 2000,
+          retryStrategy: (attempt: number) => Math.min(attempt * 100, 500),
+        },
+        prefix: this.options.prefix,
+      });
+      this.#expirySchedulerQueue.on('error', () => undefined);
+    }
+    await this.#expirySchedulerQueue.upsertJobScheduler(
+      'ai-operation-expiry',
+      { every: 60_000 },
+      {
+        name: 'ai.operation-expiry.v1',
+        data: {},
+        opts: { removeOnComplete: true, removeOnFail: { age: 86_400 } },
+      },
+    );
+  }
+
   isProgressing(staleMs: number, now = Date.now()): boolean {
     return (
       this.#app !== undefined &&
@@ -192,18 +223,30 @@ export class QueueConsumer {
     );
     this.#failedQueues.clear();
     this.#registryValue = undefined;
+    await this.#expirySchedulerQueue?.close();
+    this.#expirySchedulerQueue = undefined;
     await permits?.close();
   }
 
   async #process(job: Job, registry: JobHandlerRegistry): Promise<unknown> {
     this.#beginProgress();
     try {
-      let envelope: JobEnvelope;
       let handler: QueueJobHandler;
+      try {
+        handler = registry.resolve(job.name);
+      } catch {
+        throw new Error('Invalid job');
+      }
+      // §7 expiry sweep: the BullMQ job scheduler emits bare `{name,data:{}}`
+      // jobs with no tenant envelope; dispatch resolves by job name only.
+      if (handler.strategy === 'expiry-sweep') {
+        await handler.handle();
+        return 'processed';
+      }
+      let envelope: JobEnvelope;
       try {
         envelope = parseJobEnvelope(job.data);
         if (job.name !== envelope.type) throw new Error('Job type mismatch');
-        handler = registry.resolve(job.name);
       } catch {
         throw new Error('Invalid job');
       }

@@ -2,8 +2,14 @@ import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { buildAuthorizationPredicate } from './authorization-predicate.js';
 import { canonicalJson, jsonbTextBytes } from './canonical-json.js';
-import { requireSession, type TenantSession } from './tenant-session.js';
+import {
+  inspectPool,
+  requireSession,
+  type TenantSession,
+} from './tenant-session.js';
+import type { TenantDatabase } from './tenant-database.js';
 import type {
+  ExpiredOperationCandidate,
   OperationProposal,
   OperationRecord,
   StepClaim,
@@ -24,12 +30,14 @@ interface OperationRow {
   args_hash: string;
   snapshot_hash: string;
   approval_required: boolean;
+  kind: OperationRecord['kind'];
   status: OperationRecord['status'];
   result: unknown | null;
   error_code: string | null;
   created_at: Date;
   completed_at: Date | null;
-  decision?: 'approve' | 'reject' | null;
+  expires_at: Date | null;
+  decision?: OperationRecord['decision'];
   decision_by_user_id?: string | null;
   decided_at?: Date | null;
 }
@@ -48,11 +56,13 @@ function mapOperation(row: OperationRow): OperationRecord {
     argsHash: row.args_hash,
     snapshotHash: row.snapshot_hash,
     approvalRequired: row.approval_required,
+    kind: row.kind,
     status: row.status,
     result: row.result,
     errorCode: row.error_code,
     createdAt: row.created_at,
     completedAt: row.completed_at,
+    expiresAt: row.expires_at,
     decision: row.decision ?? null,
     decidedByUserId: row.decision_by_user_id ?? null,
     decidedAt: row.decided_at ?? null,
@@ -82,6 +92,44 @@ export function hashOperationArgs(value: unknown): string {
 }
 
 export class AiOperationRepository {
+  constructor(private readonly database?: TenantDatabase) {}
+
+  private pool() {
+    if (!this.database) throw new Error('Expiry discovery database required');
+    return inspectPool(this.database);
+  }
+
+  /**
+   * §7 sweep discovery: `app.ai_expired_operations` is a cross-tenant
+   * SECURITY DEFINER function granted to `lexon_app`; it returns candidate
+   * ids only, ordered by expires_at. The expiry itself still runs per
+   * candidate inside `withTenant` under the candidate's own org.
+   */
+  async listExpired(
+    limit: number,
+  ): Promise<readonly ExpiredOperationCandidate[]> {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1024)
+      throw new Error('Invalid expiry batch limit');
+    const result = await this.pool().query<{
+      org_id: string;
+      id: string;
+      run_id: string;
+      initiating_user_id: string;
+    }>(
+      `SELECT org_id,id,run_id,initiating_user_id
+       FROM app.ai_expired_operations($1)`,
+      [limit],
+    );
+    return result.rows.map((row) =>
+      Object.freeze({
+        orgId: row.org_id,
+        id: row.id,
+        runId: row.run_id,
+        initiatingUserId: row.initiating_user_id,
+      }),
+    );
+  }
+
   async persist(
     tx: TenantSession,
     claim: StepClaim,
@@ -96,15 +144,20 @@ export class AiOperationRepository {
       proposal.toolVersion < 1 ||
       !/^[0-9a-f]{64}$/.test(proposal.snapshotHash) ||
       hashOperationArgs(proposal.args) !== proposal.argsHash ||
-      jsonbTextBytes(proposal.args) > 16_384
+      jsonbTextBytes(proposal.args) > 16_384 ||
+      (proposal.kind !== undefined &&
+        !['approval', 'question'].includes(proposal.kind))
     )
       throw new Error('Invalid AI operation proposal');
+    const kind = proposal.kind ?? 'approval';
     const { client, ctx } = requireSession(tx);
     const inserted = await client.query<OperationRow>(
       `INSERT INTO app.ai_operations(
          id,org_id,run_id,step_id,call_occurrence,tool_name,tool_version,
-         idempotency_mode,args,args_hash,snapshot_hash,approval_required,status
-       ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,$13)
+         idempotency_mode,args,args_hash,snapshot_hash,approval_required,status,
+         kind,expires_at
+       ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,$13,$14,
+         CASE WHEN $13='awaiting_approval' THEN clock_timestamp()+interval '24 hours' END)
        ON CONFLICT(org_id,run_id,step_id,call_occurrence) DO NOTHING
        RETURNING *`,
       [
@@ -121,6 +174,7 @@ export class AiOperationRepository {
         proposal.snapshotHash,
         proposal.approvalRequired,
         proposal.approvalRequired ? 'awaiting_approval' : 'pending',
+        kind,
       ],
     );
     const existing =
@@ -139,7 +193,8 @@ export class AiOperationRepository {
       existing.idempotency_mode !== proposal.mode ||
       existing.args_hash !== proposal.argsHash ||
       existing.snapshot_hash !== proposal.snapshotHash ||
-      existing.approval_required !== proposal.approvalRequired
+      existing.approval_required !== proposal.approvalRequired ||
+      existing.kind !== kind
     )
       throw new Error('AI operation occurrence conflict');
     return mapOperation(existing);
@@ -244,7 +299,8 @@ export class AiOperationRepository {
     const { client, ctx } = requireSession(tx);
     const result = await client.query(
       `UPDATE app.ai_operations
-       SET status='awaiting_approval',approval_required=true
+       SET status='awaiting_approval',approval_required=true,
+           expires_at=clock_timestamp()+interval '24 hours'
        WHERE org_id=$1 AND id=$2 AND status='pending'`,
       [ctx.orgId, operationId],
     );
@@ -258,7 +314,9 @@ export class AiOperationRepository {
       operationId: string;
       snapshotHash: string;
       userId: string;
-      decision: 'approve' | 'reject';
+      decision: 'approve' | 'reject' | 'answer' | 'dismiss';
+      /** Stored result required for an 'answer' decision (the answers payload). */
+      result?: unknown;
     },
   ): Promise<OperationRecord | null> {
     const { client, ctx } = requireSession(tx);
@@ -266,17 +324,35 @@ export class AiOperationRepository {
       ctx.userId !== input.userId ||
       !uuid.safeParse(input.runId).success ||
       !uuid.safeParse(input.operationId).success ||
-      !/^[0-9a-f]{64}$/.test(input.snapshotHash)
+      !/^[0-9a-f]{64}$/.test(input.snapshotHash) ||
+      (input.decision === 'answer' && input.result === undefined)
     )
       return null;
-    const status = input.decision === 'approve' ? 'approved' : 'rejected';
-    const result = input.decision === 'reject' ? { denied: true } : null;
+    if (input.result !== undefined && jsonbTextBytes(input.result) > 16_384)
+      throw new Error('AI operation result exceeds storage limit');
+    const status = {
+      approve: 'approved',
+      reject: 'rejected',
+      answer: 'answered',
+      dismiss: 'dismissed',
+    }[input.decision] as OperationRecord['status'];
+    const result =
+      input.decision === 'approve'
+        ? null
+        : input.decision === 'reject'
+          ? { denied: true }
+          : input.decision === 'dismiss'
+            ? { answered_in_chat: true }
+            : input.result;
     const updated = await client.query<OperationRow>(
       `UPDATE app.ai_operations
        SET status=$5,decision=$6,decision_by_user_id=$4,decided_at=clock_timestamp(),
-           result=$7::jsonb,completed_at=CASE WHEN $6='reject' THEN clock_timestamp() ELSE NULL END
+           expires_at=NULL,result=$7::jsonb,
+           completed_at=CASE WHEN $6='approve' THEN NULL ELSE clock_timestamp() END
        WHERE org_id=$1 AND run_id=$2 AND id=$3 AND snapshot_hash=$8
          AND approval_required=true AND status='awaiting_approval' AND decision IS NULL
+         AND ((kind='approval' AND $6 IN ('approve','reject'))
+           OR (kind='question' AND $6 IN ('answer','dismiss')))
        RETURNING *`,
       [
         ctx.orgId,
@@ -285,9 +361,100 @@ export class AiOperationRepository {
         input.userId,
         status,
         input.decision,
-        result === null ? null : JSON.stringify(result),
+        result === null || result === undefined ? null : JSON.stringify(result),
         input.snapshotHash,
       ],
+    );
+    return updated.rows[0] ? mapOperation(updated.rows[0]) : null;
+  }
+
+  /**
+   * §6.4 send-while-paused supersede CAS: a still-waiting panel op settles
+   * by kind — approvals reject with {denied:'superseded'}, questions dismiss
+   * with {answered_in_chat:true}. decision/decision_by_user_id/decided_at are
+   * stamped like an owner decision; the message send carries the reason in
+   * the audit trail instead. Returns null when a concurrent decide already
+   * won the row.
+   */
+  async supersedeForMessage(
+    tx: TenantSession,
+    input: { runId: string; operationId: string; userId: string },
+  ): Promise<OperationRecord | null> {
+    const { client, ctx } = requireSession(tx);
+    if (
+      ctx.userId !== input.userId ||
+      !uuid.safeParse(input.runId).success ||
+      !uuid.safeParse(input.operationId).success
+    )
+      return null;
+    const updated = await client.query<OperationRow>(
+      `UPDATE app.ai_operations
+       SET status=CASE WHEN kind='approval' THEN 'rejected' ELSE 'dismissed' END,
+           decision=CASE WHEN kind='approval' THEN 'reject' ELSE 'dismiss' END,
+           decision_by_user_id=$4,decided_at=clock_timestamp(),
+           result=CASE WHEN kind='approval' THEN '{"denied":"superseded"}'::jsonb
+                       ELSE '{"answered_in_chat":true}'::jsonb END,
+           completed_at=clock_timestamp(),expires_at=NULL
+       WHERE org_id=$1 AND run_id=$2 AND id=$3
+         AND status='awaiting_approval' AND decision IS NULL
+       RETURNING *`,
+      [ctx.orgId, input.runId, input.operationId, input.userId],
+    );
+    return updated.rows[0] ? mapOperation(updated.rows[0]) : null;
+  }
+
+  /**
+   * §6.4 supersede leftovers: pending ops (and any still-waiting sibling) of
+   * the superseded run settle failed with {not_run:'superseded_by_message'}.
+   * decision, decision_by_user_id and decided_at stay NULL — the lifecycle
+   * CHECK requires undecided rows to keep all three clear.
+   */
+  async failUnresolvedForSupersede(
+    tx: TenantSession,
+    input: { runId: string },
+  ): Promise<OperationRecord[]> {
+    const { client, ctx } = requireSession(tx);
+    if (!uuid.safeParse(input.runId).success) return [];
+    const updated = await client.query<OperationRow>(
+      `UPDATE app.ai_operations
+       SET status='failed',
+           result='{"not_run":"superseded_by_message"}'::jsonb,
+           completed_at=clock_timestamp(),expires_at=NULL
+       WHERE org_id=$1 AND run_id=$2
+         AND status IN ('pending','awaiting_approval') AND decision IS NULL
+       RETURNING *`,
+      [ctx.orgId, input.runId],
+    );
+    return updated.rows.map(mapOperation);
+  }
+
+  /**
+   * Expiry sweep CAS: closes a still-waiting op as 'expired' with the stored
+   * result the model or thread record reads ({expired:'approval'} /
+   * {unanswered:true}). decision stays NULL and decision_by_user_id
+   * stays NULL — expiry is actor-less by contract.
+   */
+  async expire(
+    tx: TenantSession,
+    input: { runId: string; operationId: string },
+  ): Promise<OperationRecord | null> {
+    const { client, ctx } = requireSession(tx);
+    if (
+      !uuid.safeParse(input.runId).success ||
+      !uuid.safeParse(input.operationId).success
+    )
+      return null;
+    const updated = await client.query<OperationRow>(
+      `UPDATE app.ai_operations
+       SET status='expired',decided_at=clock_timestamp(),expires_at=NULL,
+           result=CASE WHEN kind='approval' THEN '{"expired":"approval"}'::jsonb
+            ELSE '{"unanswered":true}'::jsonb END,
+           completed_at=clock_timestamp()
+       WHERE org_id=$1 AND run_id=$2 AND id=$3
+         AND status='awaiting_approval' AND decision IS NULL
+         AND expires_at <= clock_timestamp()
+       RETURNING *`,
+      [ctx.orgId, input.runId, input.operationId],
     );
     return updated.rows[0] ? mapOperation(updated.rows[0]) : null;
   }
@@ -313,7 +480,7 @@ export class AiOperationRepository {
       `UPDATE app.ai_operations
        SET status='rejected',decision='reject',decision_by_user_id=$4,
            decided_at=clock_timestamp(),result='{"errorCode":"AI_ACCESS_REVOKED"}'::jsonb,
-           error_code='AI_ACCESS_REVOKED',completed_at=clock_timestamp()
+           error_code='AI_ACCESS_REVOKED',completed_at=clock_timestamp(),expires_at=NULL
        WHERE org_id=$1 AND run_id=$2 AND id=$3 AND snapshot_hash=$5
          AND approval_required=true AND status='awaiting_approval' AND decision IS NULL`,
       [
@@ -336,7 +503,7 @@ export class AiOperationRepository {
       `UPDATE app.ai_operations
        SET status='rejected',error_code='AI_ACCESS_REVOKED',
            result='{"errorCode":"AI_ACCESS_REVOKED"}'::jsonb,
-           completed_at=clock_timestamp()
+           completed_at=clock_timestamp(),expires_at=NULL
        WHERE org_id=$1 AND id=$2 AND status='approved' AND decision='approve'`,
       [ctx.orgId, operationId],
     );

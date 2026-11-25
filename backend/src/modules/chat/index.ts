@@ -15,12 +15,19 @@ export { CancelService } from './cancel.service.js';
 export { StepCoordinator } from './step-coordinator.js';
 export { StepExecutor } from './step-executor.js';
 export {
+  permittedToolSchemas,
+  prepareOperationProposals,
+  type PreparedOperationProposals,
+  type RefusedOperationProposal,
+} from './step-executor.js';
+export {
   boundToolResult,
   chooseToolRecovery,
   ToolExecutor,
   toolResultsAsMessages,
   type ToolResult,
 } from './tool-executor.js';
+export { OperationExpirySweep } from './expiry-sweep.js';
 export { ChatModule } from './chat.module.js';
 export { RunEventsService } from './run-events.service.js';
 export { RunEventsController } from './run-events.controller.js';
@@ -31,6 +38,7 @@ export type {
   DEFAULT_MAX_ATTEMPTS_PER_STEP,
   EngineRegistrations,
   IdempotencyKeyWriteToolDefinition,
+  PauseToolDefinition,
   ReadToolDefinition,
   ReconcileWriteToolDefinition,
   RunProfile,

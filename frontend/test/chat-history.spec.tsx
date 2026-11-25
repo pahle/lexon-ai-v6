@@ -101,6 +101,7 @@ function item(index: number, title = `Chat ${index}`) {
     title,
     updatedAt: '2026-11-13T09:00:00.000Z',
     lastMessageAt: '2026-11-13T09:00:00.000Z',
+    awaitingUser: false,
   };
 }
 function page(
@@ -154,6 +155,7 @@ it('groups chat history into Today, Yesterday, previous 7 and 30 days, then mont
     title: title!,
     updatedAt: updatedAt!,
     lastMessageAt: updatedAt!,
+    awaitingUser: false,
   }));
   expect(groupChatsByDate(items, now).map((group) => group.label)).toEqual([
     'Today',

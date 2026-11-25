@@ -626,6 +626,246 @@
       "variant": "m-dark",
       "percent": 5.82,
       "reason": "owner accepted 2026-11-23 (autofocus ring on a dialog field (approved); small dialog offset moved to F4.4)"
+    },
+    {
+      "id": "chat-approval",
+      "variant": "d",
+      "percent": 1.55,
+      "reason": "owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 \u00a76.4.4)"
+    },
+    {
+      "id": "chat-approval",
+      "variant": "d-dark",
+      "percent": 1.59,
+      "reason": "owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 \u00a76.4.4)"
+    },
+    {
+      "id": "chat-approval",
+      "variant": "m",
+      "percent": 4.96,
+      "reason": "owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 \u00a76.4.4)"
+    },
+    {
+      "id": "chat-approval",
+      "variant": "m-dark",
+      "percent": 5.22,
+      "reason": "owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 \u00a76.4.4)"
+    },
+    {
+      "id": "chat-question",
+      "variant": "m",
+      "percent": 6.61,
+      "reason": "owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 \u00a76.4.4)"
+    },
+    {
+      "id": "chat-question",
+      "variant": "m-dark",
+      "percent": 6.86,
+      "reason": "owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 \u00a76.4.4)"
+    },
+    {
+      "id": "chat-question-multi",
+      "variant": "m",
+      "percent": 5.93,
+      "reason": "owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 \u00a76.4.4)"
+    },
+    {
+      "id": "chat-question-multi",
+      "variant": "m-dark",
+      "percent": 6.21,
+      "reason": "owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 \u00a76.4.4)"
+    },
+    {
+      "id": "chat-question-select",
+      "variant": "d",
+      "percent": 1.82,
+      "reason": "owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 \u00a76.4.4)"
+    },
+    {
+      "id": "chat-question-select",
+      "variant": "d-dark",
+      "percent": 1.82,
+      "reason": "owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 \u00a76.4.4)"
+    },
+    {
+      "id": "chat-question-select",
+      "variant": "m",
+      "percent": 4.88,
+      "reason": "owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 \u00a76.4.4)"
+    },
+    {
+      "id": "chat-question-select",
+      "variant": "m-dark",
+      "percent": 4.88,
+      "reason": "owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 \u00a76.4.4)"
+    },
+    {
+      "id": "chat-question-text",
+      "variant": "m",
+      "percent": 3.0,
+      "reason": "owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 \u00a76.4.4)"
+    },
+    {
+      "id": "chat-question-text",
+      "variant": "m-dark",
+      "percent": 3.14,
+      "reason": "owner accepted 2026-11-25 (paused run hides the user-message copy/edit bar, F5 \u00a76.4.4)"
+    },
+    {
+      "id": "chat-approval-approved",
+      "variant": "m",
+      "percent": 2.08,
+      "reason": "owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row)"
+    },
+    {
+      "id": "chat-approval-approved",
+      "variant": "m-dark",
+      "percent": 2.19,
+      "reason": "owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row)"
+    },
+    {
+      "id": "chat-approval-expired",
+      "variant": "m",
+      "percent": 2.68,
+      "reason": "owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row)"
+    },
+    {
+      "id": "chat-approval-expired",
+      "variant": "m-dark",
+      "percent": 2.8,
+      "reason": "owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row)"
+    },
+    {
+      "id": "chat-approval-rejected",
+      "variant": "m",
+      "percent": 1.82,
+      "reason": "owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row)"
+    },
+    {
+      "id": "chat-approval-rejected",
+      "variant": "m-dark",
+      "percent": 1.85,
+      "reason": "owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row)"
+    },
+    {
+      "id": "chat-question-answered",
+      "variant": "d",
+      "percent": 2.01,
+      "reason": "owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row)"
+    },
+    {
+      "id": "chat-question-answered",
+      "variant": "d-dark",
+      "percent": 2.05,
+      "reason": "owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row)"
+    },
+    {
+      "id": "chat-question-answered",
+      "variant": "m",
+      "percent": 6.79,
+      "reason": "owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row)"
+    },
+    {
+      "id": "chat-question-answered",
+      "variant": "m-dark",
+      "percent": 7.12,
+      "reason": "owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row)"
+    },
+    {
+      "id": "chat-question-dismissed",
+      "variant": "m",
+      "percent": 2.51,
+      "reason": "owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row)"
+    },
+    {
+      "id": "chat-question-dismissed",
+      "variant": "m-dark",
+      "percent": 2.59,
+      "reason": "owner accepted 2026-11-25 (thread vertical offset between the user message and the thought row)"
+    },
+    {
+      "id": "chat-tool-activity",
+      "variant": "d",
+      "percent": 2.47,
+      "reason": "owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower)"
+    },
+    {
+      "id": "chat-tool-activity",
+      "variant": "d-dark",
+      "percent": 2.55,
+      "reason": "owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower)"
+    },
+    {
+      "id": "chat-tool-activity",
+      "variant": "m",
+      "percent": 8.39,
+      "reason": "owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower)"
+    },
+    {
+      "id": "chat-tool-activity",
+      "variant": "m-dark",
+      "percent": 9.13,
+      "reason": "owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower)"
+    },
+    {
+      "id": "chat-tool-expanded",
+      "variant": "d",
+      "percent": 3.21,
+      "reason": "owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower)"
+    },
+    {
+      "id": "chat-tool-expanded",
+      "variant": "d-dark",
+      "percent": 3.27,
+      "reason": "owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower)"
+    },
+    {
+      "id": "chat-tool-expanded",
+      "variant": "m",
+      "percent": 3.75,
+      "reason": "owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower)"
+    },
+    {
+      "id": "chat-tool-expanded",
+      "variant": "m-dark",
+      "percent": 3.75,
+      "reason": "owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower)"
+    },
+    {
+      "id": "chat-tool-failed",
+      "variant": "d",
+      "percent": 1.66,
+      "reason": "owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower)"
+    },
+    {
+      "id": "chat-tool-failed",
+      "variant": "d-dark",
+      "percent": 1.7,
+      "reason": "owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower)"
+    },
+    {
+      "id": "chat-tool-failed",
+      "variant": "m",
+      "percent": 5.65,
+      "reason": "owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower)"
+    },
+    {
+      "id": "chat-tool-failed",
+      "variant": "m-dark",
+      "percent": 6.1,
+      "reason": "owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower)"
+    },
+    {
+      "id": "chat-tool-running",
+      "variant": "m",
+      "percent": 2.67,
+      "reason": "owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower)"
+    },
+    {
+      "id": "chat-tool-running",
+      "variant": "m-dark",
+      "percent": 2.81,
+      "reason": "owner accepted 2026-11-25 (tool block ~3px taller; content below sits ~3px lower)"
     }
   ],
   "images": {
@@ -3120,6 +3360,426 @@
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
+    },
+    "chat-tool-activity-desktop-light": {
+      "path": "review/chat-tool-activity-desktop-light.png",
+      "sha256": "57b5845afdfef62381ed49c43539be4437dc5c29d6608f9cd1a0ac7a870a119e",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-tool-activity-desktop-dark": {
+      "path": "review/chat-tool-activity-desktop-dark.png",
+      "sha256": "8301ea4161e39f32a47d3ddc0ff8a68fc2b07be7b8c41a06a23a81fed029aaa6",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-tool-activity-mobile-light": {
+      "path": "review/chat-tool-activity-mobile-light.png",
+      "sha256": "a0032fee30d9f38018814820347474668630c6f5e5b97dfbf9c38153df8ca1b0",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-tool-activity-mobile-dark": {
+      "path": "review/chat-tool-activity-mobile-dark.png",
+      "sha256": "fa29a4fb406ed44f59c5144b5ebca09920611f8620ce4b45ee1cd41b804ed669",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-tool-expanded-desktop-light": {
+      "path": "review/chat-tool-expanded-desktop-light.png",
+      "sha256": "ce97736ac536d3f67154b5172faaaa9d69b774e6111fb895d6da5681afee4477",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-tool-expanded-desktop-dark": {
+      "path": "review/chat-tool-expanded-desktop-dark.png",
+      "sha256": "294b956b16d0f8fc60d5c7a3a1495cdceee8928ef884eac06e0a78a4f1d165d2",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-tool-expanded-mobile-light": {
+      "path": "review/chat-tool-expanded-mobile-light.png",
+      "sha256": "5fcb0af2142c5bce4829bc33648bebe919eb0755c83836dbb8b1929e50d2bea2",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-tool-expanded-mobile-dark": {
+      "path": "review/chat-tool-expanded-mobile-dark.png",
+      "sha256": "2fdea6664f3cea32afbd729a5139efa3dc85b97c7b3386fc65244655772eeefc",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-tool-running-desktop-light": {
+      "path": "review/chat-tool-running-desktop-light.png",
+      "sha256": "69bce46ea467ca18c5efb8266a71ac42f76692733ff63a617a532f0ce23702e9",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-tool-running-desktop-dark": {
+      "path": "review/chat-tool-running-desktop-dark.png",
+      "sha256": "69101f70c076b1c504a770a77664a2f928947b7713b8e7c2f1f0348b4e19fe4d",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-tool-running-mobile-light": {
+      "path": "review/chat-tool-running-mobile-light.png",
+      "sha256": "ddf31c9d3f22e0864a42ac3bd96cfd1fdc3b4df303f31443efdfc7e8ec23215f",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-tool-running-mobile-dark": {
+      "path": "review/chat-tool-running-mobile-dark.png",
+      "sha256": "49acbdf4df883cc600bc3ac45963aedbbdc3595520e6609a705354455b375409",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-tool-failed-desktop-light": {
+      "path": "review/chat-tool-failed-desktop-light.png",
+      "sha256": "aea21aa378fde34b96c6d83b21d17972cfece6fb9fe4a5e197bca37d3a761ccf",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-tool-failed-desktop-dark": {
+      "path": "review/chat-tool-failed-desktop-dark.png",
+      "sha256": "a745caf803e9cbca62aaefe1a9930811091b5ab7897dfac82d77771ac0e58f60",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-tool-failed-mobile-light": {
+      "path": "review/chat-tool-failed-mobile-light.png",
+      "sha256": "eb8e45f45806bb39407aae1dd494976d4a5422b8da0c94a62ad2eca1d4d11950",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-tool-failed-mobile-dark": {
+      "path": "review/chat-tool-failed-mobile-dark.png",
+      "sha256": "8ceaf8375c5da5c07985b5d8f47f31092b146cfddd96ed4675706da544792fcf",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-desktop-light": {
+      "path": "review/chat-question-desktop-light.png",
+      "sha256": "baaea2240824bade683c8c3154f2e6ebd0be8a0031b3aa281537163d37bc4ac6",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-desktop-dark": {
+      "path": "review/chat-question-desktop-dark.png",
+      "sha256": "daf944462c1f0c46a2e83f7aa58bb22f997f16ddaa3eb09c71bd608da099a7e1",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-mobile-light": {
+      "path": "review/chat-question-mobile-light.png",
+      "sha256": "249d870eaadab83ec6c2aa1ce0738d46a6ae4e02c806d307f053b9fcdaabd150",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-mobile-dark": {
+      "path": "review/chat-question-mobile-dark.png",
+      "sha256": "f7c1a4d78aae1b20f485e9bc84524ee1dad80463523b7c8c70304ba02e12e0bf",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-answered-desktop-light": {
+      "path": "review/chat-question-answered-desktop-light.png",
+      "sha256": "c2dbf44cf01463600ac440e4ac0400a534e922e54a2aeae1a99b1e82de58bcab",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-answered-desktop-dark": {
+      "path": "review/chat-question-answered-desktop-dark.png",
+      "sha256": "df5955b691443fc25a00201b77e585e7cfc1bc6cc6464c495b429744c015d352",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-answered-mobile-light": {
+      "path": "review/chat-question-answered-mobile-light.png",
+      "sha256": "fcc8670271cf3e2652c009e6a8fde736a5db485e84ba597c9375354a558e0cbf",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-answered-mobile-dark": {
+      "path": "review/chat-question-answered-mobile-dark.png",
+      "sha256": "941b239f8b11f415032acb7ff65645d20ea404a91ccf20d57f7692a52391021b",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-dismissed-desktop-light": {
+      "path": "review/chat-question-dismissed-desktop-light.png",
+      "sha256": "99b896e0fade4203a4394ce17a8df54bf902b5c6da7b194f7c9e36fc7574ff27",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-dismissed-desktop-dark": {
+      "path": "review/chat-question-dismissed-desktop-dark.png",
+      "sha256": "436b9b33c39b2c4524096877bba18db854f9d5957a7029933ece7cd7e48368fe",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-dismissed-mobile-light": {
+      "path": "review/chat-question-dismissed-mobile-light.png",
+      "sha256": "8c6967650c1f848791b0a7db2ea5bb54bb0c520f02329c644a56f3f419293225",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-dismissed-mobile-dark": {
+      "path": "review/chat-question-dismissed-mobile-dark.png",
+      "sha256": "5ee73abc075a6e0802ffc4a9eddf3e2bd4c8f955a167077942df40b677a62d3b",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-approval-desktop-light": {
+      "path": "review/chat-approval-desktop-light.png",
+      "sha256": "d47383f033b5c461e59fcc8dbb63dc56d1f29e7c397f316ff93bc07aced755d2",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-approval-desktop-dark": {
+      "path": "review/chat-approval-desktop-dark.png",
+      "sha256": "78523223243792b12e7389fc69645b6272a45be0c33d1d68e63cbc4293c63ab9",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-approval-mobile-light": {
+      "path": "review/chat-approval-mobile-light.png",
+      "sha256": "f909b4ec2666c5b57b95e0080a0aa40e1d760a54e72b5b1317d65b52e68c5e34",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-approval-mobile-dark": {
+      "path": "review/chat-approval-mobile-dark.png",
+      "sha256": "5aff9eab3906e6837003504a66f40ba5c155d1c2060caf0b0c8d1ec9b524b8df",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-approval-approved-desktop-light": {
+      "path": "review/chat-approval-approved-desktop-light.png",
+      "sha256": "3dfbac6135b16a1b2b0a9d2866e8a53a57ba27d2dc275f26b6336454124f0821",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-approval-approved-desktop-dark": {
+      "path": "review/chat-approval-approved-desktop-dark.png",
+      "sha256": "67b26308688e02ff152fac9a86f61ed7b66f9339b07d6fe9504f8af88c9e6f5a",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-approval-approved-mobile-light": {
+      "path": "review/chat-approval-approved-mobile-light.png",
+      "sha256": "213b4af291ec0018448f5c30400e451f327dfaf833a822e806ceeec81ed40ddb",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-approval-approved-mobile-dark": {
+      "path": "review/chat-approval-approved-mobile-dark.png",
+      "sha256": "11dd52e822c44c8be7a7aca9acbe275f26cd8687bc912ef30a745a64bf3fee93",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-approval-rejected-desktop-light": {
+      "path": "review/chat-approval-rejected-desktop-light.png",
+      "sha256": "31f2196741d1706f9b02a6c5c686c3c75f0a3ba8a235ca8748acaa5529da545b",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-approval-rejected-desktop-dark": {
+      "path": "review/chat-approval-rejected-desktop-dark.png",
+      "sha256": "0e72399889bd94fc10d53cfad30e0e33fbb22d6a038600aac4637546a03bf4a9",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-approval-rejected-mobile-light": {
+      "path": "review/chat-approval-rejected-mobile-light.png",
+      "sha256": "2ffca3db9ae019a75009d4b2dfa028eb5a55d035a9baecf181248b38eea9376f",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-approval-rejected-mobile-dark": {
+      "path": "review/chat-approval-rejected-mobile-dark.png",
+      "sha256": "6fc7af6c5c20070ce5722314fac5f7b25c2865254fdc2b406e375b7f425d45f6",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-approval-expired-desktop-light": {
+      "path": "review/chat-approval-expired-desktop-light.png",
+      "sha256": "890e58ccd7eb35f64191d7e1e8d687d21f6bddb8d6934c5e4aaddbff91a3cd22",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-approval-expired-desktop-dark": {
+      "path": "review/chat-approval-expired-desktop-dark.png",
+      "sha256": "fe43088817efd1c7ae823e8e70a56a5bfd0d059ee69f3bbfc604a7218be5dfa0",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-approval-expired-mobile-light": {
+      "path": "review/chat-approval-expired-mobile-light.png",
+      "sha256": "3f6094929d27493341247bf015946952acc7d2c538b4f69039e916a82b3465bb",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-approval-expired-mobile-dark": {
+      "path": "review/chat-approval-expired-mobile-dark.png",
+      "sha256": "981d7d12b576ea00e67bdb4859afcde8e143962d44d52037b3e866f922f351c4",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chats-waiting-desktop-light": {
+      "path": "review/chats-waiting-desktop-light.png",
+      "sha256": "057a2d9c705d7b1b5693f72d83dc4aa0822a7c928cd633b4536533c5e38c9c8e",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chats-waiting-desktop-dark": {
+      "path": "review/chats-waiting-desktop-dark.png",
+      "sha256": "a51a511f2b939000c5305862802483bbf0903a245fce5b30db571438255c652c",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chats-waiting-mobile-light": {
+      "path": "review/chats-waiting-mobile-light.png",
+      "sha256": "a678b3bf5aed7da926fd46ce06a406ad6be7b00295e010d6bd7537d7118570f0",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chats-waiting-mobile-dark": {
+      "path": "review/chats-waiting-mobile-dark.png",
+      "sha256": "05da7c15a77ce44b2349df58719e76b413495f735d84015fdb4d83bf5adefc9f",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-multi-desktop-light": {
+      "path": "review/chat-question-multi-desktop-light.png",
+      "sha256": "13cc5d4bda0271d7a155b9daac08e631e5ab4d8d559d3e9c5527e3f840c2ec96",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-multi-desktop-dark": {
+      "path": "review/chat-question-multi-desktop-dark.png",
+      "sha256": "334fe41abb873b2c9c517021f20b7e3b3a79ed2c0106ab8a309ad48d166c271d",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-multi-mobile-light": {
+      "path": "review/chat-question-multi-mobile-light.png",
+      "sha256": "d1bb11cb3553a8e45a147b94736b34784b1a7e7c4089653c4dbb575d78c36747",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-multi-mobile-dark": {
+      "path": "review/chat-question-multi-mobile-dark.png",
+      "sha256": "859bfbae73f74546bdb8fec8bc1784e25906d976eeb193783ba057c1df2e5c5f",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-text-desktop-light": {
+      "path": "review/chat-question-text-desktop-light.png",
+      "sha256": "f1c471448a13c33a32ebcac484d72e77369eaa011baee62492108be8ec2d013b",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-text-desktop-dark": {
+      "path": "review/chat-question-text-desktop-dark.png",
+      "sha256": "bacaef172173636de166b0148da0a2704dbb437b2acb7c23b2075cafb481d91a",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-text-mobile-light": {
+      "path": "review/chat-question-text-mobile-light.png",
+      "sha256": "2e13029cab4aab0aef047ee32da3d44cfda059773b2c667bd2ef69a613154596",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-text-mobile-dark": {
+      "path": "review/chat-question-text-mobile-dark.png",
+      "sha256": "d849022bb41a0c6885ccfc059d861a48d9027a3a8f123f7ff14dcd4f2ee1a075",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-select-desktop-light": {
+      "path": "review/chat-question-select-desktop-light.png",
+      "sha256": "dde114a52a1b7682431aa1edfeb2e9b337b53328ab52eacd73cf614bb7a8e436",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-select-desktop-dark": {
+      "path": "review/chat-question-select-desktop-dark.png",
+      "sha256": "d264e7a8201286f5ee7dbc17289df8838ac3d19201bf47c034ad34dac2753452",
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-select-mobile-light": {
+      "path": "review/chat-question-select-mobile-light.png",
+      "sha256": "ae175366336ca40c2c92928acadb39805f16cbdd2db912dd09390d84c98e9853",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "chat-question-select-mobile-dark": {
+      "path": "review/chat-question-select-mobile-dark.png",
+      "sha256": "934a329e539fc8294333095a49dafe53a08dfd35c4a093d7e6f73b4bce880756",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
     }
   },
   "reapproved": [
@@ -3533,6 +4193,73 @@
         "platform-organization-active-desktop-dark",
         "platform-organization-active-mobile-light",
         "platform-organization-active-mobile-dark"
+      ]
+    },
+    {
+      "reference": "F5 Task 9: owner approval of the 15 revision 17 chat tool/question/approval states and chats-waiting (60 views) from CI run 45566511311 at head 00ef4fe2, artifacts visual-pending-45566511311-shard-1 and visual-pending-45566511311-shard-3",
+      "date": "2026-11-25",
+      "sourceSha": "00ef4fe2dc4a43a42257384cba1da680b7312d43",
+      "viewIds": [
+        "chat-tool-activity-desktop-light",
+        "chat-tool-activity-desktop-dark",
+        "chat-tool-activity-mobile-light",
+        "chat-tool-activity-mobile-dark",
+        "chat-tool-expanded-desktop-light",
+        "chat-tool-expanded-desktop-dark",
+        "chat-tool-expanded-mobile-light",
+        "chat-tool-expanded-mobile-dark",
+        "chat-tool-running-desktop-light",
+        "chat-tool-running-desktop-dark",
+        "chat-tool-running-mobile-light",
+        "chat-tool-running-mobile-dark",
+        "chat-tool-failed-desktop-light",
+        "chat-tool-failed-desktop-dark",
+        "chat-tool-failed-mobile-light",
+        "chat-tool-failed-mobile-dark",
+        "chat-question-desktop-light",
+        "chat-question-desktop-dark",
+        "chat-question-mobile-light",
+        "chat-question-mobile-dark",
+        "chat-question-answered-desktop-light",
+        "chat-question-answered-desktop-dark",
+        "chat-question-answered-mobile-light",
+        "chat-question-answered-mobile-dark",
+        "chat-question-dismissed-desktop-light",
+        "chat-question-dismissed-desktop-dark",
+        "chat-question-dismissed-mobile-light",
+        "chat-question-dismissed-mobile-dark",
+        "chat-approval-desktop-light",
+        "chat-approval-desktop-dark",
+        "chat-approval-mobile-light",
+        "chat-approval-mobile-dark",
+        "chat-approval-approved-desktop-light",
+        "chat-approval-approved-desktop-dark",
+        "chat-approval-approved-mobile-light",
+        "chat-approval-approved-mobile-dark",
+        "chat-approval-rejected-desktop-light",
+        "chat-approval-rejected-desktop-dark",
+        "chat-approval-rejected-mobile-light",
+        "chat-approval-rejected-mobile-dark",
+        "chat-approval-expired-desktop-light",
+        "chat-approval-expired-desktop-dark",
+        "chat-approval-expired-mobile-light",
+        "chat-approval-expired-mobile-dark",
+        "chats-waiting-desktop-light",
+        "chats-waiting-desktop-dark",
+        "chats-waiting-mobile-light",
+        "chats-waiting-mobile-dark",
+        "chat-question-multi-desktop-light",
+        "chat-question-multi-desktop-dark",
+        "chat-question-multi-mobile-light",
+        "chat-question-multi-mobile-dark",
+        "chat-question-text-desktop-light",
+        "chat-question-text-desktop-dark",
+        "chat-question-text-mobile-light",
+        "chat-question-text-mobile-dark",
+        "chat-question-select-desktop-light",
+        "chat-question-select-desktop-dark",
+        "chat-question-select-mobile-light",
+        "chat-question-select-mobile-dark"
       ]
     }
   ]

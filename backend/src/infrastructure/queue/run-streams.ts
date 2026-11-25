@@ -126,6 +126,15 @@ interface SerializedQueue {
 
 const MAX_PENDING_PUBLICATIONS = 4;
 const MAX_PARTS_PER_PUBLICATION = 32;
+/**
+ * The committed-event bound one `publishCommitted` call accepts — the F3/F4
+ * spec's "32 lifecycle-event bound", sized so the worst approval lifecycle
+ * batch (`1 + 2 × maxToolProposalsPerGeneration(15)` = 31) fits. Callers with
+ * larger ordered batches must slice across sequential calls: writes are
+ * already per-part, so chunking preserves order and a mid-batch failure is
+ * the designed partial state consumers resync from.
+ */
+export const MAX_COMMITTED_EVENTS_PER_PUBLICATION = 32;
 const DEFAULT_PUBLICATION_DEADLINE_MS = 250;
 // More than four publication deadlines; a fresh publication always rechecks PostgreSQL.
 const DELETED_RUN_STREAM_FENCE_TTL_SECONDS = 2;
@@ -378,7 +387,7 @@ export class RunStreams {
     if (
       !validCommittedReference(claim) ||
       events.length < 1 ||
-      events.length > 32
+      events.length > MAX_COMMITTED_EVENTS_PER_PUBLICATION
     )
       return 'stale';
     let parts: RunStreamEvent[];

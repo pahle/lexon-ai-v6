@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ChatSnapshotSchema } from '@lexon/contracts';
+import { ChatSnapshotSchema, type OperationStatus } from '@lexon/contracts';
 import { buildAuthorizationPredicate } from './authorization-predicate.js';
 import { requireSession, type TenantSession } from './tenant-session.js';
 import type {
@@ -35,7 +35,7 @@ const transitions: Readonly<Record<AiRunStatus, readonly AiRunStatus[]>> = {
     'failed',
     'cancelling',
   ],
-  awaiting_approval: ['running', 'failed', 'cancelling'],
+  awaiting_approval: ['running', 'completed', 'failed', 'cancelling'],
   completed: [],
   failed: [],
   cancelling: ['cancelled', 'failed'],
@@ -212,10 +212,19 @@ export class AiRunRepository {
       stream_resumable: boolean;
       error_code: string | null;
       resolved_config: unknown;
+      chat_title: string;
       operations: {
         operationId: string;
+        kind: string;
         status: string;
         approvalRequired: boolean;
+        snapshotHash: string;
+        expiresAt: string | null;
+        decidedAt: string | null;
+        toolName: string;
+        input?: unknown;
+        display?: unknown;
+        output?: unknown;
       }[];
     }>(
       `SELECT r.id,r.status,r.partial_output,r.final_output,
@@ -223,12 +232,24 @@ export class AiRunRepository {
          r.reasoning_summary,r.reasoning_duration_ms,r.stream_generation,
          r.stream_snapshot_generation,r.stream_event_id,r.stream_attempt_id,
          r.stream_revision,r.stream_resumable,r.error_code,r.resolved_config,
+         c.title AS chat_title,
          COALESCE((
-           SELECT jsonb_agg(jsonb_build_object(
-             'operationId',o.id,
-             'status',CASE WHEN o.status='succeeded' THEN 'completed' ELSE o.status END,
-             'approvalRequired',o.approval_required
-           ) ORDER BY s.sequence,o.call_occurrence)
+           SELECT jsonb_agg(
+             jsonb_build_object(
+               'operationId',o.id,
+               'kind',o.kind,
+               'status',CASE WHEN o.status='succeeded' THEN 'completed' ELSE o.status END,
+               'approvalRequired',o.approval_required,
+               'snapshotHash',o.snapshot_hash,
+               'expiresAt',to_char(o.expires_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+               'decidedAt',to_char(o.decided_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+               'toolName',o.tool_name,
+               'input',o.args,
+               'output',o.result
+             ) || CASE WHEN o.tool_name='rename_chat'
+               THEN jsonb_build_object('display',jsonb_build_object('currentTitle',c.title))
+               ELSE '{}'::jsonb END
+             ORDER BY s.sequence,o.call_occurrence)
            FROM app.ai_operations o
            JOIN app.ai_steps s ON s.org_id=o.org_id AND s.run_id=o.run_id AND s.id=o.step_id
            WHERE o.org_id=r.org_id AND o.run_id=r.id
@@ -296,6 +317,28 @@ export class AiRunRepository {
         id: attemptId ?? row.id,
         text: row.reasoning_summary,
       });
+    // Ops replay as tool parts in stored order so the client rebuilds the
+    // rows identically to the live stream (§9); outcome is the wire status.
+    for (const operation of row.operations) {
+      const input =
+        operation.input !== null &&
+        typeof operation.input === 'object' &&
+        !Array.isArray(operation.input)
+          ? (operation.input as Record<string, unknown>)
+          : undefined;
+      parts.push({
+        type: 'tool' as const,
+        id: operation.operationId,
+        toolCallId: operation.operationId,
+        toolName: operation.toolName,
+        operationId: operation.operationId,
+        ...(input === undefined ? {} : { input }),
+        ...(operation.output === undefined || operation.output === null
+          ? {}
+          : { output: operation.output }),
+        outcome: operation.status as OperationStatus,
+      });
+    }
     const snapshot = ChatSnapshotSchema.parse({
       runId: row.id,
       messageId: row.id,

@@ -140,10 +140,19 @@ export class ChatSearchRepository {
       updated_at: Date;
       last_message_at: Date | null;
       activity_at: string;
+      awaiting_user: boolean;
     }>(
       `SELECT chat.id,chat.title,chat.updated_at,
          to_char(chat.last_activity_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS activity_at,
-         latest.created_at AS last_message_at
+         latest.created_at AS last_message_at,
+         EXISTS (
+           SELECT 1 FROM app.chat_runs cr
+           JOIN app.ai_runs r ON r.org_id=cr.org_id AND r.id=cr.run_id
+           JOIN app.ai_operations o ON o.org_id=r.org_id AND o.run_id=r.id
+           WHERE cr.org_id=chat.org_id AND cr.chat_id=chat.id
+             AND cr.kind='answer' AND r.status='awaiting_approval'
+             AND o.status='awaiting_approval' AND o.decision IS NULL
+         ) AS awaiting_user
        FROM app.chats chat
        LEFT JOIN LATERAL (
          SELECT message.created_at FROM app.chat_messages message

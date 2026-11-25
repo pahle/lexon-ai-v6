@@ -19,9 +19,12 @@ import {
   type AnswerStatus,
 } from '@/components/chat/chat-reasoning';
 import { ChatGreeting } from '@/components/chat/chat-greeting';
+import { ChatOperationPanel } from '@/components/chat/chat-operation-panel';
+import { ChatToolRow } from '@/components/chat/chat-tool-row';
 import {
   ChatComposerCancel,
   useChatActiveRun,
+  useChatAwaiting,
 } from '@/components/chat/chat-runtime';
 import {
   BottomSentinel,
@@ -109,7 +112,11 @@ export type ThreadProps = {
 
 // B-22: a stable Parts components map — a fresh object per render would hand
 // each part new component identities and remount the message content.
-const messagePartComponents = { Text: MarkdownText, Reasoning: () => null };
+const messagePartComponents = {
+  Text: MarkdownText,
+  Reasoning: () => null,
+  tools: { Fallback: ChatToolRow },
+};
 
 const preventFileDrop = (event: DragEvent<HTMLFormElement>) => {
   if (event.dataTransfer.files.length === 0) return;
@@ -933,9 +940,18 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
   effort = 'high',
   onEffortChange,
 }) => {
+  const aui = useAui();
   const serverActive = useChatActiveRun();
+  const awaiting = useChatAwaiting();
+  const paused = awaiting?.paused ?? false;
+  // "Or reply in your own words…" is the question dock's hint only — an
+  // approval dock keeps the default placeholder (prototype `docked(adock())`
+  // passes none; only the question variants pass the own-words hint).
+  const ownWordsHint =
+    paused &&
+    awaiting?.getOperation(awaiting.pendingOperationId)?.kind === 'question';
   const running =
-    useAuiState((state) => state.thread.isRunning) || serverActive;
+    (useAuiState((state) => state.thread.isRunning) || serverActive) && !paused;
   const loading = useAuiState((state) => state.thread.isLoading);
   const composerText = useAuiState((state) => state.composer.text);
   const tooLong = promptByteLength(composerText) > MAX_PROMPT_BYTES;
@@ -964,15 +980,42 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
     if (text && !text.trim()) event.preventDefault();
   };
   const validatePrompt = (event: FormEvent<HTMLFormElement>) => {
-    if (serverActive || loading) {
+    // A paused run stays send-capable — the server supersedes it (D7).
+    if ((serverActive && !paused) || loading) {
       event.preventDefault();
       return;
     }
     if (
       !composerText.trim() ||
       promptByteLength(composerText) > MAX_PROMPT_BYTES
-    )
+    ) {
       event.preventDefault();
+      return;
+    }
+    if (paused) {
+      // While the paused run's stream stays open, thread.isRunning is true
+      // and ComposerRoot's send callback is null, so the composed submit
+      // handler would swallow this submit — drive the store-level send
+      // directly instead (D7).
+      event.preventDefault();
+      void aui.composer.send();
+    }
+  };
+  const attemptPausedEnter = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (
+      !paused ||
+      event.key !== 'Enter' ||
+      event.shiftKey ||
+      event.nativeEvent.isComposing
+    )
+      return;
+    // ComposerInput's own keydown early-returns while thread.isRunning is
+    // true (the paused run's stream is still open), so Enter never reaches
+    // requestSubmit — submit through the paused path instead (D7). Runs in
+    // the capture phase so the primitive's handler is bypassed entirely.
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.closest('form')?.requestSubmit();
   };
   return (
     <ComposerPrimitive.Root
@@ -983,12 +1026,15 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
       onSubmit={validatePrompt}
     >
       <ScrollToLatest />
+      <ChatOperationPanel />
       <div data-slot="aui_composer-shell" className={composerClasses.shell}>
         <ComposerPrimitive.Input
           placeholder={
-            running
-              ? 'Lexon is answering…'
-              : 'Ask Lexon about a contract, a regulation, or a case...'
+            ownWordsHint
+              ? 'Or reply in your own words…'
+              : running
+                ? 'Lexon is answering…'
+                : 'Ask Lexon about a contract, a regulation, or a case...'
           }
           className={cn(
             'aui-composer-input caret-primary',
@@ -1001,6 +1047,7 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
           aria-label="Message input"
           disabled={loading}
           onKeyDown={attemptWhileBusy}
+          onKeyDownCapture={attemptPausedEnter}
           onPaste={ignoreBlankPaste}
         />
         <div
@@ -1057,6 +1104,22 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
                 </Button>
               }
             />
+          ) : paused ? (
+            // While paused the run's stream keeps thread.isRunning true, so
+            // ComposerPrimitive.Send's callback is null — a plain submit
+            // button routes through the paused path in validatePrompt (D7).
+            <TooltipIconButton
+              tooltip={sendLabel(loading ? 'loading' : null)}
+              side="bottom"
+              type="submit"
+              disabled={loading || tooLong || !composerText.trim()}
+              variant="default"
+              size="icon"
+              className={cn('aui-composer-send', composerClasses.send)}
+              aria-label={sendLabel(loading ? 'loading' : null)}
+            >
+              <ArrowUpIcon className="aui-composer-send-icon" />
+            </TooltipIconButton>
           ) : (
             <ComposerPrimitive.Send
               render={

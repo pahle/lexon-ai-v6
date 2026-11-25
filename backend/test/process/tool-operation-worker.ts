@@ -64,7 +64,7 @@ process.once('message', async (input: WorkerInput) => {
           version: 1,
           kind: 'write',
           inputSchema: z.strictObject({ value: z.string() }),
-          requiresApproval: false,
+          pauseKind: null,
           timeoutMs: 1000,
           maxResultBytes: 512,
           capabilities: [],

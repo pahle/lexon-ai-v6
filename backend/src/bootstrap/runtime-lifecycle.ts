@@ -18,7 +18,7 @@ import {
   type HealthSnapshot,
 } from '../infrastructure/telemetry/index.js';
 import { JobRegistry, OutboxDispatcher } from '../modules/platform/index.js';
-import { StepExecutor } from '../modules/chat/index.js';
+import { OperationExpirySweep, StepExecutor } from '../modules/chat/index.js';
 import { ChatCleanupWorker } from '../modules/chat/chat-cleanup.worker.js';
 import { ChatTitleService } from '../modules/chat/chat-title.service.js';
 import type { PinoLogger } from 'nestjs-pino';
@@ -44,6 +44,7 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
     private readonly streamHub?: StreamHub,
     private readonly chatCleanupWorker?: ChatCleanupWorker,
     private readonly chatTitleService?: ChatTitleService,
+    private readonly expirySweep?: OperationExpirySweep,
   ) {}
   async onModuleInit(): Promise<void> {
     try {
@@ -94,7 +95,15 @@ export class RuntimeLifecycle implements OnModuleInit, OnModuleDestroy {
             handle: async (tx, job) =>
               this.chatTitleService!.startWithin(tx, job),
           });
+        if (this.expirySweep)
+          registry.register('ai.operation-expiry.v1', {
+            strategy: 'expiry-sweep',
+            handle: () => this.expirySweep!.sweep(),
+          });
         await this.consumer.start(registry);
+        // §7: every replica upserts the same scheduler id; BullMQ converges
+        // to one 60-second `ai.operation-expiry.v1` iteration producer.
+        if (this.expirySweep) await this.consumer.scheduleOperationExpiry();
       }
       if (this.dispatcher)
         this.#dispatchTask = this.dispatcher.start(this.#abort.signal);

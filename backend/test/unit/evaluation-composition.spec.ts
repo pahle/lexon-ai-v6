@@ -16,7 +16,11 @@ it('keeps production engine registries limited to approved product profiles', ()
     'chat-title',
   ]);
   expect(PRODUCTION_ENGINE_REGISTRATIONS.contexts).toEqual([]);
-  expect(PRODUCTION_ENGINE_REGISTRATIONS.tools).toEqual([]);
+  expect(PRODUCTION_ENGINE_REGISTRATIONS.tools.map(({ id }) => id)).toEqual([
+    'ask_user',
+    'deadline_calculator',
+    'rename_chat',
+  ]);
 });
 
 it('uses SeaweedFS accessKey credential syntax for generated S3 identities', () => {
