@@ -8,7 +8,7 @@ import {
 import { useAuiState, type TextMessagePartProps } from '@assistant-ui/react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useChatAwaiting } from '@/components/chat/chat-runtime.js';
+import { useChatAwaiting } from '@/components/chat/chat-runtime';
 import { cn } from '@/lib/utils';
 import {
   createContext,
