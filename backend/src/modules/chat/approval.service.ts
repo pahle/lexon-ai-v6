@@ -81,7 +81,11 @@ export class ApprovalService {
       async (tx): Promise<DecidePublication> => {
         if (
           ownedChat &&
-          !(await this.runs.existsForOwnedChat(tx, input.runId, actor.userId))
+          !(await this.runs.existsForAccessibleChat(
+            tx,
+            input.runId,
+            actor.userId,
+          ))
         )
           throw new ChatApiError('CHAT_NOT_FOUND');
         const run = await this.runs.find(tx, input.runId);
@@ -386,7 +390,6 @@ export class ApprovalService {
       await client.query(`SELECT pg_notify('lexon_chat_title', $1)`, [
         JSON.stringify({
           orgId: ctx.orgId,
-          userId: ctx.userId,
           chatId: row.chat_id,
         }),
       ]);

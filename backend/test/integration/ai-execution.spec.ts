@@ -38,6 +38,7 @@ import {
   AiStepRepository,
   OutboxRepository,
   RunActorFactsRepository,
+  requireSession,
   type StepClaim,
 } from '../../src/infrastructure/db/index.js';
 import {
@@ -176,6 +177,13 @@ async function setup(
     tenant?: { orgId: string; userId: string };
     resourceIds?: readonly string[];
     cancelSignals?: CancelSignals;
+    /**
+     * Opt out of the auto-bound chat and keep the run on the zero-resource
+     * arm — needed by the initiator access-loss tests, where a removed
+     * member's own session can still reach the run only while it is
+     * chat-less (the chat-bound access-loss finalizer lands with 0044).
+     */
+    bindChat?: boolean;
   } = {},
 ) {
   const authorization = new RunAuthorizationService();
@@ -238,14 +246,47 @@ async function setup(
     ...(options.cancelSignals ? { cancelSignals: options.cancelSignals } : {}),
   });
   const tenant = options.tenant ?? ai.tenants[0]!;
+  // Production topology: every run is bound to a chat through chat_runs
+  // with resolvedConfig.resourceIds naming that chat — the write-fence
+  // trigger enforces the binding, and the stream proofs and registry read
+  // through the link. Callers that name their own resourceIds bind their
+  // chat themselves; otherwise the harness stands in a standalone chat.
+  const boundChatId =
+    options.bindChat !== false &&
+    (!options.resourceIds || options.resourceIds.length === 0)
+      ? randomUUID()
+      : undefined;
+  if (boundChatId) {
+    await ai.database.withTenant(tenant, async (tx) => {
+      const { client } = requireSession(tx);
+      await client.query(
+        'INSERT INTO app.chats(id,org_id,owner_user_id) VALUES($1,$2,$3)',
+        [boundChatId, tenant.orgId, tenant.userId],
+      );
+    });
+  }
   const created = (await actorScope(tenant, authorization, (actor) =>
     runService.start(actor, {
       profileId: (options.profile ?? profile).id,
       prompt: 'Synthetic prompt',
       ...(options.effort ? { effort: options.effort } : {}),
-      ...(options.resourceIds ? { resourceIds: options.resourceIds } : {}),
+      ...(options.resourceIds
+        ? { resourceIds: options.resourceIds }
+        : boundChatId
+          ? { resourceIds: [boundChatId] }
+          : {}),
     }),
   )) as { runId: string };
+  if (boundChatId) {
+    await ai.database.withTenant(tenant, async (tx) => {
+      const { client } = requireSession(tx);
+      await client.query(
+        `INSERT INTO app.chat_runs(org_id,chat_id,run_id,kind)
+         VALUES($1,$2,$3,'answer')`,
+        [tenant.orgId, boundChatId, created.runId],
+      );
+    });
+  }
   return {
     tenant,
     runId: created.runId,
@@ -3173,6 +3214,9 @@ test('a missing 31-event approval batch resets from all 15 durable operation sta
     url: services.valkey.streamsUrl,
     prefix: services.queuePrefix,
     authority,
+    // A-13 (F4.2): under a loaded worker the 31-part committed batch can
+    // overrun the 250ms default and stop before the injected -3 part.
+    publicationDeadlineMs: 2000,
   });
   const reader = new SseStreamReader(services.valkey.streamsUrl);
   const hub = new StreamHub(reader);
@@ -3815,7 +3859,7 @@ test('initiator access loss before a decision finishes the stream from the actua
           ],
         },
       ],
-      { tools: [tool], streams, tenant },
+      { tools: [tool], streams, tenant, bindChat: false },
     );
     const recover = streams.recover.bind(streams);
     vi.spyOn(streams, 'recover').mockImplementation(async (claim, snapshot) => {
@@ -4568,7 +4612,7 @@ test('initiator membership loss after approval fails resume without an effect', 
           ],
         },
       ],
-      { tools: [tool], tenant },
+      { tools: [tool], tenant, bindChat: false },
     );
     const approvals = new ApprovalService(
       ai.database,
@@ -4717,7 +4761,7 @@ test('mixed pending and approved operations terminate on membership loss before 
           ],
         },
       ],
-      { tools: [pendingTool, approvedTool], tenant },
+      { tools: [pendingTool, approvedTool], tenant, bindChat: false },
     );
     const approvals = new ApprovalService(
       ai.database,
@@ -5636,7 +5680,6 @@ test('a checkpoint after unavailable XADD persists text without a resumable curs
   services,
 }) => {
   const ai = await createAiFixture(services);
-  const chat = await createChatFixture(services);
   const steps = new AiStepRepository();
   const authority: RunStreamAuthority = {
     authorizeActive: (claim) =>
@@ -5708,9 +5751,8 @@ test('a checkpoint after unavailable XADD persists text without a resumable curs
       { timeout: 2500 },
     );
     const durable = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
-    const chatId = randomUUID();
-    await chat.chat.createFor(h.tenant, chatId);
-    await chat.chat.associateFor(h.tenant, chatId, h.runId);
+    // The harness auto-bound this run to a standalone chat (production
+    // topology) — the snapshot read authorizes through that link.
     const authorized = await ai.withTenant(0, (tx) =>
       h.runs.authorizedChatSnapshot(tx, h.runId, h.tenant.userId),
     );
@@ -5736,7 +5778,6 @@ test('a checkpoint after unavailable XADD persists text without a resumable curs
   } finally {
     evalSpy.mockRestore();
     await streams.close();
-    await chat.close();
     await ai.close();
   }
 });
@@ -7174,6 +7215,7 @@ test('revoked resume fails without publishing a run header', async ({
     const h = await setup(ai, [{ events: [success] }], {
       streams: stream.streams,
       tenant,
+      bindChat: false,
     });
     await organizations.mutateMember(team.members[0]!.id, 'delete');
     await h.executor.execute(job(h.runId, tenant, 1, 1, 'run.start.v1'), {

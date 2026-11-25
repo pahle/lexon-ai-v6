@@ -136,6 +136,12 @@ export const ChatDetailSchema = z
   .refine(chatTreeLinksRefinement.check, chatTreeLinksRefinement.params);
 export type ChatDetail = z.infer<typeof ChatDetailSchema>;
 
+// GET /chats scope (F6 §5 rows 1–2): absent/'own' is the caller's own chats
+// with the project-access disjunction; 'shared' is the chat_shares arm only
+// (project chats can never appear there).
+export const ChatListScopeSchema = z.enum(['own', 'shared']);
+export type ChatListScope = z.infer<typeof ChatListScopeSchema>;
+
 export const ChatPageSchema = z.strictObject({
   items: z.array(
     z.strictObject({
@@ -500,7 +506,7 @@ export interface ChatApi {
   create(input: CreateChatInput): Promise<ChatMutationResult>;
   get(chatId: string, options?: ChatGetOptions): Promise<ChatGetResult>;
   list(
-    input?: { cursor?: string; limit?: number },
+    input?: { cursor?: string; limit?: number; scope?: ChatListScope },
     signal?: AbortSignal,
   ): Promise<ChatPage>;
   search(

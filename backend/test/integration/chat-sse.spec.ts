@@ -1265,9 +1265,9 @@ test('an SSE lease keeps renewing while real session revalidation is pending', a
         if (lease.userId === identity.user.id && renewed) successfulRenewals++;
         return renewed;
       });
-    const originalExists = AiRunRepository.prototype.existsForOwnedChat;
+    const originalExists = AiRunRepository.prototype.existsForAccessibleChat;
     ownershipSpy = vi
-      .spyOn(AiRunRepository.prototype, 'existsForOwnedChat')
+      .spyOn(AiRunRepository.prototype, 'existsForAccessibleChat')
       .mockImplementation(async function (this: AiRunRepository, ...args) {
         ownershipChecks++;
         return originalExists.apply(this, args);

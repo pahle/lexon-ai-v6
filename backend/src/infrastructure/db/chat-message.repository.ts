@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { buildAuthorizationPredicate } from './authorization-predicate.js';
+import {
+  buildAuthorizationPredicate,
+  type ChatAuthorizationPredicate,
+} from './authorization-predicate.js';
 import { requireSession, type TenantSession } from './tenant-session.js';
 
 const uuid = z.uuid();
@@ -79,10 +82,15 @@ export const TREE_SELECTED_COLUMNS = [
 ] as const;
 
 /**
- * The literal tree query — exported so the cost spec can EXPLAIN exactly
- * what `tree()` runs instead of re-measuring a hand-copied variant.
+ * The tree query — built per call so its WHERE is the F6 §4.1 ChatRead
+ * fragment (owner OR project access OR standalone share, deny-wins; §5 row
+ * 5) instead of a hand-rolled owner clause. Exported so the cost spec can
+ * EXPLAIN exactly what `tree()` runs.
  */
-export const TREE_SQL = `SELECT m.id,m.parent_message_id,m.role,m.user_text,m.effort,m.run_id,r.status,
+export function treeSql(
+  scope: Pick<ChatAuthorizationPredicate, 'where'>,
+): string {
+  return `SELECT m.id,m.parent_message_id,m.role,m.user_text,m.effort,m.run_id,r.status,
     CASE WHEN m.role='user' THEN NULL
       WHEN r.final_output IS NOT NULL THEN r.final_output
       WHEN r.status IN ('queued','running','awaiting_approval','cancelling')
@@ -136,8 +144,9 @@ export const TREE_SQL = `SELECT m.id,m.parent_message_id,m.role,m.user_text,m.ef
         AND s.state IN ('committed','awaiting_approval')
     ) op
   ) ops ON true
-  WHERE c.org_id=$1 AND c.owner_user_id=$2 AND c.id=$3 AND c.deleted_at IS NULL
+  WHERE ${scope.where('c', '$1', '$2')} AND c.id=$3
   ORDER BY m.created_at,m.id`;
+}
 
 export class ChatMessageRepository {
   async branchSource(
@@ -165,8 +174,8 @@ export class ChatMessageRepository {
       `SELECT message.id,message.parent_message_id,message.role,message.user_text,message.effort
        FROM app.chat_messages message JOIN app.chats chat
          ON chat.org_id=message.org_id AND chat.id=message.chat_id
-       WHERE message.org_id=$1 AND chat.owner_user_id=$2 AND chat.id=$3
-         AND chat.deleted_at IS NULL AND message.id=$4`,
+       WHERE message.org_id=$1 AND ${scope.where('chat', '$1', '$2')}
+         AND chat.id=$3 AND message.id=$4`,
       [scope.orgId, scope.userId, chatId, messageId],
     );
     const row = result.rows[0];
@@ -199,8 +208,8 @@ export class ChatMessageRepository {
     const result = await client.query<{ is_leaf: boolean }>(
       `SELECT EXISTS (SELECT 1 FROM app.chat_messages target
          JOIN app.chats chat ON chat.org_id=target.org_id AND chat.id=target.chat_id
-         WHERE target.org_id=$1 AND chat.owner_user_id=$2 AND target.chat_id=$3
-           AND target.id=$4 AND chat.deleted_at IS NULL
+         WHERE target.org_id=$1 AND ${scope.where('chat', '$1', '$2')}
+           AND target.chat_id=$3 AND target.id=$4
            AND NOT EXISTS (SELECT 1 FROM app.chat_messages child
              WHERE child.org_id=target.org_id AND child.chat_id=target.chat_id
                AND child.parent_message_id=target.id)) AS is_leaf`,
@@ -234,8 +243,8 @@ export class ChatMessageRepository {
          JOIN app.chat_runs cr ON cr.org_id=m.org_id AND cr.chat_id=m.chat_id
            AND cr.run_id=m.run_id AND cr.kind='answer'
          JOIN app.chats c ON c.org_id=m.org_id AND c.id=m.chat_id
-         WHERE m.run_id=$1 AND m.role='assistant' AND c.org_id=$2
-           AND c.owner_user_id=$3 AND c.deleted_at IS NULL
+         WHERE m.run_id=$1 AND m.role='assistant'
+           AND ${scope.where('c', '$2', '$3')}
        ), path AS (
          SELECT ancestor.*,0 AS depth FROM target t
          JOIN app.chat_messages current_turn
@@ -296,7 +305,7 @@ export class ChatMessageRepository {
     const result = await client.query(
       `INSERT INTO app.chat_messages(id,org_id,chat_id,parent_message_id,role,user_text,effort)
        SELECT $1,$2,c.id,$4,'user',$5,$6 FROM app.chats c
-       WHERE c.org_id=$2 AND c.owner_user_id=$3 AND c.id=$7 AND c.deleted_at IS NULL`,
+       WHERE ${scope.where('c', '$2', '$3')} AND c.id=$7`,
       [
         input.messageId,
         scope.orgId,
@@ -339,7 +348,7 @@ export class ChatMessageRepository {
        SELECT $1,$2,c.id,$4,'assistant',$5 FROM app.chats c
        JOIN app.chat_runs cr ON cr.org_id=c.org_id AND cr.chat_id=c.id
          AND cr.run_id=$5 AND cr.kind='answer'
-       WHERE c.org_id=$2 AND c.owner_user_id=$3 AND c.id=$6 AND c.deleted_at IS NULL`,
+       WHERE ${scope.where('c', '$2', '$3')} AND c.id=$6`,
       [
         input.messageId,
         scope.orgId,
@@ -357,14 +366,14 @@ export class ChatMessageRepository {
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) return null;
     const scope = buildAuthorizationPredicate({
-      scope: 'owned-chat',
+      scope: 'chat-read',
       orgId: ctx.orgId,
       userId: ctx.userId,
       excludeDeleted: true,
     });
     const result = await client.query<
       TreeRow & { viewed_leaf_id: string | null }
-    >(TREE_SQL, [scope.orgId, scope.userId, chatId]);
+    >(treeSql(scope), [scope.orgId, scope.userId, chatId]);
     if (!result.rows.length) return null;
     const rows = result.rows.filter((row) => row.id !== null);
     return {

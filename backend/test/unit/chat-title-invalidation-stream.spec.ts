@@ -1,13 +1,23 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, vi } from 'vitest';
-import type { ChatTitleNotification } from '../../src/infrastructure/db/index.js';
+import {
+  ChatRepository,
+  type ChatTitleNotification,
+  type TenantSession,
+} from '../../src/infrastructure/db/index.js';
 import type {
   RunActor,
   VerifiedIdentity,
 } from '../../src/modules/identity-access/index.js';
 import { RunEventsService } from '../../src/modules/chat/run-events.service.js';
 
-function setup(options: { limit?: number; blockDrain?: boolean } = {}) {
+function setup(
+  options: {
+    limit?: number;
+    blockDrain?: boolean;
+    unreadable?: boolean;
+  } = {},
+) {
   const userId = randomUUID();
   const orgId = randomUUID();
   const actor = { userId, orgId } as RunActor;
@@ -79,8 +89,22 @@ function setup(options: { limit?: number; blockDrain?: boolean } = {}) {
       close(reason?: string): Promise<void>;
     };
   }> = [];
+  // The drain-side access check calls database.withTenant(...readLive). The
+  // repository prototype is stubbed so the session placeholder never reaches
+  // a real client; `unreadable` simulates a denied/foreign chat.
+  vi.spyOn(ChatRepository.prototype, 'readLive').mockImplementation(async () =>
+    options.unreadable ? null : ({} as never),
+  );
+  const database = {
+    withTenant: vi.fn(
+      async (
+        _ctx: { orgId: string; userId: string },
+        fn: (tx: TenantSession) => Promise<unknown> | unknown,
+      ) => fn({} as never),
+    ),
+  };
   const service = new RunEventsService(
-    {} as never,
+    database as never,
     {} as never,
     { assertLiveActor: vi.fn() } as never,
     {} as never,
@@ -121,6 +145,7 @@ function setup(options: { limit?: number; blockDrain?: boolean } = {}) {
   return {
     actor,
     callback: () => callback!,
+    database,
     connect,
     get firstConnectionId() {
       return firstConnectionId;
@@ -136,22 +161,19 @@ function setup(options: { limit?: number; blockDrain?: boolean } = {}) {
 
 const notification = (
   orgId: string,
-  userId: string,
   chatId = randomUUID(),
-): ChatTitleNotification => ({ orgId, userId, chatId });
+): ChatTitleNotification => ({ orgId, chatId });
 
 test('title invalidation stream coalesces overflow to one owner-wide event while a slow sink drains', async () => {
   const context = setup({ blockDrain: true });
   const subscription = await context.connect();
   const first = randomUUID();
-  context.callback()(
-    notification(context.actor.orgId, context.actor.userId, first),
-  );
+  context.callback()(notification(context.actor.orgId, first));
   await vi.waitFor(() =>
     expect(context.sinks[0]!.sink.drain).toHaveBeenCalledOnce(),
   );
   for (let index = 0; index < 65; index++)
-    context.callback()(notification(context.actor.orgId, context.actor.userId));
+    context.callback()(notification(context.actor.orgId));
   context.releaseDrain();
   await vi.waitFor(() =>
     expect(
@@ -169,7 +191,7 @@ test('title invalidation stream closes and releases its lease when a slow client
   const context = setup({ blockDrain: true });
   const subscription = await context.connect();
   context.sinks[0]!.sink.drain = vi.fn(async () => false);
-  context.callback()(notification(context.actor.orgId, context.actor.userId));
+  context.callback()(notification(context.actor.orgId));
   await vi.waitFor(() =>
     expect(context.sinks[0]!.close).toHaveBeenCalledWith('slow-client'),
   );
@@ -196,4 +218,48 @@ test('notification-listener loss closes a live title stream and cleans up its su
   await vi.waitFor(() => expect(context.unsubscribes).toHaveBeenCalledOnce());
   await subscription.close();
   expect(context.registry.release).toHaveBeenCalledOnce();
+});
+
+test('a notification for a chat the connected user cannot read is never delivered', async () => {
+  // F6 §5 row 12: the content-free {orgId,chatId} payload fans out per
+  // connected user; the drain-side read check keeps the chatId from leaking
+  // to a member without access (denied project member, non-member, outsider).
+  const context = setup({ unreadable: true });
+  const subscription = await context.connect();
+  expect(context.sinks[0]!.writes).toEqual([': connected']);
+  context.callback()(notification(context.actor.orgId));
+  await vi.waitFor(() =>
+    expect(context.database.withTenant).toHaveBeenCalled(),
+  );
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  expect(
+    context.sinks[0]!.writes.some((frame) =>
+      frame.includes('chat.invalidated'),
+    ),
+  ).toBe(false);
+  // The overflow path coalesces to the org-wide chatId:null event, which
+  // bypasses the per-chat access check (no chatId to leak).
+  for (let index = 0; index < 70; index++)
+    context.callback()(notification(context.actor.orgId));
+  await vi.waitFor(() =>
+    expect(
+      context.sinks[0]!.writes.some((frame) => frame.includes('"chatId":null')),
+    ).toBe(true),
+  );
+  await subscription.close();
+});
+
+test('a readable chat notification is delivered with its chatId to the connected user', async () => {
+  const context = setup();
+  const subscription = await context.connect();
+  const chatId = randomUUID();
+  context.callback()(notification(context.actor.orgId, chatId));
+  await vi.waitFor(() =>
+    expect(
+      context.sinks[0]!.writes.some((frame) =>
+        frame.includes(`"chatId":"${chatId}"`),
+      ),
+    ).toBe(true),
+  );
+  await subscription.close();
 });

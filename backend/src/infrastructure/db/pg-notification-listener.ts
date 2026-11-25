@@ -5,9 +5,12 @@ export const CHAT_DELETION_NOTIFICATION_CHANNEL = 'lexon_chat_deleted';
 export const CHAT_TITLE_NOTIFICATION_CHANNEL = 'lexon_chat_title';
 const RUN_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// F6 §5 row 12: the payload is content-free — {orgId,chatId} only. The
+// server fans out per connected user that passes the read predicate, so no
+// userId is emitted (a deny-listed id in the payload would be a leak and a
+// member-only payload would miss share recipients).
 const ChatTitleNotificationSchema = z.strictObject({
   orgId: z.uuid(),
-  userId: z.uuid(),
   chatId: z.uuid(),
 });
 export type ChatTitleNotification = z.infer<typeof ChatTitleNotificationSchema>;
@@ -57,7 +60,6 @@ export class PgNotificationListener {
         if (parsed.success)
           this.options.onChatTitleNotification({
             orgId: parsed.data.orgId.toLowerCase(),
-            userId: parsed.data.userId.toLowerCase(),
             chatId: parsed.data.chatId.toLowerCase(),
           });
       }

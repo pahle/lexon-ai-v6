@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type {
   ChatDetail,
+  ChatListScope,
   ChatPage,
   ChatMutationResult,
   CreateChatInput,
@@ -499,7 +500,6 @@ export class ChatService {
     await client.query(`SELECT pg_notify('lexon_chat_title', $1)`, [
       JSON.stringify({
         orgId: actor.orgId,
-        userId: actor.userId,
         chatId,
       }),
     ]);
@@ -541,9 +541,12 @@ export class ChatService {
         const parsed = ChatDetailSchema.parse({
           id: chatId,
           title: chat.title || 'New chat',
-          // Detail access is provisional: readLive is owner-only until the F6
-          // access rule lands, so every readable chat reports 'owner' here.
-          access: 'owner' as const,
+          // F6: 'owner' renders the composer surface; project members and
+          // share recipients get the read-only view (§5 row 5, brief 18/24).
+          access:
+            chat.ownerUserId === actor.userId
+              ? ('owner' as const)
+              : ('reader' as const),
           messages: tree.messages.map((message) => {
             return message.role === 'user'
               ? {
@@ -581,13 +584,14 @@ export class ChatService {
 
   async list(
     actor: RunActor,
-    input: { cursor?: string; limit?: number } = {},
+    input: { cursor?: string; limit?: number; scope?: ChatListScope } = {},
   ): Promise<ChatPage> {
     this.authorization.assertLiveActor(actor);
     const request = z
       .strictObject({
         cursor: z.string().min(1).max(256).optional(),
         limit: z.number().int().min(1).max(100).default(20),
+        scope: z.enum(['own', 'shared']).default('own'),
       })
       .parse(input);
     let cursor: z.infer<typeof listCursorSchema> | null = null;
@@ -608,6 +612,7 @@ export class ChatService {
           tx,
           cursor ? { activityAt: cursor[2], chatId: cursor[3] } : null,
           request.limit + 1,
+          request.scope,
         );
         const hasMore = rows.length > request.limit;
         const pageRows = hasMore ? rows.slice(0, request.limit) : rows;
@@ -617,6 +622,9 @@ export class ChatService {
           updatedAt: row.updated_at.toISOString(),
           lastMessageAt: row.last_message_at?.toISOString() ?? null,
           awaitingUser: row.awaiting_user,
+          ...(row.project_name === null
+            ? {}
+            : { projectName: row.project_name }),
         }));
         const last = pageRows.at(-1);
         return ChatPageSchema.parse({
