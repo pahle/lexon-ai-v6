@@ -1144,7 +1144,7 @@ const MATTERS=[
  {n:'PHK karyawan PT Maju Jaya',num:'019/EMP/2026',pa:'Employment',owner:'Budi Santoso',role:'Editor',chats:3,members:5,restricted:0,act:'3 days ago'},
  {n:'Due diligence Bank Rakyat Mandiri',num:'130/CORP/2026',pa:'Corporate',owner:'Dewi Lestari',role:'Viewer',chats:5,members:4,restricted:0,act:'4 days ago'}
 ];
-const MCHATS=[{t:'Syarat sah perjanjian (Pasal 1320)',o:'Andi Wijaya',a:'2 hours ago'},{t:'Wanprestasi remedies and damages',o:'Andi Wijaya',a:'Yesterday'},{t:'Bukti surat dan saksi',o:'Budi Santoso',a:'3 days ago'},{t:'Strategi mediasi',o:'Citra Ayu',a:'5 days ago'}];
+const MCHATS=[{t:'Syarat sah perjanjian (Pasal 1320)',o:'Andi Wijaya',a:'2 hours ago'},{t:'Wanprestasi remedies and damages',o:'Andi Wijaya',a:'Yesterday'},{t:'Bukti surat dan saksi',o:'Budi Santoso',a:'3 days ago'},{t:'Strategi mediasi',o:'Budi Santoso',a:'5 days ago'}];
 const MCHATS_P=[{t:'Klausul perpanjangan sewa',o:'Andi Wijaya',a:'Yesterday'},{t:'Deposit dan pengembalian',o:'Andi Wijaya',a:'4 days ago'}];
 const INSTR='Answer with references to the Indonesian Civil Code (KUHPerdata) and the Civil Procedure rules (HIR). Use Indonesian legal terms in italics. Keep answers short and list the documents we still need.';
 const avStack=`<span style="display:inline-flex;align-items:center">${['AW','BS','CA'].map((x,i)=>`<span class="dv-av" style="width:24px;height:24px;font-size:10px;border:2px solid var(--card);${i?'margin-left:-6px':''}">${x}</span>`).join('')}</span>`;
@@ -1165,7 +1165,7 @@ const matterComp=`<div class="comp"><textarea rows="2" placeholder="Start a chat
 function matterPage(kind){
  const personal=kind==='personal', viewer=kind==='viewer', editing=kind==='edit';
  const M=personal?{n:'Kontrak sewa ruko Tebet',num:'',pa:'Property'}:MATTERS[0];
- const CHL=personal?MCHATS_P:viewer?MCHATS.map(c=>({...c,o:c.o==='Citra Ayu'?'Rina Kusuma':c.o})):MCHATS;
+ const CHL=personal?MCHATS_P:viewer?MCHATS:MCHATS;
  const mine=o=>!viewer&&o==='Andi Wijaya';
  const acts=viewer?'<span style="color:var(--mfg);font-size:14px;padding:0 4px">Viewer</span>':(personal?'':avStack+btn('users','Members'))+`<button class="ib" aria-label="Matter settings">${sv('gear',16)}</button>${C.menu()}`;
  const comp=viewer?`<div class="note">${sv('lock',14)}You can view this matter. Ask the owner for edit access to start chats.</div>`:matterComp;
