@@ -493,6 +493,7 @@ test('search opens an inactive message branch, scrolls and highlights it, while 
       },
     ],
     viewedLeafId,
+    access: 'owner',
     createdAt: timestamp,
     updatedAt: timestamp,
   });

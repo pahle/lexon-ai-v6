@@ -330,6 +330,7 @@ describe('chat detail access contract', () => {
       tree,
       { ...tree, access: 'viewer' },
       { ...tree, access: null },
+      { ...tree, access: 'owner', extra: true },
     ])
       expect(ChatDetailSchema.safeParse(payload).success).toBe(false);
   });

@@ -3,16 +3,16 @@
 import { resolve } from 'node:path';
 import { expect, type Locator, type Page } from '@playwright/test';
 import {
+  ChatDetailSchema,
   ChatPageSchema,
   ChatSearchMatchSchema,
   ChatSearchPageSchema,
   ChatSnapshotFrameSchema,
-  ChatTreeSchema,
 } from '@lexon/contracts';
 import type {
+  ChatDetail,
   ChatMessage,
   ChatOperationSnapshot,
-  ChatTree,
   OperationStatus,
 } from '@lexon/contracts';
 import {
@@ -144,7 +144,7 @@ export function assistantMessage(
   };
 }
 
-export function chatTree(state: string): ChatTree {
+export function chatTree(state: string): ChatDetail {
   if (state === 'matching-message-highlight') {
     const matchedUser = {
       ...userMessage(),
@@ -154,11 +154,12 @@ export function chatTree(state: string): ChatTree {
       ...assistantMessage('answer-complete'),
       text: 'Under Article 1267 of the Indonesian Civil Code, the injured party may seek performance, damages, or cancellation of the agreement, depending on the circumstances.',
     };
-    return ChatTreeSchema.parse({
+    return ChatDetailSchema.parse({
       id: chatId,
       title: fileNames.default,
       messages: [matchedUser, matchedAssistant],
       viewedLeafId: matchedAssistant.id,
+      access: 'owner',
       createdAt: timestamp,
       updatedAt: timestamp,
     });
@@ -182,18 +183,19 @@ export function chatTree(state: string): ChatTree {
       text: 'Ada dua syarat subjektif (kesepakatan dan kecakapan) dan dua syarat objektif (hal tertentu dan sebab yang halal) dalam Pasal 1320 KUHPerdata.\n\nPelanggaran syarat subjektif membuat perjanjian dapat dibatalkan; pelanggaran syarat objektif membuatnya batal demi hukum.',
       reasoningDurationMs: 6_000,
     };
-    return ChatTreeSchema.parse({
+    return ChatDetailSchema.parse({
       id: chatId,
       title: fileNames.newChat,
       messages: [firstUser, firstAssistant, editedUser, editedAssistant],
       viewedLeafId: editedAssistant.id,
+      access: 'owner',
       createdAt: timestamp,
       updatedAt: timestamp,
     });
   }
   const f5 = f5States[state];
   if (f5) {
-    return ChatTreeSchema.parse({
+    return ChatDetailSchema.parse({
       id: chatId,
       title: f5.title,
       messages: [
@@ -207,15 +209,17 @@ export function chatTree(state: string): ChatTree {
         },
       ],
       viewedLeafId: assistantMessageId,
+      access: 'owner',
       createdAt: timestamp,
       updatedAt: timestamp,
     });
   }
-  return ChatTreeSchema.parse({
+  return ChatDetailSchema.parse({
     id: chatId,
     title: fileNames.newChat,
     messages: [userMessage(), assistantMessage(state)],
     viewedLeafId: assistantMessageId,
+    access: 'owner',
     createdAt: timestamp,
     updatedAt: timestamp,
   });

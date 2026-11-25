@@ -146,7 +146,11 @@ export const ChatPageSchema = z.strictObject({
       awaitingUser: z.boolean(),
       // Secondary text on the caller's own project chats (F6); absent on
       // standalone chats.
-      projectName: z.string().min(1).max(120).optional(),
+      projectName: z
+        .string()
+        .min(1)
+        .refine((value) => Array.from(value).length <= 120)
+        .optional(),
     }),
   ),
   pageInfo: z.strictObject({ nextCursor: z.string().max(256).nullable() }),

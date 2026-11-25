@@ -11,7 +11,7 @@ import {
   useAuiState,
 } from '@assistant-ui/react';
 import { ChatDetailSchema, UuidSchema } from '@lexon/contracts';
-import type { ChatTree } from '@lexon/contracts';
+import type { ChatDetail } from '@lexon/contracts';
 import {
   ChatComposerCancel,
   ChatRuntime,
@@ -20,7 +20,7 @@ import {
 export default function ChatRuntimeProofPage() {
   const [chatId, setChatId] = useState<string>();
   const [actorScope, setActorScope] = useState<string>();
-  const [tree, setTree] = useState<ChatTree>();
+  const [tree, setTree] = useState<ChatDetail>();
   const [runId, setRunId] = useState<string>();
   const [error, setError] = useState('');
 
@@ -63,7 +63,7 @@ export default function ChatRuntimeProofPage() {
     (
       message,
     ): message is Extract<
-      ChatTree['messages'][number],
+      ChatDetail['messages'][number],
       { role: 'assistant' }
     > => message.role === 'assistant' && message.id === tree.viewedLeafId,
   );
