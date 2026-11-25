@@ -81,7 +81,7 @@ export function createChatClient(options: ChatClientOptions): ChatApi {
       notModified: false,
       tree: await parseJsonResponse(
         response,
-        contracts.ChatTreeSchema,
+        contracts.ChatDetailSchema,
         () => new ChatClientError('AI_INTERNAL', 503),
       ),
       etag: response.headers.get('etag'),

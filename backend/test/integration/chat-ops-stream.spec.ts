@@ -6,7 +6,7 @@ import {
   CHAT_STREAM_RECOVERY_HEADER,
   ChatPageSchema,
   ChatSnapshotFrameSchema,
-  ChatTreeSchema,
+  ChatDetailSchema,
 } from '@lexon/contracts';
 import { test } from '../setup/file-services.js';
 import { createTestApi, apiHeaders } from '../setup/test-api.js';
@@ -560,7 +560,7 @@ test('list flags awaitingUser while paused and the tree carries operation summar
     );
     expect(pausedItem?.awaitingUser).toBe(true);
 
-    const treePaused = ChatTreeSchema.parse(
+    const treePaused = ChatDetailSchema.parse(
       await (
         await fetch(`${origin}/api/chats/${seeded.chatId}`, { headers })
       ).json(),
@@ -600,7 +600,7 @@ test('list flags awaitingUser while paused and the tree carries operation summar
     );
     expect(decidedItem?.awaitingUser).toBe(false);
 
-    const treeDecided = ChatTreeSchema.parse(
+    const treeDecided = ChatDetailSchema.parse(
       await (
         await fetch(`${origin}/api/chats/${seeded.chatId}`, { headers })
       ).json(),

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { ChatApi, ChatPage, ChatTree } from '@lexon/contracts';
+import type { ChatApi, ChatDetail, ChatPage } from '@lexon/contracts';
 import { act, type ReactNode } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ChatHistory, RecentChats } from '../src/components/chat/chat-history';
@@ -36,9 +36,10 @@ const questionOp = {
   },
 };
 
-const pausedTree: ChatTree = {
+const pausedTree: ChatDetail = {
   id: chatId,
   title: 'Draf somasi wanprestasi',
+  access: 'owner',
   messages: [
     {
       id: userId,
@@ -65,7 +66,7 @@ const pausedTree: ChatTree = {
   viewedLeafId: assistantId,
   createdAt: '2026-11-11T00:00:00.000Z',
   updatedAt: '2026-11-11T00:00:01.000Z',
-} as ChatTree;
+} as ChatDetail;
 
 const invalidationSubscribe = vi.hoisted(() => vi.fn(() => vi.fn()));
 const toastSpy = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));

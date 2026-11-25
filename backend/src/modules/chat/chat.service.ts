@@ -1,17 +1,17 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type {
+  ChatDetail,
   ChatPage,
   ChatMutationResult,
-  ChatTree as SharedChatTree,
   CreateChatInput,
   SendMessageInput,
 } from '@lexon/contracts';
 import { ChatApiError } from '@lexon/contracts';
 import {
+  ChatDetailSchema,
   ChatOperationSnapshotSchema,
   ChatPageSchema,
-  ChatTreeSchema,
 } from '@lexon/contracts';
 import type { RunStreamEvent } from '@lexon/contracts';
 import { RunStatusSchema } from '@lexon/contracts';
@@ -70,7 +70,7 @@ function asRecord(value: unknown): Record<string, unknown> {
  * `ChatGetResult` wire shape where a plain 200 may carry no ETag header.
  */
 export type ChatServiceGetResult =
-  | { notModified: false; tree: SharedChatTree; etag: string }
+  | { notModified: false; tree: ChatDetail; etag: string }
   | { notModified: true; etag: string };
 
 /**
@@ -538,9 +538,12 @@ export class ChatService {
         }
         const tree = await this.messages.tree(tx, chatId);
         if (!tree) throw new ChatApiError('CHAT_NOT_FOUND');
-        const parsed = ChatTreeSchema.parse({
+        const parsed = ChatDetailSchema.parse({
           id: chatId,
           title: chat.title || 'New chat',
+          // Detail access is provisional: readLive is owner-only until the F6
+          // access rule lands, so every readable chat reports 'owner' here.
+          access: 'owner' as const,
           messages: tree.messages.map((message) => {
             return message.role === 'user'
               ? {

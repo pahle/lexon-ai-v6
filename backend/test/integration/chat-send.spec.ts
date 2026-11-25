@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
-import { ChatTreeSchema } from '@lexon/contracts';
+import { ChatDetailSchema } from '@lexon/contracts';
 import { test } from '../setup/file-services.js';
 import { createTestApi, apiHeaders } from '../setup/test-api.js';
 import { createAuthEnvironment } from '../setup/auth-environment.js';
@@ -55,7 +55,7 @@ test('POST /api/chats creates the first user message and answer run', async ({
       headers,
     });
     expect(treeResponse.status).toBe(200);
-    const tree = ChatTreeSchema.parse(await treeResponse.json());
+    const tree = ChatDetailSchema.parse(await treeResponse.json());
     expect(tree.messages).toHaveLength(2);
 
     expect(
