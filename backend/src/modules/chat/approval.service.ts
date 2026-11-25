@@ -10,7 +10,11 @@ import type {
   RunActorFactsRepository,
   TenantDatabase,
 } from '../../infrastructure/db/index.js';
-import { requireSession } from '../../infrastructure/db/index.js';
+import {
+  isRetryableAuthError,
+  requireSession,
+  withAuthRetry,
+} from '../../infrastructure/db/index.js';
 import {
   AskUserToolInputSchema,
   ChatApiError,
@@ -76,272 +80,279 @@ export class ApprovalService {
   ): Promise<OperationDecisionResult> {
     this.authorization.assertLiveActor(actor);
     const ownedChat = options?.requireOwnedChat === true;
-    const publication = await this.database.withTenant(
-      { orgId: actor.orgId, userId: actor.userId },
-      async (tx): Promise<DecidePublication> => {
-        if (
-          ownedChat &&
-          !(await this.runs.existsForAccessibleChat(
-            tx,
-            input.runId,
-            actor.userId,
-          ))
-        )
-          throw new ChatApiError('CHAT_NOT_FOUND');
-        const run = await this.runs.find(tx, input.runId);
-        if (!run || run.initiatingUserId !== actor.userId) {
-          if (ownedChat) throw new ChatApiError('CHAT_NOT_FOUND');
-          throw new Error('AI approval decision refused');
-        }
-        const operation = (
-          await this.operations.forRun(tx, {
-            runId: input.runId,
-            throughSequence: run.nextSequence,
-          })
-        ).find((candidate) => candidate.id === input.operationId);
-        if (!operation) {
-          if (ownedChat) throw new ChatApiError('CHAT_NOT_FOUND');
-          throw new Error('AI approval decision refused');
-        }
-        // Idempotent outcome: a decided (or expired) operation returns its
-        // stored state before any status or payload validation. This is what
-        // makes a losing decide-vs-send race read as a 200, not an error.
-        if (operation.decision != null || operation.status === 'expired')
-          return { kind: 'stored', outcome: storedOutcome(operation) };
-        if (run.status !== 'awaiting_approval')
-          throw new Error('AI approval decision refused');
-        const validAction =
-          operation.kind === 'approval'
-            ? input.decision === 'approve' || input.decision === 'reject'
-            : input.decision === 'answer' || input.decision === 'dismiss';
-        if (!validAction)
-          throw new IdentityError('VALIDATION_ERROR', 400, [
-            { path: 'action', message: 'Invalid decision' },
-          ]);
-        const answerResult =
-          input.decision === 'answer'
-            ? { answers: validatedAnswers(operation.args, input.answers) }
-            : undefined;
-        const facts = await this.facts.read(tx, {
-          orgId: actor.orgId,
-          userId: actor.userId,
-          runId: input.runId,
-        });
-        const snapshot = asRecord(run.resolvedConfig).profileSnapshot;
-        const capabilities = asRecord(snapshot).capabilities;
-        const currentProfile = this.registry.profile(run.profileId);
-        const currentCapabilities = Array.isArray(capabilities)
-          ? capabilities.filter(
-              (value): value is string =>
-                typeof value === 'string' &&
-                Boolean(currentProfile?.capabilities.includes(value)),
-            )
-          : [];
-        const decision =
-          facts && currentProfile
-            ? await this.authorization.authorize(
+    const publication = await withAuthRetry(
+      () =>
+        this.database.withTenant(
+          { orgId: actor.orgId, userId: actor.userId },
+          async (tx): Promise<DecidePublication> => {
+            if (
+              ownedChat &&
+              !(await this.runs.existsForAccessibleChat(
                 tx,
-                facts,
-                {
-                  profileId: run.profileId,
-                  capabilities: currentCapabilities,
-                },
-                'decision',
+                input.runId,
+                actor.userId,
+              ))
+            )
+              throw new ChatApiError('CHAT_NOT_FOUND');
+            const run = await this.runs.find(tx, input.runId);
+            if (!run || run.initiatingUserId !== actor.userId) {
+              if (ownedChat) throw new ChatApiError('CHAT_NOT_FOUND');
+              throw new Error('AI approval decision refused');
+            }
+            const operation = (
+              await this.operations.forRun(tx, {
+                runId: input.runId,
+                throughSequence: run.nextSequence,
+              })
+            ).find((candidate) => candidate.id === input.operationId);
+            if (!operation) {
+              if (ownedChat) throw new ChatApiError('CHAT_NOT_FOUND');
+              throw new Error('AI approval decision refused');
+            }
+            // Idempotent outcome: a decided (or expired) operation returns its
+            // stored state before any status or payload validation. This is what
+            // makes a losing decide-vs-send race read as a 200, not an error.
+            if (operation.decision != null || operation.status === 'expired')
+              return { kind: 'stored', outcome: storedOutcome(operation) };
+            if (run.status !== 'awaiting_approval')
+              throw new Error('AI approval decision refused');
+            const validAction =
+              operation.kind === 'approval'
+                ? input.decision === 'approve' || input.decision === 'reject'
+                : input.decision === 'answer' || input.decision === 'dismiss';
+            if (!validAction)
+              throw new IdentityError('VALIDATION_ERROR', 400, [
+                { path: 'action', message: 'Invalid decision' },
+              ]);
+            const answerResult =
+              input.decision === 'answer'
+                ? { answers: validatedAnswers(operation.args, input.answers) }
+                : undefined;
+            const facts = await this.facts.read(tx, {
+              orgId: actor.orgId,
+              userId: actor.userId,
+              runId: input.runId,
+            });
+            const snapshot = asRecord(run.resolvedConfig).profileSnapshot;
+            const capabilities = asRecord(snapshot).capabilities;
+            const currentProfile = this.registry.profile(run.profileId);
+            const currentCapabilities = Array.isArray(capabilities)
+              ? capabilities.filter(
+                  (value): value is string =>
+                    typeof value === 'string' &&
+                    Boolean(currentProfile?.capabilities.includes(value)),
+                )
+              : [];
+            const decision =
+              facts && currentProfile
+                ? await this.authorization.authorize(
+                    tx,
+                    facts,
+                    {
+                      profileId: run.profileId,
+                      capabilities: currentCapabilities,
+                    },
+                    'decision',
+                  )
+                : null;
+            if (!decision?.mayDecide) {
+              // The access-loss settle path is approval-shaped; a question panel
+              // for a revoked actor is refused rather than recorded as 'reject'.
+              if (operation.kind !== 'approval')
+                throw new Error('AI approval decision refused');
+              const rejected =
+                await this.operations.rejectApprovalForAccessLoss(tx, {
+                  runId: input.runId,
+                  operationId: input.operationId,
+                  snapshotHash: input.snapshotHash,
+                  initiatorUserId: run.initiatingUserId,
+                });
+              if (!rejected) throw new Error('AI approval decision refused');
+              if (
+                !(await this.runs.transition(tx, {
+                  runId: run.id,
+                  expectedVersion: run.runVersion,
+                  from: 'awaiting_approval',
+                  to: 'failed',
+                  errorCode: 'AI_ACCESS_REVOKED',
+                }))
               )
-            : null;
-        if (!decision?.mayDecide) {
-          // The access-loss settle path is approval-shaped; a question panel
-          // for a revoked actor is refused rather than recorded as 'reject'.
-          if (operation.kind !== 'approval')
-            throw new Error('AI approval decision refused');
-          const rejected = await this.operations.rejectApprovalForAccessLoss(
-            tx,
-            {
+                throw new Error('AI approval decision refused');
+              const provider = asRecord(run.resolvedConfig).provider;
+              if (
+                typeof provider !== 'string' ||
+                !/^[a-zA-Z0-9._/-]{1,80}$/.test(provider)
+              )
+                throw new Error('AI approval decision refused');
+              await this.audit.append(tx, {
+                version: 1,
+                eventId: randomUUID(),
+                type: 'chat.tool_operation.v1',
+                occurredAt: new Date().toISOString(),
+                outcome: 'failure',
+                orgId: actor.orgId,
+                actorUserId: actor.userId,
+                metadata: {
+                  runId: run.id,
+                  stepId: operation.stepId,
+                  operationId: operation.id,
+                  model: run.modelId,
+                  provider,
+                  status: 'failed',
+                },
+              });
+              await this.audit.append(tx, {
+                version: 1,
+                eventId: randomUUID(),
+                type: 'chat.run_finished.v1',
+                occurredAt: new Date().toISOString(),
+                outcome: 'failure',
+                orgId: actor.orgId,
+                actorUserId: actor.userId,
+                metadata: {
+                  runId: run.id,
+                  model: run.modelId,
+                  provider,
+                  status: 'failed',
+                  safeCode: 'AI_ACCESS_REVOKED',
+                },
+              });
+              const reference = await this.runs.terminalStreamReference(
+                tx,
+                run.id,
+              );
+              if (!reference) throw new Error('AI approval decision refused');
+              await this.#notifyChatInvalidated(tx, run.id);
+              return { kind: 'terminal', reference };
+            }
+            const updated = await this.operations.decideApproval(tx, {
               runId: input.runId,
               operationId: input.operationId,
               snapshotHash: input.snapshotHash,
-              initiatorUserId: run.initiatingUserId,
-            },
-          );
-          if (!rejected) throw new Error('AI approval decision refused');
-          if (
-            !(await this.runs.transition(tx, {
+              userId: actor.userId,
+              decision: input.decision,
+              ...(answerResult ? { result: answerResult } : {}),
+            });
+            if (!updated) {
+              // CAS loss: a concurrent decision may have landed between the read
+              // and the update. Re-read — a decided row still yields its stored
+              // outcome; only a live-but-rejected CAS (hash mismatch) refuses.
+              const reread = (
+                await this.operations.forRun(tx, {
+                  runId: input.runId,
+                  throughSequence: run.nextSequence,
+                })
+              ).find((candidate) => candidate.id === input.operationId);
+              if (
+                reread &&
+                (reread.decision != null || reread.status === 'expired')
+              )
+                return { kind: 'stored', outcome: storedOutcome(reread) };
+              throw new Error('AI approval decision refused');
+            }
+            const provider = asRecord(run.resolvedConfig).provider;
+            if (
+              typeof provider !== 'string' ||
+              !/^[a-zA-Z0-9._/-]{1,80}$/.test(provider)
+            )
+              throw new Error('AI approval decision refused');
+            const decidedMetadata = {
               runId: run.id,
-              expectedVersion: run.runVersion,
-              from: 'awaiting_approval',
-              to: 'failed',
-              errorCode: 'AI_ACCESS_REVOKED',
-            }))
-          )
-            throw new Error('AI approval decision refused');
-          const provider = asRecord(run.resolvedConfig).provider;
-          if (
-            typeof provider !== 'string' ||
-            !/^[a-zA-Z0-9._/-]{1,80}$/.test(provider)
-          )
-            throw new Error('AI approval decision refused');
-          await this.audit.append(tx, {
-            version: 1,
-            eventId: randomUUID(),
-            type: 'chat.tool_operation.v1',
-            occurredAt: new Date().toISOString(),
-            outcome: 'failure',
-            orgId: actor.orgId,
-            actorUserId: actor.userId,
-            metadata: {
+              operationId: updated.id,
+            };
+            if (updated.kind === 'question') {
+              await this.audit.append(tx, {
+                version: 1,
+                eventId: randomUUID(),
+                type: 'chat.question_decided.v1',
+                occurredAt: new Date().toISOString(),
+                outcome: 'success',
+                orgId: actor.orgId,
+                actorUserId: actor.userId,
+                metadata: {
+                  ...decidedMetadata,
+                  status:
+                    updated.status === 'answered' ? 'answered' : 'dismissed',
+                },
+              });
+            } else {
+              await this.audit.append(tx, {
+                version: 1,
+                eventId: randomUUID(),
+                type: 'chat.approval_decided.v1',
+                occurredAt: new Date().toISOString(),
+                outcome: 'success',
+                orgId: actor.orgId,
+                actorUserId: actor.userId,
+                metadata: {
+                  ...decidedMetadata,
+                  status:
+                    updated.status === 'approved' ? 'approved' : 'rejected',
+                },
+              });
+            }
+            const sequence = run.nextSequence;
+            const expectedVersion = run.runVersion + 1;
+            if (
+              !(await this.runs.transition(tx, {
+                runId: run.id,
+                expectedVersion: run.runVersion,
+                from: 'awaiting_approval',
+                to: 'running',
+              }))
+            )
+              throw new Error('AI approval decision refused');
+            await this.steps.insertInitial(tx, {
+              id: randomUUID(),
               runId: run.id,
-              stepId: operation.stepId,
-              operationId: operation.id,
-              model: run.modelId,
-              provider,
-              status: 'failed',
-            },
-          });
-          await this.audit.append(tx, {
-            version: 1,
-            eventId: randomUUID(),
-            type: 'chat.run_finished.v1',
-            occurredAt: new Date().toISOString(),
-            outcome: 'failure',
-            orgId: actor.orgId,
-            actorUserId: actor.userId,
-            metadata: {
+              sequence,
+              expectedVersion,
+            });
+            await this.outbox.append(
+              tx,
+              {
+                type: 'run.resume.v1',
+                ctx: { orgId: actor.orgId, userId: actor.userId },
+                payload: { runId: run.id, sequence, expectedVersion },
+              },
+              {
+                id: stepJobId(run.id, sequence),
+                ...(isRouting(run.resolvedConfig)
+                  ? {
+                      queue: run.resolvedConfig.queue,
+                      priority: run.resolvedConfig.priority,
+                    }
+                  : {}),
+              },
+            );
+            const priorStep = await this.steps.find(tx, {
               runId: run.id,
-              model: run.modelId,
-              provider,
-              status: 'failed',
-              safeCode: 'AI_ACCESS_REVOKED',
-            },
-          });
-          const reference = await this.runs.terminalStreamReference(tx, run.id);
-          if (!reference) throw new Error('AI approval decision refused');
-          await this.#notifyChatInvalidated(tx, run.id);
-          return { kind: 'terminal', reference };
-        }
-        const updated = await this.operations.decideApproval(tx, {
-          runId: input.runId,
-          operationId: input.operationId,
-          snapshotHash: input.snapshotHash,
-          userId: actor.userId,
-          decision: input.decision,
-          ...(answerResult ? { result: answerResult } : {}),
-        });
-        if (!updated) {
-          // CAS loss: a concurrent decision may have landed between the read
-          // and the update. Re-read — a decided row still yields its stored
-          // outcome; only a live-but-rejected CAS (hash mismatch) refuses.
-          const reread = (
-            await this.operations.forRun(tx, {
-              runId: input.runId,
-              throughSequence: run.nextSequence,
-            })
-          ).find((candidate) => candidate.id === input.operationId);
-          if (
-            reread &&
-            (reread.decision != null || reread.status === 'expired')
-          )
-            return { kind: 'stored', outcome: storedOutcome(reread) };
-          throw new Error('AI approval decision refused');
-        }
-        const provider = asRecord(run.resolvedConfig).provider;
-        if (
-          typeof provider !== 'string' ||
-          !/^[a-zA-Z0-9._/-]{1,80}$/.test(provider)
-        )
-          throw new Error('AI approval decision refused');
-        const decidedMetadata = {
-          runId: run.id,
-          operationId: updated.id,
-        };
-        if (updated.kind === 'question') {
-          await this.audit.append(tx, {
-            version: 1,
-            eventId: randomUUID(),
-            type: 'chat.question_decided.v1',
-            occurredAt: new Date().toISOString(),
-            outcome: 'success',
-            orgId: actor.orgId,
-            actorUserId: actor.userId,
-            metadata: {
-              ...decidedMetadata,
-              status: updated.status === 'answered' ? 'answered' : 'dismissed',
-            },
-          });
-        } else {
-          await this.audit.append(tx, {
-            version: 1,
-            eventId: randomUUID(),
-            type: 'chat.approval_decided.v1',
-            occurredAt: new Date().toISOString(),
-            outcome: 'success',
-            orgId: actor.orgId,
-            actorUserId: actor.userId,
-            metadata: {
-              ...decidedMetadata,
-              status: updated.status === 'approved' ? 'approved' : 'rejected',
-            },
-          });
-        }
-        const sequence = run.nextSequence;
-        const expectedVersion = run.runVersion + 1;
-        if (
-          !(await this.runs.transition(tx, {
-            runId: run.id,
-            expectedVersion: run.runVersion,
-            from: 'awaiting_approval',
-            to: 'running',
-          }))
-        )
-          throw new Error('AI approval decision refused');
-        await this.steps.insertInitial(tx, {
-          id: randomUUID(),
-          runId: run.id,
-          sequence,
-          expectedVersion,
-        });
-        await this.outbox.append(
-          tx,
-          {
-            type: 'run.resume.v1',
-            ctx: { orgId: actor.orgId, userId: actor.userId },
-            payload: { runId: run.id, sequence, expectedVersion },
+              sequence: run.nextSequence - 1,
+            });
+            if (!priorStep || priorStep.state !== 'awaiting_approval')
+              throw new Error('AI approval decision refused');
+            const reference: CommittedStreamReference = {
+              runId: run.id,
+              orgId: actor.orgId,
+              userId: actor.userId,
+              stepId: priorStep.id,
+              sequence: priorStep.sequence,
+              expectedVersion: priorStep.expectedVersion,
+              fence: priorStep.fence,
+              committedRunVersion: expectedVersion,
+              committedStatus: 'running',
+            };
+            await this.#notifyChatInvalidated(tx, run.id);
+            return {
+              kind: 'resume',
+              reference,
+              outcome: storedOutcome(updated),
+              operationId: updated.id,
+              operationStatus: updated.status,
+            };
           },
-          {
-            id: stepJobId(run.id, sequence),
-            ...(isRouting(run.resolvedConfig)
-              ? {
-                  queue: run.resolvedConfig.queue,
-                  priority: run.resolvedConfig.priority,
-                }
-              : {}),
-          },
-        );
-        const priorStep = await this.steps.find(tx, {
-          runId: run.id,
-          sequence: run.nextSequence - 1,
-        });
-        if (!priorStep || priorStep.state !== 'awaiting_approval')
-          throw new Error('AI approval decision refused');
-        const reference: CommittedStreamReference = {
-          runId: run.id,
-          orgId: actor.orgId,
-          userId: actor.userId,
-          stepId: priorStep.id,
-          sequence: priorStep.sequence,
-          expectedVersion: priorStep.expectedVersion,
-          fence: priorStep.fence,
-          committedRunVersion: expectedVersion,
-          committedStatus: 'running',
-        };
-        await this.#notifyChatInvalidated(tx, run.id);
-        return {
-          kind: 'resume',
-          reference,
-          outcome: storedOutcome(updated),
-          operationId: updated.id,
-          operationStatus: updated.status,
-        };
-      },
+        ),
+      { retryable: isRetryableAuthError },
     );
     if (publication.kind === 'terminal') {
       await this.streams?.finish(publication.reference, {
