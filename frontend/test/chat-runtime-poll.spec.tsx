@@ -1,5 +1,5 @@
 import { ThreadPrimitive } from '@assistant-ui/react';
-import type { ChatTree } from '@lexon/contracts';
+import type { ChatDetail } from '@lexon/contracts';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ChatRuntime } from '../src/components/chat/chat-runtime.js';
 import { createChatClient } from '../src/lib/chat-client.js';
@@ -12,6 +12,7 @@ const runId = '44444444-4444-4444-8444-444444444444';
 const active = {
   id: chatId,
   title: 'Poll',
+  access: 'owner',
   messages: [
     {
       id: userId,
@@ -36,7 +37,7 @@ const active = {
     },
   ],
   viewedLeafId: assistantId,
-} as ChatTree;
+} as ChatDetail;
 
 beforeEach(() => {
   vi.useFakeTimers();

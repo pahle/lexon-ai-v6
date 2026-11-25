@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
 import { expect } from 'vitest';
-import { ChatTreeSchema } from '@lexon/contracts';
+import { ChatDetailSchema } from '@lexon/contracts';
 import { test } from '../setup/file-services.js';
 import { createTestApi, apiHeaders } from '../setup/test-api.js';
 import { createAuthEnvironment } from '../setup/auth-environment.js';
@@ -79,7 +79,7 @@ test('owner stop retains one partial answer, clears busy state, and terminal rep
     const treeResponse = await fetch(`${origin}/api/chats/${chatId}`, {
       headers,
     });
-    const tree = ChatTreeSchema.parse(await treeResponse.json());
+    const tree = ChatDetailSchema.parse(await treeResponse.json());
     expect(
       tree.messages.filter((message) => message.role === 'assistant'),
     ).toHaveLength(1);
@@ -128,7 +128,7 @@ test('owner stop retains one partial answer, clears busy state, and terminal rep
         (tx) => new AiRunRepository().find(tx, retryResult.runId),
       );
     expect(retryRun?.resolvedConfig).toMatchObject({ resolvedEffort: 'max' });
-    const retriedTree = ChatTreeSchema.parse(
+    const retriedTree = ChatDetailSchema.parse(
       await (await fetch(`${origin}/api/chats/${chatId}`, { headers })).json(),
     );
     expect(
@@ -195,7 +195,7 @@ test('HTTP stop keeps the answer busy until the blocked worker acknowledges canc
             `/chats/${chatId}`,
             actor.headers,
           );
-          const tree = ChatTreeSchema.parse(await treeResponse.json());
+          const tree = ChatDetailSchema.parse(await treeResponse.json());
           return tree.messages.find(
             (message) => message.id === mutation.assistantMessageId,
           );
@@ -223,7 +223,7 @@ test('HTTP stop keeps the answer busy until the blocked worker acknowledges canc
     harness.model.release();
     await execution;
     execution = undefined;
-    const stoppedTree = ChatTreeSchema.parse(
+    const stoppedTree = ChatDetailSchema.parse(
       await (
         await harness.client.identity.call(`/chats/${chatId}`, actor.headers)
       ).json(),

@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { expect, vi } from 'vitest';
-import { ChatTreeSchema } from '@lexon/contracts';
+import { ChatDetailSchema } from '@lexon/contracts';
 import { test } from '../setup/file-services.js';
 import { createTestApi, apiHeaders } from '../setup/test-api.js';
 import { createAuthEnvironment } from '../setup/auth-environment.js';
@@ -232,7 +232,7 @@ test('a send retry keeps its original answer identity after that answer is regen
     const treeResponse = await fetch(`${origin}/api/chats/${chatId}`, {
       headers,
     });
-    const tree = ChatTreeSchema.parse(await treeResponse.json());
+    const tree = ChatDetailSchema.parse(await treeResponse.json());
     expect(
       tree.messages.filter(
         (message) =>
@@ -306,7 +306,7 @@ test('a send retry keeps its original answer identity after that answer is regen
     expect(
       JSON.stringify([...regenerateAudits.rows, ...editAudits.rows]),
     ).not.toContain('Edited nonroot follow-up');
-    const editedTree = ChatTreeSchema.parse(
+    const editedTree = ChatDetailSchema.parse(
       await (await fetch(`${origin}/api/chats/${chatId}`, { headers })).json(),
     );
     expect(editedTree.messages).toHaveLength(7);
@@ -344,7 +344,7 @@ test('a send retry keeps its original answer identity after that answer is regen
       200,
     );
     expect((await selectLeaf(regenerated.assistantMessageId)).status).toBe(200);
-    const selectedTree = ChatTreeSchema.parse(
+    const selectedTree = ChatDetailSchema.parse(
       await (await fetch(`${origin}/api/chats/${chatId}`, { headers })).json(),
     );
     expect(selectedTree.viewedLeafId).toBe(regenerated.assistantMessageId);
@@ -430,7 +430,7 @@ test('editing a user message creates a new root sibling and leaves its source un
       headers,
     });
     expect(treeResponse.status).toBe(200);
-    const tree = ChatTreeSchema.parse(await treeResponse.json());
+    const tree = ChatDetailSchema.parse(await treeResponse.json());
     expect(tree.messages).toHaveLength(4);
     expect(
       tree.messages.find((message) => message.id === originalUserId),
@@ -524,7 +524,7 @@ test('editing a user message creates a new root sibling and leaves its source un
       replacementBaseline,
     );
     expect(
-      ChatTreeSchema.parse(
+      ChatDetailSchema.parse(
         await (
           await fetch(`${origin}/api/chats/${replacementChatId}`, { headers })
         ).json(),
