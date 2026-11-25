@@ -35,11 +35,19 @@
 
 ### Branches and PRs
 
-- Spec + plan ride PR #91 (`f6-projects`); it merges after the owner approves this plan. After it merges, `f6-projects` is **restarted from `origin/main`** and becomes the **integration branch** for the whole slice.
+- Spec + plan ride PR #91 (`f6-projects`); it squash-merges after the owner approves this plan. Then `f6-projects` is **restarted from `origin/main`** and becomes the **integration branch** for the whole slice: `git fetch origin && git switch -C f6-projects origin/main && git merge -s ours <old f6-projects tip>` — the `-s ours` merge records the docs history on the branch so a plain `git push` works; **never force-push**.
 - **Do not merge task PRs into `main` one by one.** Every task branch `f6-t<N>-<slug>` is cut **from `f6-projects` and merges back into it** (each in its own worktree). There is **one PR to `main`, "F6 Projects & ethical wall", opened as a draft from task 0** (base `f6-projects` → `main`), which merges only after task 12.
 - **Parallel tasks never touch the same file.** The chain 5→6→7→8 is sequential: `app.module.ts` registration, `audit-event.ts`, and service conventions are shared. Task 4 owns `run-events.service.ts`, `pg-notification-listener.ts`, capability/facts/finalization; tasks 5–8 call its `notifyAccessChanged` helper — so they run after 4.
 - **Dependency order:** 0 is independent (parallel with 1–2 allowed). 1 ‖ 2. 3 after 1+2. 4 after 3. 5 after 4. 6 after 5. 7 after 5. 8 after 5. 9 after 5+6. 10 after 9. 11 after 4+5+6. 12 last, on a worktree branched from the merged integration head.
 - **Migration numbers:** reserved at task start — `0043` (task 2), `0044` (task 4), `0045` (task 8). If a foreign migration lands first, renumber and say so in the report.
+
+### Batches and stops
+
+- **Batch 1 = tasks 0–4. Batch 2 = tasks 5–8. Batch 3 = tasks 9–11. Then task 12** runs up to the first-capture CI pending sheets and stops for the owner eye review (spec §17 — no `approval.json` or golden writes before it).
+- **Stop after each batch** with one report covering every task in it.
+- **Inside a batch, per task:** after the task's spec review and quality review approve it — run the full `pnpm test; echo exit=$?` and whole-repo `pnpm format:check; echo exit=$?`, confirm the task PR's CI completed green, merge into `f6-projects`, push, run `gh pr checks <F6 PR>` once and record the result in the task report.
+- **Never start a task with an unresolved Important or Critical review finding.**
+- A red check caused by the merged task stops the batch; a known infra flake is recorded with its run URL and does not stop it.
 
 ### Command conventions
 
@@ -65,7 +73,7 @@ Failure modes the spec implies a lazy implementation can miss. Each has a test i
 6. **Self-lift refused twice** — service and `lexon_project_deny_lift`. Task 6.
 7. **`SET NULL (project_id)` actually applies** — project delete leaves zero live chats and tombstoned chats invisible to their owners. Task 8.
 8. **Readers never see F5 panels** — operation payloads filtered from the snapshot for non-owner callers; "Waiting for <owner>" marker. Tasks 7 and 9.
-9. **TenantGuard surface unchanged** — route-inventory test: every workspace route except the allowlist still rejects `userId`. Task 5.
+9. **TenantGuard surface unchanged** — route-inventory test: every workspace route except the allowlist still rejects `userId`; the final allowlist is exactly `POST /projects/:id/members` (task 5) + `POST /org/projects/:id/denies` (task 6). Tasks 5 and 6.
 10. **`notifyAccessChanged` targets never include denied users** for project chats (existence leak). Task 4.
 
 ---
@@ -193,10 +201,10 @@ Spec §3, §7, §11–§13, §15; research notes: `membership.service.ts` patter
 **Files:**
 
 - Create: `backend/src/modules/projects/` — `projects.module.ts`, `projects.controller.ts` (CRUD + `/projects/:id/chats` + `PATCH /projects/:id/instructions` + `GET /projects` list incl. `sort=activity&limit=5`), `project-members.controller.ts` (`GET/POST /projects/:id/members`, `PATCH/DELETE /projects/:id/members/:userId`), `projects.service.ts`, `project.repository.ts`, `backend/test/integration/projects.spec.ts`, `backend/test/integration/project-members.spec.ts`, `backend/test/integration/tenant-guard-routes.spec.ts` (route inventory).
-- Modify: `backend/src/modules/identity-access/tenant.guard.ts` (opt-in `allowUserIdKey`-style metadata on the two body-carrying member/share routes), `backend/src/modules/audit/audit-event.ts` (**all** F6 event schemas+validator — single owner: project.created/settings_updated/instructions_updated/deleted, member_added/role_changed/removed, deny_added/deny_lifted, chat.shared/share_revoked), `app.module.ts` (module registration), `backend/src/modules/organizations/membership.controller.ts` (+ `GET /org/members/search` via `OrganizationAuthPort`/`listMembers` name/email search).
+- Modify: `backend/src/modules/identity-access/tenant.guard.ts` (opt-in `allowUserIdKey`-style metadata mechanism — the guard only rejects the key `userId`, so the share body's `{userIds}` needs no allowance; applied here to exactly one route: `POST /projects/:id/members`), `backend/src/modules/audit/audit-event.ts` (**all** F6 event schemas+validator — single owner: project.created/settings_updated/instructions_updated/deleted, member_added/role_changed/removed, deny_added/deny_lifted, chat.shared/share_revoked), `app.module.ts` (module registration), `backend/src/modules/organizations/membership.controller.ts` (+ `GET /org/members/search` via `OrganizationAuthPort`/`listMembers` name/email search).
 - Service invariants: create → creator becomes `owner_user_id`; members add/change/remove = project owner only; target must be org member AND not denied (`ops.lexon_project_denied`); member mutations emit `notifyAccessChanged`; audit emitters in the same tx; all 404s identical to nonexistent.
 
-- [ ] **Step 1: Failing tests** — `projects.spec.ts` **[Docker]**: create/list/detail/update/delete shapes, role-gated fields (viewer gets 403 on instructions-update, non-member gets 404), `PATCH /projects/:id/instructions` owner+editor ok/viewer 403/non-member 404; the identical-404 triple (nonexistent/non-member/denied) on every project read route. `project-members.spec.ts`: add/role/remove flows; denied target refused at service + RLS; target not org member refused; member mutations emit `chat.invalidated` to the target. `tenant-guard-routes.spec.ts`: every registered workspace route rejects `{userId}` except the documented allowlist; the allowed routes accept a valid org member and refuse a non-member.
+- [ ] **Step 1: Failing tests** — `projects.spec.ts` **[Docker]**: create/list/detail/update/delete shapes, role-gated fields (viewer gets 403 on instructions-update, non-member gets 404), `PATCH /projects/:id/instructions` owner+editor ok/viewer 403/non-member 404; the identical-404 triple (nonexistent/non-member/denied) on every project read route. `project-members.spec.ts`: add/role/remove flows; denied target refused at service + RLS; target not org member refused; member mutations emit `chat.invalidated` to the target. `tenant-guard-routes.spec.ts`: every registered workspace route rejects `{userId}` except the documented allowlist — at this point the allowlist is exactly `POST /projects/:id/members` (task 6 extends it with the deny route; no other route ever joins); the allowed route accepts a valid org member and refuses a non-member.
 - [ ] **Step 2: RED** → exit 1.
 - [ ] **Step 3: Implement** module + guard metadata + audit contract + emits.
 - [ ] **Step 4: GREEN** → gate → commit `feat(projects): Matters CRUD, members and TenantGuard allowance`; push; draft PR.
@@ -212,7 +220,7 @@ Spec §4.2 (deny definers), §6 (full matrix), §13, §15.
 **Files:**
 
 - Create: `backend/src/modules/projects/org-projects.controller.ts` (`GET /org/projects` metadata list + `GET/POST/DELETE /org/projects/:id/denies`), `backend/test/integration/ethical-wall.spec.ts`.
-- Modify: `backend/src/modules/projects/projects.service.ts` (deny service wrapping the definers; emits `notifyAccessChanged` to denied/lifted users and project members; audits `project.deny_added/deny_lifted` + `project.member_removed` reason `deny`), `app.module.ts` if a second module file is introduced.
+- Modify: `backend/src/modules/projects/projects.service.ts` (deny service wrapping the definers; emits `notifyAccessChanged` to denied/lifted users and project members; audits `project.deny_added/deny_lifted` + `project.member_removed` reason `deny`), `app.module.ts` if a second module file is introduced, `backend/test/integration/tenant-guard-routes.spec.ts` (extend the allowlist with `POST /org/projects/:id/denies` — the only other body-carrying route; the metadata goes on this task's own controller via task 5's mechanism).
 
 - [ ] **Step 1: Failing tests** — `ethical-wall.spec.ts` **[Docker]**: metadata list shows name/matter number/practice area/owner/member count — never instructions; deny-add removes the member row in the same tx and emits the right audits; denied member → identical 404s on **every** §6 path (project page, chats list, members, instructions, chat detail/tree, FTS, Recent, SSE replay+live, share lists, metadata list for a denied admin); deny of the project owner refused (service + definer); **self-deny allowed, self-lift refused** — second admin lifts (integration over the definer); concurrent deny+lift → last commit wins, no duplicate rows, both audited; project owner's re-add attempt shows the target "unavailable".
 - [ ] **Step 2: RED** → exit 1.
@@ -229,7 +237,7 @@ Spec §3.5, §5 rows 2/5, §10–§12, §15; research notes: `chat.service.ts`, 
 
 **Files:**
 
-- Create: `backend/src/modules/chat/chat-shares.controller.ts` (`GET/POST /chats/:id/shares`, `DELETE /chats/:id/shares/:userId`), `backend/test/integration/chat-shares.spec.ts`.
+- Create: `backend/src/modules/chat/chat-shares.controller.ts` (`GET/POST /chats/:id/shares`, `DELETE /chats/:id/shares/:userId`), `backend/test/integration/chat-shares.spec.ts`. **No TenantGuard metadata on these routes** — `POST` carries `{userIds}` (not `userId`) and `DELETE` uses a path param, so the guard's `userId` key check never fires; the route-inventory test keeps them outside the allowlist.
 - Modify: `backend/src/modules/chat/chat.service.ts` (share service: owner+standalone-chat only; targets = org members; revoke; `notifyAccessChanged` on add/revoke; audits `chat.shared/share_revoked`), `backend/src/modules/chat/chat-search.service.ts` or controller (`GET /chats?scope=shared` → the `chat_shares` arm), chat detail payload's `access` consumed by the recipient view (`'reader'` for share recipients and non-owner project members).
 
 - [ ] **Step 1: Failing tests** — add/list/revoke flows; share on a project chat refused; share to a non-org-member refused; recipient sees the tree read-only with `access:'reader'` and no pending-operation payloads; revoke → next request 404 + open stream closes ≤5 s; shared-with-me list shape; recipient leaving the org → access ends.
