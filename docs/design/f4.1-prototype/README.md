@@ -1,6 +1,6 @@
 # F4.1 prototype: brand v4.1 and chat experience
 
-**Approved by the product owner on 2026-11-18 (revision 14.9); revision 15 adds the F4.2 failure states (2026-11-19); revision 16 adds the data views kit and the F4.3 platform console (approved 2026-11-21); revision 17 adds the F5 tool, question, and approval states (approved 2026-11-24).** This is the visual
+**Approved by the product owner on 2026-11-18 (revision 14.9); revision 15 adds the F4.2 failure states (2026-11-19); revision 16 adds the data views kit and the F4.3 platform console (approved 2026-11-21); revision 17 adds the F5 tool, question, and approval states (approved 2026-11-24); revision 18 adds the F6 Matters, ethical-wall, and read-only shared-chat states (approved 2026-11-25).** This is the visual
 target for [F4.1](../../briefs/F4.1-brand-refresh.md). Screens are built **1:1**
 with it: layout, sizes, spacing, type, copy, and states. shadcn `base-nova` and
 assistant-ui provide structure, behavior, and accessibility (LEX-DS-001 v3.1 §5).
