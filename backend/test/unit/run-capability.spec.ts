@@ -18,6 +18,10 @@ const baseFacts = {
   require2fa: false,
   profileId: 'workspace-chat',
   capabilities: ['chat:read', 'documents:write'],
+  // F6 §9 gate inputs; standalone-run shape keeps the project arms inert.
+  projectId: null,
+  ownerProjectRole: null,
+  ownerDenied: false,
 };
 
 describe('decideRunCapabilities', () => {

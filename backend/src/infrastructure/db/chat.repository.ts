@@ -22,6 +22,7 @@ export interface ChatRecord {
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly lastActivityAt: Date;
+  readonly projectId: string | null;
 }
 
 export interface ChatTitleSeed {
@@ -52,6 +53,7 @@ interface ChatRow {
   created_at: Date;
   updated_at: Date;
   last_activity_at: Date;
+  project_id: string | null;
 }
 
 function mapChat(row: ChatRow): ChatRecord {
@@ -68,6 +70,7 @@ function mapChat(row: ChatRow): ChatRecord {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     lastActivityAt: row.last_activity_at,
+    projectId: row.project_id,
   };
 }
 

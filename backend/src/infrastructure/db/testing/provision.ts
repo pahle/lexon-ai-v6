@@ -52,9 +52,88 @@ export async function dropDatabase(
   }
 }
 
+export async function revertProjectActorFacts0044ForUpgradeTest(
+  migratorUrl: string,
+): Promise<void> {
+  const client = new Client({ connectionString: migratorUrl });
+  try {
+    await client.connect();
+    const role = await client.query<{ current_user: string }>(
+      'SELECT current_user',
+    );
+    if (role.rows[0]?.current_user !== 'lexon_migrator')
+      throw new Error('Wrong migration test role');
+    const journal = JSON.parse(
+      await readFile(
+        new URL('../../../../drizzle/meta/_journal.json', import.meta.url),
+        'utf8',
+      ),
+    ) as { entries: Array<{ tag: string; when: number }> };
+    const migration = journal.entries.find(
+      (entry) => entry.tag === '0044_project_actor_facts',
+    );
+    if (!migration) throw new Error('Migration 0044 journal entry missing');
+    await client.query('BEGIN');
+    // Reverses 0044_project_actor_facts so migrateDatabase replays it through
+    // the real drizzle path: the access-loss definer family drops first, then
+    // ai_mark_chat_deleted regains its 0026 body (the 0044 rewrite added
+    // the lexon_project_access clause the 0043 rewind would orphan). The
+    // drop+create — not CREATE OR REPLACE — mirrors the migration: the 0026
+    // REVOKE stripped lexon_migrator's EXECUTE grant, which makes OR REPLACE
+    // fail the function ACL check under PG 17.
+    await client.query(`
+      DROP FUNCTION auth.lexon_ai_actor_facts(uuid,uuid,uuid,uuid);
+      DROP FUNCTION ops.lexon_ai_access_loss_facts(uuid,uuid,uuid);
+      DROP FUNCTION ops.lexon_ai_finalize_access_loss(uuid,uuid,uuid,integer,integer,uuid,bigint);
+      DROP FUNCTION ops.lexon_ai_access_loss_decide(uuid,uuid,uuid,uuid,text);
+      DROP FUNCTION ops.lexon_ai_terminal_stream_proof(uuid,uuid,uuid);
+      DROP FUNCTION ops.lexon_ai_expire_access_loss(uuid,uuid,uuid,uuid);
+      DROP FUNCTION ops.ai_mark_chat_deleted(uuid,uuid,uuid);
+      CREATE FUNCTION ops.ai_mark_chat_deleted(input_org_id uuid,input_user_id uuid,input_chat_id uuid) RETURNS boolean
+      LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,app,ops,pg_temp AS $restore$
+      DECLARE context_org uuid; context_user uuid; locked_chat app.chats%ROWTYPE;
+      BEGIN
+        context_org:=NULLIF(current_setting('app.org_id',true),'')::uuid;
+        context_user:=NULLIF(current_setting('app.user_id',true),'')::uuid;
+        IF context_org IS NULL OR context_user IS NULL OR input_chat_id IS NULL
+          OR context_org IS DISTINCT FROM input_org_id OR context_user IS DISTINCT FROM input_user_id THEN
+          RETURN false;
+        END IF;
+        PERFORM pg_advisory_xact_lock(hashtextextended('lexon.ai_step_claim:' || context_org::text,0));
+        SELECT * INTO locked_chat FROM app.chats
+          WHERE org_id=context_org AND id=input_chat_id AND owner_user_id=context_user
+            AND deleted_at IS NULL FOR UPDATE;
+        IF NOT FOUND THEN RETURN false; END IF;
+        UPDATE app.chats SET deleted_at=clock_timestamp(),updated_at=clock_timestamp()
+          WHERE org_id=context_org AND id=input_chat_id;
+        RETURN true;
+      END $restore$;
+      REVOKE ALL ON FUNCTION ops.ai_mark_chat_deleted(uuid,uuid,uuid) FROM PUBLIC,lexon_auth,lexon_migrator;
+      GRANT EXECUTE ON FUNCTION ops.ai_mark_chat_deleted(uuid,uuid,uuid) TO lexon_app;
+    `);
+    const removed = await client.query(
+      'DELETE FROM drizzle.__drizzle_migrations WHERE created_at=$1::bigint',
+      [migration.when],
+    );
+    if (removed.rowCount !== 1)
+      throw new Error('Expected to remove the 0044 migration journal row');
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
 export async function revertProjects0043ForUpgradeTest(
   migratorUrl: string,
 ): Promise<void> {
+  // The 0044 access-loss definers (and its ai_mark_chat_deleted rewrite)
+  // unwind first so the 0043 rewind below never orphans a function body that
+  // references ops.lexon_project_access — same newest-to-oldest rule the
+  // 0042 caller documents.
+  await revertProjectActorFacts0044ForUpgradeTest(migratorUrl);
   const client = new Client({ connectionString: migratorUrl });
   try {
     await client.connect();

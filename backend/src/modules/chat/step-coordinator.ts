@@ -109,8 +109,20 @@ export class StepCoordinator {
         ['completed', 'failed', 'cancelled'].includes(run.status) ||
         run.runVersion !== job.payload.expectedVersion ||
         run.nextSequence !== job.payload.sequence
-      )
+      ) {
+        // F6 §9: a live run the app role cannot see is the access-loss case
+        // — probe through the definer, settle the caller's step claim, then
+        // hand back the definer-side terminal reference for the finish.
+        if (!run) {
+          const lost = await this.#settleAccessLoss(tx, {
+            orgId: job.ctx.orgId,
+            userId: job.ctx.userId,
+            runId: job.payload.runId,
+          });
+          if (lost) return { kind: 'cancelled', reference: lost };
+        }
         return { kind: 'noop' };
+      }
       const recovered = await this.steps.claim(tx, {
         runId: run.id,
         sequence: job.payload.sequence,
@@ -533,12 +545,23 @@ export class StepCoordinator {
           }
           await this.steps.lockTenantClaimGuard(tx);
           const run = await this.runs.lockForLifecycle(tx, claim.runId);
+          if (!run) {
+            // F6 §9: run invisible — the access-loss definer settles the
+            // claimed step + run; a returned reference commits the
+            // cancellation finalization (the run is already failed).
+            const lost = await this.#settleAccessLoss(tx, {
+              orgId: claim.orgId,
+              userId: claim.userId,
+              runId: claim.runId,
+            });
+            if (lost) return;
+            throw new StaleCommit();
+          }
           const step = await this.steps.lockCurrent(tx, {
             runId: claim.runId,
             sequence: claim.sequence,
           });
           if (
-            !run ||
             !step ||
             run.initiatingUserId !== claim.userId ||
             run.status !== 'cancelling' ||
@@ -687,6 +710,40 @@ export class StepCoordinator {
       if (error instanceof StaleCommit) return 'stale';
       throw error;
     }
+  }
+
+  /**
+   * F6 §9 access-loss settle for the claim/cancel paths: the run row is
+   * invisible to lexon_app, so the definer probe confirms it still exists
+   * (caller = initiator), `finalize_access_loss` fails the pending/claimed
+   * step at next_sequence plus the run, and the terminal-stream-proof
+   * definer hands back the anchor for the finish event. Returns undefined
+   * when the run is genuinely absent or still visible-shape.
+   */
+  async #settleAccessLoss(
+    tx: TenantSession,
+    input: { orgId: string; userId: string; runId: string },
+  ): Promise<TerminalStreamReference | undefined> {
+    const probe = await this.steps.accessLossFacts(tx, {
+      runId: input.runId,
+    });
+    if (!probe) return undefined;
+    if (
+      probe.stepId !== null &&
+      probe.stepSequence !== null &&
+      probe.stepExpectedVersion !== null &&
+      probe.stepFence !== null
+    )
+      await this.steps.finalizeAccessLoss(tx, {
+        orgId: input.orgId,
+        userId: input.userId,
+        runId: input.runId,
+        stepId: probe.stepId,
+        sequence: probe.stepSequence,
+        expectedVersion: probe.stepExpectedVersion,
+        fence: probe.stepFence,
+      });
+    return this.runs.terminalStreamReference(tx, input.runId);
   }
 
   async isDeletedChatCancellation(

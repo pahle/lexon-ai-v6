@@ -69,6 +69,7 @@ export class StreamHub {
     sink: SseSink,
     fallback?: SnapshotFallback,
     recoveryMode: ChatStreamRecoveryMode = 'incremental',
+    eventTransform?: (data: string) => string,
   ): Promise<Subscription> {
     const initialCursor = lastEventId === undefined || lastEventId === '0-0';
     let replaying = true;
@@ -253,7 +254,7 @@ export class StreamHub {
         recentIds.delete(recentOrder.shift()!);
       await enqueue({
         id: generation ? `${generation}:${entry.id}` : entry.id,
-        data: entry.event,
+        data: eventTransform ? eventTransform(entry.event) : entry.event,
       });
     };
 

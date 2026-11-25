@@ -92,6 +92,9 @@ export class RunAuthorizationService {
       require2fa: actorFacts.require2fa,
       profileId: policy.profileId,
       capabilities: policy.capabilities,
+      projectId: actorFacts.projectId,
+      ownerProjectRole: actorFacts.ownerProjectRole,
+      ownerDenied: actorFacts.ownerDenied,
     });
   }
 }

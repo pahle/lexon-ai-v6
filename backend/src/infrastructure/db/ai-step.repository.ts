@@ -136,6 +136,125 @@ export class AiStepRepository {
     };
   }
 
+  /**
+   * F6 §9 claim-path probe: returns the live run's status/version and the
+   * pending-or-claimed step at next_sequence through the definer — the run
+   * row itself is invisible to lexon_app once the chat owner loses project
+   * access, so this is the only way a claim learns the run still exists.
+   */
+  async accessLossFacts(
+    tx: TenantSession,
+    input: { runId: string },
+  ): Promise<{
+    runStatus: string;
+    runVersion: number;
+    nextSequence: number;
+    stepId: string | null;
+    stepSequence: number | null;
+    stepExpectedVersion: number | null;
+    stepFence: number | null;
+    stepState: string | null;
+  } | null> {
+    const { client, ctx } = requireSession(tx);
+    if (!ctx.userId || !uuid.safeParse(input.runId).success) return null;
+    const result = await client.query<{
+      run_status: string;
+      run_version: number;
+      next_sequence: number;
+      step_id: string | null;
+      step_sequence: number | null;
+      step_expected_version: number | null;
+      step_fence: number | null;
+      step_state: string | null;
+    }>(`SELECT * FROM ops.lexon_ai_access_loss_facts($1,$2,$3)`, [
+      ctx.orgId,
+      ctx.userId,
+      input.runId,
+    ]);
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      runStatus: row.run_status,
+      runVersion: Number(row.run_version),
+      nextSequence: Number(row.next_sequence),
+      stepId: row.step_id,
+      stepSequence:
+        row.step_sequence === null ? null : Number(row.step_sequence),
+      stepExpectedVersion:
+        row.step_expected_version === null
+          ? null
+          : Number(row.step_expected_version),
+      stepFence: row.step_fence === null ? null : Number(row.step_fence),
+      stepState: row.step_state,
+    };
+  }
+
+  /**
+   * F6 §9 claim/resume-path settler: fails the caller's claimed step,
+   * settles its attempts and every outstanding operation, fails the run
+   * AI_ACCESS_REVOKED, appends the audit pair and notifies bound chats —
+   * all inside the definer because every row is invisible to lexon_app.
+   * The caller's step coordinates are verified against the locked rows;
+   * changed=false for every refused probe.
+   */
+  async finalizeAccessLoss(
+    tx: TenantSession,
+    claim: Pick<
+      StepClaim,
+      | 'runId'
+      | 'orgId'
+      | 'userId'
+      | 'stepId'
+      | 'sequence'
+      | 'expectedVersion'
+      | 'fence'
+    >,
+  ): Promise<{ changed: boolean; runVersion: number | null }> {
+    const { client, ctx } = requireSession(tx);
+    if (
+      !uuid.safeParse(claim.runId).success ||
+      !uuid.safeParse(claim.orgId).success ||
+      !uuid.safeParse(claim.userId).success ||
+      !uuid.safeParse(claim.stepId).success ||
+      claim.orgId !== ctx.orgId ||
+      claim.userId !== ctx.userId ||
+      !Number.isSafeInteger(claim.sequence) ||
+      claim.sequence < 1 ||
+      !Number.isSafeInteger(claim.expectedVersion) ||
+      claim.expectedVersion < 1 ||
+      !Number.isSafeInteger(claim.fence) ||
+      // A pending step legitimately carries fence=0 (insertInitial) — only
+      // negative fences are refused, matching the definer.
+      claim.fence < 0
+    )
+      return { changed: false, runVersion: null };
+    const result = await client.query<{
+      changed: boolean;
+      run_version: number | null;
+      run_status: string | null;
+    }>(
+      `SELECT changed,run_version,run_status
+         FROM ops.lexon_ai_finalize_access_loss($1,$2,$3,$4,$5,$6,$7)`,
+      [
+        claim.orgId,
+        claim.userId,
+        claim.runId,
+        claim.expectedVersion,
+        claim.sequence,
+        claim.stepId,
+        claim.fence,
+      ],
+    );
+    return {
+      changed: result.rows[0]?.changed === true,
+      runVersion:
+        result.rows[0]?.run_version === null ||
+        result.rows[0]?.run_version === undefined
+          ? null
+          : Number(result.rows[0].run_version),
+    };
+  }
+
   async streamCommittedProof(
     tx: TenantSession,
     claim: CommittedStreamReference,
@@ -429,24 +548,64 @@ export class AiStepRepository {
     );
     const row = result.rows[0];
     if (
-      !row ||
-      row.latest_step_id !== claim.stepId ||
-      Number(row.latest_sequence) !== claim.sequence ||
-      Number(row.latest_expected_version) !== claim.expectedVersion ||
-      Number(row.latest_fence) !== claim.fence
+      row &&
+      row.latest_step_id === claim.stepId &&
+      Number(row.latest_sequence) === claim.sequence &&
+      Number(row.latest_expected_version) === claim.expectedVersion &&
+      Number(row.latest_fence) === claim.fence
+    ) {
+      const safeCode = RunErrorCodeSchema.safeParse(row.error_code);
+      return {
+        status: row.status,
+        ...(safeCode.success ? { errorCode: safeCode.data } : {}),
+        runVersion: Number(row.run_version),
+        nextSequence: Number(row.next_sequence),
+        latestCommittedStepId: row.latest_step_id!,
+        latestCommittedSequence: Number(row.latest_sequence),
+        latestCommittedExpectedVersion: Number(row.latest_expected_version),
+        latestCommittedFence: Number(row.latest_fence),
+        streamGeneration: Number(row.stream_generation),
+      };
+    }
+    // F6 §9: the app-role read above returns nothing once the initiator loses
+    // project access — the run and its bound chat are both RLS-invisible.
+    // The definer repeats the same step-shape rules and this side still
+    // enforces the caller's coordinate match before a finish may write.
+    const fallback = await client.query<{
+      status: 'completed' | 'failed' | 'cancelled';
+      error_code: string | null;
+      run_version: number;
+      next_sequence: number;
+      step_id: string;
+      sequence: number;
+      expected_version: number;
+      fence: number | string;
+      stream_generation: number | string;
+    }>(`SELECT * FROM ops.lexon_ai_terminal_stream_proof($1,$2,$3)`, [
+      ctx.orgId,
+      ctx.userId,
+      claim.runId,
+    ]);
+    const proof = fallback.rows[0];
+    if (
+      !proof ||
+      proof.step_id !== claim.stepId ||
+      Number(proof.sequence) !== claim.sequence ||
+      Number(proof.expected_version) !== claim.expectedVersion ||
+      Number(proof.fence) !== claim.fence
     )
       return undefined;
-    const safeCode = RunErrorCodeSchema.safeParse(row.error_code);
+    const proofCode = RunErrorCodeSchema.safeParse(proof.error_code);
     return {
-      status: row.status,
-      ...(safeCode.success ? { errorCode: safeCode.data } : {}),
-      runVersion: Number(row.run_version),
-      nextSequence: Number(row.next_sequence),
-      latestCommittedStepId: row.latest_step_id!,
-      latestCommittedSequence: Number(row.latest_sequence),
-      latestCommittedExpectedVersion: Number(row.latest_expected_version),
-      latestCommittedFence: Number(row.latest_fence),
-      streamGeneration: Number(row.stream_generation),
+      status: proof.status,
+      ...(proofCode.success ? { errorCode: proofCode.data } : {}),
+      runVersion: Number(proof.run_version),
+      nextSequence: Number(proof.next_sequence),
+      latestCommittedStepId: proof.step_id,
+      latestCommittedSequence: Number(proof.sequence),
+      latestCommittedExpectedVersion: Number(proof.expected_version),
+      latestCommittedFence: Number(proof.fence),
+      streamGeneration: Number(proof.stream_generation),
     };
   }
 

@@ -13,6 +13,7 @@ import { PRODUCTION_ENGINE_REGISTRATIONS } from '../../src/modules/chat/run-regi
 it('keeps production engine registries limited to approved product profiles', () => {
   expect(PRODUCTION_ENGINE_REGISTRATIONS.profiles.map(({ id }) => id)).toEqual([
     'chat',
+    'project-chat',
     'chat-title',
   ]);
   expect(PRODUCTION_ENGINE_REGISTRATIONS.contexts).toEqual([]);

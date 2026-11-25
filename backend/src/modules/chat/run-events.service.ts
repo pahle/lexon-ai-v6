@@ -31,6 +31,7 @@ import {
   type Subscription,
 } from '../../infrastructure/queue/stream-hub.js';
 import { CancelSignals } from '../../infrastructure/queue/cancel-signals.js';
+import { redactRunStreamEventForReader } from '../../infrastructure/queue/run-stream-parts.js';
 
 const PROCESS_ID = randomUUID();
 const MAX_PENDING_TITLE_INVALIDATIONS = 64;
@@ -49,6 +50,7 @@ interface AuthorizedSnapshot {
   readonly snapshot: ChatSnapshot;
   readonly streamGeneration: number;
   readonly resumable: boolean;
+  readonly readerView: boolean;
 }
 
 interface SnapshotRead {
@@ -572,6 +574,9 @@ export class RunEventsService {
           reload: reloadFallback,
         },
         recoveryMode,
+        // F6 §5 row 14: the per-run stream is shared bytes — a non-owner
+        // subscriber gets every frame minus the operation payloads.
+        current.readerView ? redactRunStreamEventForReader : undefined,
       );
       if (closed) {
         if (streamSubscription.revoke) await streamSubscription.revoke();

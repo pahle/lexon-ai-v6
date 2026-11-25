@@ -51,6 +51,7 @@ interface AccessScenario {
   readonly memberMessageId: string;
   readonly runId: string;
   readonly stepId: string;
+  readonly operationId: string;
   readonly activeRunId: string;
   readonly activeStepId: string;
   readonly failedRunId: string;
@@ -165,6 +166,7 @@ async function seedAccessScenario(
     memberMessageId: randomUUID(),
     runId: randomUUID(),
     stepId: randomUUID(),
+    operationId: randomUUID(),
     activeRunId: randomUUID(),
     activeStepId: randomUUID(),
     failedRunId: randomUUID(),
@@ -286,6 +288,39 @@ async function seedAccessScenario(
       );
     },
   );
+  // A decided op with real payloads — the §5 row 14 assertions prove the
+  // member snapshot and stream carry only the ids/status core.
+  const operations = await pools.migrator.connect();
+  try {
+    await operations.query('BEGIN');
+    await operations.query(`SELECT set_config('app.user_id',$1,true)`, [
+      input.owner,
+    ]);
+    await operations.query(
+      `INSERT INTO app.ai_operations(id,org_id,run_id,step_id,call_occurrence,tool_name,
+         tool_version,idempotency_mode,args,args_hash,snapshot_hash,approval_required,
+         status,kind,decision,decision_by_user_id,decided_at,result,completed_at)
+       VALUES ($1,$2,$3,$4,0,'fixture-tool',1,'read',$5::jsonb,
+         'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+         'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+         true,'succeeded','approval','approve',$6,clock_timestamp(),$7::jsonb,clock_timestamp())`,
+      [
+        scenario.operationId,
+        input.orgId,
+        scenario.runId,
+        scenario.stepId,
+        JSON.stringify({ query: 'confidential matter research' }),
+        input.owner,
+        JSON.stringify({ hits: [{ title: 'secret document' }] }),
+      ],
+    );
+    await operations.query('COMMIT');
+  } catch (error) {
+    await operations.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    operations.release();
+  }
   return scenario;
 }
 
@@ -717,11 +752,37 @@ test('SSE snapshot, stream proofs and the registry state accept viewer claims on
     const ownerTenant = { orgId: team.id, userId: owner.userId };
 
     // Snapshot + existence checks.
-    expect(
-      await fixture.database.withTenant(viewerTenant, (tx) =>
-        runs.authorizedChatSnapshot(tx, scenario.runId, viewer.userId),
-      ),
-    ).toBeDefined();
+    const viewerSnapshot = await fixture.database.withTenant(
+      viewerTenant,
+      (tx) => runs.authorizedChatSnapshot(tx, scenario.runId, viewer.userId),
+    );
+    expect(viewerSnapshot).toBeDefined();
+    expect(viewerSnapshot?.readerView).toBe(true);
+    // F6 §5 row 14: op payloads never leave the server for a non-owner —
+    // the ids/status/hash core stays so the "Waiting for <owner>" marker
+    // and the tool row still render.
+    for (const operation of viewerSnapshot!.snapshot.operations) {
+      expect(operation).not.toHaveProperty('input');
+      expect(operation).not.toHaveProperty('display');
+      expect(operation).not.toHaveProperty('output');
+    }
+    const viewerTool = viewerSnapshot!.snapshot.parts.find(
+      (part) => part.type === 'tool',
+    );
+    expect(viewerTool).toMatchObject({
+      toolName: 'fixture-tool',
+      outcome: 'completed',
+    });
+    expect(viewerTool).not.toHaveProperty('input');
+    expect(viewerTool).not.toHaveProperty('output');
+    const ownerSnapshot = await fixture.database.withTenant(ownerTenant, (tx) =>
+      runs.authorizedChatSnapshot(tx, scenario.runId, owner.userId),
+    );
+    expect(ownerSnapshot?.readerView).toBe(false);
+    expect(ownerSnapshot?.snapshot.operations[0]).toMatchObject({
+      input: { query: 'confidential matter research' },
+      output: { hits: [{ title: 'secret document' }] },
+    });
     expect(
       await fixture.database.withTenant(viewerTenant, (tx) =>
         runs.existsForAccessibleChat(tx, scenario.runId, viewer.userId),
