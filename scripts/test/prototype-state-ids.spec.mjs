@@ -45,7 +45,7 @@ function prototypeReadmeIds() {
   return section[1]
     .split('\n')
     .filter((line) =>
-      /^\| (Auth|Status|Shell|Chat|Chats|Settings|Platform|Indicator) /.test(
+      /^\| (Auth|Status|Shell|Chat|Chats|Matters|Settings|Platform|Indicator) /.test(
         line,
       ),
     )

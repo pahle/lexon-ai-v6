@@ -27,7 +27,7 @@ const PROTOTYPE_PATH = resolve(
   root,
   'docs/design/f4.1-prototype/source/prototype.html',
 );
-export const PROTOTYPE_REVISION = 17;
+export const PROTOTYPE_REVISION = 18;
 export const DEVIATIONS_HEADING = '## Comparison deviations (round 4)';
 
 const VIEWPORTS = {
