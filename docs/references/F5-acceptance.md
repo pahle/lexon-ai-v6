@@ -1046,10 +1046,13 @@ Non-paused behavior is untouched (`running`/`serverActive` blocking and the
 11. Evals incl. injection in CI subset → `evals/test/{ask-user,deadline,
 expiry,rename-approval,injection-tools}.spec.ts` riding root
     `pnpm test` (task 8 evidence).
-12. r17 captures + eye review → task 9 phase 1 (PR #87): ids `pending`,
-    `PROTOTYPE_REVISION` 17, `captureBrandViews` calls and masks in
-    `brand-visual-*.spec.ts`. **Owner eye-review rounds on Linux sheets are
-    still outstanding** — see "Outstanding" below.
+12. r17 captures + eye review → task 9 (PR #87, merged `2f25b006`): ids
+    `pending`, `PROTOTYPE_REVISION` 17, `captureBrandViews` calls and masks in
+    `brand-visual-*.spec.ts`; four owner eye-review rounds on Linux
+    `pending-compare` sheets; 40 remaining over-gate rows accepted as
+    `deviations.md` rows grouped by cause (run 45566511311); `approval.json`
+    +60 images and 60 baseline goldens written, `assertApprovedVisualSet`
+    416 views.
 13. All F0–F4.5 tests pass; CI green → final gates in this task.
 14. Composer usable while panel open; send resolves then sends →
     `chat-page-awaiting.spec.tsx` ('shows the send button and hides Stop
@@ -1087,12 +1090,11 @@ npx vitest run test/chat-page-awaiting.spec.tsx → exit 0, 6/6
 - The paused-send fix touches `thread.aui.tsx` beyond the spec's test-file
   list — required because the §18 composer criterion was genuinely broken in
   a live browser (the e2e is the plan-step-2 RED reproduction).
-- Task 9 has no section in this document: its phase-1 pending captures merged
-  in PR #87, and the Linux-sheet eye-review rounds plus golden updates are
-  owner-side steps still pending.
+- Task 9 has no section in this document: its evidence lives in the visual
+  reference (`docs/references/F4.1-visual/deviations.md`, `approval.json`,
+  `index.json`) rather than per-task entries here; the four eye-review
+  rounds, deviation rows and golden `update` are complete and merged.
 
 ### Outstanding
 
-- Task 9: CI `pending-compare` sheets → owner eye review (≤2 rounds),
-  `deviations.md` rows, golden `update` + 1.5% gate.
 - Task review and owner acceptance for all ten tasks.
