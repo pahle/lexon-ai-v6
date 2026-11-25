@@ -6,6 +6,7 @@ import { NestFactory } from '@nestjs/core';
 import { loadRuntimeConfig } from '../../dist/config/runtime-config.js';
 import { AiWorkerRootModule } from '../../dist/entrypoints/ai-worker/root.module.js';
 import { MODEL_GATEWAY } from '../../dist/infrastructure/ai/ai.module.js';
+import { OperationExpirySweep } from '../../dist/modules/chat/index.js';
 
 const socketPath = '/run/lexon/health/chat-proof.sock';
 const config = loadRuntimeConfig('ai-worker', process.env);
@@ -191,6 +192,63 @@ function createScriptedGateway() {
         generationId: `e2e-${runId}`,
         provider: 'lexon-e2e-scripted',
       };
+      // F5 tool acceptance markers: the first generation of a marker prompt
+      // proposes the real pause tool (the run pauses awaiting_approval over
+      // the production path); the continuation after the decision falls
+      // through to the scripted text answer below.
+      const f5ToolCall =
+        count === 1 && prompt.includes('[f5-tools:ask]')
+          ? {
+              toolName: 'ask_user',
+              input: {
+                questions: [
+                  {
+                    questionId: 'q1',
+                    text: 'Kontrak jenis apa yang Anda maksud?',
+                    kind: 'single',
+                    options: [
+                      {
+                        label: 'Perjanjian kerja',
+                        description: 'PKWT atau PKWTT',
+                      },
+                      {
+                        label: 'Sewa-menyewa',
+                        description: 'Tanah, bangunan, atau kendaraan',
+                      },
+                    ],
+                    allowFreeText: true,
+                  },
+                ],
+              },
+            }
+          : count === 1 && prompt.includes('[f5-tools:rename]')
+            ? {
+                toolName: 'rename_chat',
+                input: { newTitle: 'Somasi PT Sinar' },
+              }
+            : null;
+      if (f5ToolCall) {
+        yield {
+          type: 'tool-proposal',
+          toolCallId: `f5-${f5ToolCall.toolName}-${runId}`,
+          toolName: f5ToolCall.toolName,
+          input: f5ToolCall.input,
+        };
+        yield { type: 'usage', usage: { inputTokens: 4, outputTokens: 4 } };
+        yield {
+          type: 'outcome',
+          outcome: {
+            finishReason: 'tool_calls',
+            attemptOutcome: 'succeeded',
+            retryable: false,
+            generationId: `e2e-${runId}`,
+            provider: 'lexon-e2e-scripted',
+            usage: { inputTokens: 4, outputTokens: 4 },
+          },
+        };
+        runs.delete(runId);
+        return;
+      }
       if (prompt.includes('[task14:preview]')) {
         yield { type: 'reasoning-start', attemptId };
         yield {
@@ -277,7 +335,7 @@ function createScriptedGateway() {
                     ? 'Edited answer.'
                     : prompt.includes('[runtime-proof:regenerate]')
                       ? `Sibling answer ${count}.`
-                      : `Scripted answer: ${prompt.replace(/\[runtime-proof:[^\]]+\]/g, '').trim()}`;
+                      : `Scripted answer: ${prompt.replace(/\[(?:runtime-proof|f5-tools):[^\]]+\]/g, '').trim()}`;
         const parts = [...answer].map((text) => ({ type: 'text', text }));
         if (prompt.includes('[task14:preview]')) {
           for (let index = 0; index < answer.length; index += 24) {
@@ -341,6 +399,7 @@ const control = createServer((socket) => {
           'shape',
           'database-tree',
           'expire',
+          'sweep',
         ].includes(op) ||
         typeof runId !== 'string' ||
         !uuidPattern.test(runId)
@@ -374,6 +433,14 @@ const control = createServer((socket) => {
         socket.end(
           JSON.stringify({ before, armed, hadPositiveTtl, remaining }) + '\n',
         );
+        return;
+      }
+      if (op === 'sweep') {
+        // Drives the same §7 job handler the 60 s BullMQ scheduler runs, so
+        // specs never wait on the cadence; the runId argument is unused.
+        const expirySweep = app.get(OperationExpirySweep, { strict: false });
+        await expirySweep.sweep();
+        socket.end(JSON.stringify({ swept: true }) + '\n');
         return;
       }
       const run = runs.get(runId);

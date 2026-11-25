@@ -940,6 +940,7 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
   effort = 'high',
   onEffortChange,
 }) => {
+  const aui = useAui();
   const serverActive = useChatActiveRun();
   const awaiting = useChatAwaiting();
   const paused = awaiting?.paused ?? false;
@@ -987,8 +988,34 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
     if (
       !composerText.trim() ||
       promptByteLength(composerText) > MAX_PROMPT_BYTES
-    )
+    ) {
       event.preventDefault();
+      return;
+    }
+    if (paused) {
+      // While the paused run's stream stays open, thread.isRunning is true
+      // and ComposerRoot's send callback is null, so the composed submit
+      // handler would swallow this submit — drive the store-level send
+      // directly instead (D7).
+      event.preventDefault();
+      void aui.composer.send();
+    }
+  };
+  const attemptPausedEnter = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (
+      !paused ||
+      event.key !== 'Enter' ||
+      event.shiftKey ||
+      event.nativeEvent.isComposing
+    )
+      return;
+    // ComposerInput's own keydown early-returns while thread.isRunning is
+    // true (the paused run's stream is still open), so Enter never reaches
+    // requestSubmit — submit through the paused path instead (D7). Runs in
+    // the capture phase so the primitive's handler is bypassed entirely.
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.closest('form')?.requestSubmit();
   };
   return (
     <ComposerPrimitive.Root
@@ -1020,6 +1047,7 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
           aria-label="Message input"
           disabled={loading}
           onKeyDown={attemptWhileBusy}
+          onKeyDownCapture={attemptPausedEnter}
           onPaste={ignoreBlankPaste}
         />
         <div
@@ -1076,6 +1104,22 @@ const Composer: FC<Pick<ThreadProps, 'effort' | 'onEffortChange'>> = ({
                 </Button>
               }
             />
+          ) : paused ? (
+            // While paused the run's stream keeps thread.isRunning true, so
+            // ComposerPrimitive.Send's callback is null — a plain submit
+            // button routes through the paused path in validatePrompt (D7).
+            <TooltipIconButton
+              tooltip={sendLabel(loading ? 'loading' : null)}
+              side="bottom"
+              type="submit"
+              disabled={loading || tooLong || !composerText.trim()}
+              variant="default"
+              size="icon"
+              className={cn('aui-composer-send', composerClasses.send)}
+              aria-label={sendLabel(loading ? 'loading' : null)}
+            >
+              <ArrowUpIcon className="aui-composer-send-icon" />
+            </TooltipIconButton>
           ) : (
             <ComposerPrimitive.Send
               render={
