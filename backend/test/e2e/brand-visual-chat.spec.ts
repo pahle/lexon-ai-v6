@@ -696,6 +696,275 @@ test('streaming, reconnecting, and loading chat threads', async ({
   }
 });
 
+// F5 revision 17: the tool rows, docked question/approval panels, and
+// decision records of the three production tools (deadline_calculator,
+// ask_user, rename_chat). The paused and running states resume the
+// deterministic snapshot stream (chat-state-fixtures.ts f5RunFrames); the
+// decided states are plain completed trees whose `operations` rebuild the
+// records. The streamed states keep their text part open, so streaming
+// carets sit after the pre-text and in the still-empty next part — their
+// boxes join the masks sidecar, as the prototype shows no caret there.
+test('F5 tool rows, question docks, approvals, and decision records', async ({
+  page,
+  playwright,
+}) => {
+  test.setTimeout(300_000);
+  const env = await startChatStates(page, playwright);
+  const dock = page.locator('[data-slot="operation-dock"]');
+  const record = page.locator('[data-slot="decision-record"]');
+
+  const closeStreamed = (id: string) => async (viewport: BrandViewport) => {
+    const theme = await page
+      .locator('html')
+      .evaluate((element) =>
+        element.classList.contains('dark') ? 'dark' : 'light',
+      );
+    const sidecar = resolve(
+      '.cache/f4.1-visual/review',
+      `${brandViewId(id, viewport, theme)}.png.masks.json`,
+    );
+    if (!existsSync(sidecar)) return;
+    // Every running markdown gets a block caret: after the last child when it
+    // has content, at the element's start when it is the still-empty part a
+    // resumed stream keeps open after the tool row.
+    const carets = await page.evaluate(() => {
+      const out: { x: number; y: number; width: number; height: number }[] = [];
+      for (const markdown of document.querySelectorAll(
+        '.aui-md[data-status="running"]',
+      )) {
+        const last = markdown.lastElementChild;
+        if (!last) {
+          const box = markdown.getBoundingClientRect();
+          if (box.width > 0 && box.height > 0)
+            out.push({
+              x: box.x - 2,
+              y: box.y - 2,
+              width: 20,
+              height: 24,
+            });
+          continue;
+        }
+        const range = document.createRange();
+        range.selectNodeContents(last);
+        const rects = range.getClientRects();
+        const end = rects[rects.length - 1];
+        if (end)
+          out.push({
+            x: end.right - 2,
+            y: end.top - 2,
+            width: 24,
+            height: 24,
+          });
+      }
+      return out;
+    });
+    if (carets.length === 0) return;
+    const rects = JSON.parse(readFileSync(sidecar, 'utf8')) as object[];
+    writeFileSync(sidecar, `${JSON.stringify([...rects, ...carets])}\n`);
+  };
+
+  // A paused run docks its panel above the composer; the Recent row of the
+  // waiting chat carries the primary dot (desktop only: the mobile sheet is
+  // closed).
+  const openAwaiting = async (viewport: BrandViewport, state: string) => {
+    await openThread(page, env, state, dock, `?capture_state=${state}`);
+    await expect(
+      page.getByRole('textbox', { name: 'Message input' }),
+    ).toHaveAttribute('placeholder', 'Or reply in your own words…');
+    await expect(
+      page.getByText('Waiting for you', { exact: true }),
+    ).toBeVisible();
+    if (viewport === 'desktop')
+      await expect(
+        page.locator('[data-slot="chat-waiting-dot"]').first(),
+      ).toBeVisible();
+  };
+
+  await captureBrandViews(page, 'chat-tool-activity', {
+    open: async () => {
+      await openThread(
+        page,
+        env,
+        'tool-activity',
+        page.getByText('Calculated the deadline'),
+      );
+    },
+  });
+
+  await captureBrandViews(page, 'chat-tool-expanded', {
+    open: async () => {
+      await openThread(
+        page,
+        env,
+        'tool-expanded',
+        page.getByText('Calculated the deadline'),
+      );
+      const row = page.getByRole('button', {
+        name: /Calculated the deadline/,
+      });
+      await row.click();
+      await expect(row).toHaveAttribute('aria-expanded', 'true');
+      await expect(page.getByText('Result', { exact: true })).toBeVisible();
+      await calm(page);
+    },
+  });
+
+  await captureBrandViews(page, 'chat-tool-running', {
+    open: async () => {
+      await openThread(
+        page,
+        env,
+        'tool-running',
+        page.getByText('Calculating the deadline…'),
+        '?capture_state=tool-running',
+      );
+      await expect(
+        page.getByRole('button', { name: 'Stop generating' }),
+      ).toBeVisible();
+    },
+    close: closeStreamed('chat-tool-running'),
+  });
+
+  await captureBrandViews(page, 'chat-tool-failed', {
+    open: async () => {
+      await openThread(
+        page,
+        env,
+        'tool-failed',
+        page.getByText("Couldn't calculate the deadline"),
+      );
+    },
+  });
+
+  await captureBrandViews(page, 'chat-question', {
+    open: async (viewport) => {
+      await openAwaiting(viewport, 'question-single');
+      await expect(dock).toContainText('Kontrak jenis apa yang Anda maksud?');
+      await expect(dock.getByRole('radio')).toHaveCount(4);
+    },
+    close: closeStreamed('chat-question'),
+  });
+
+  await captureBrandViews(page, 'chat-question-multi', {
+    open: async (viewport) => {
+      await openAwaiting(viewport, 'question-multi');
+      await expect(dock).toContainText('Question 1 of 3');
+      // The prototype shows question 2 with its first option picked: answer
+      // through to question 3, then page back to the checked question.
+      await dock.getByRole('radio').nth(0).click();
+      await expect(dock).toContainText('Question 2 of 3');
+      await dock.getByRole('radio').nth(0).click();
+      await expect(dock).toContainText('Question 3 of 3');
+      await dock.getByRole('button', { name: 'Previous question' }).click();
+      await expect(dock).toContainText('Question 2 of 3');
+      await expect(dock.getByRole('radio').nth(0)).toHaveAttribute(
+        'aria-checked',
+        'true',
+      );
+      await calm(page);
+    },
+    close: closeStreamed('chat-question-multi'),
+  });
+
+  await captureBrandViews(page, 'chat-question-text', {
+    keepFocus: true,
+    open: async (viewport) => {
+      await openAwaiting(viewport, 'question-nda');
+      await dock.getByRole('radio').nth(0).click();
+      const field = dock.getByRole('textbox', {
+        name: 'Siapa nama pihak pertama?',
+      });
+      await expect(field).toBeVisible();
+      await field.fill('PT Sinar Abadi Logistik');
+      await expect(dock).toContainText('Question 2 of 5');
+      await calm(page);
+    },
+    close: closeStreamed('chat-question-text'),
+  });
+
+  await captureBrandViews(page, 'chat-question-select', {
+    open: async (viewport) => {
+      await openAwaiting(viewport, 'question-nda');
+      await dock.getByRole('radio').nth(0).click();
+      const field = dock.getByRole('textbox', {
+        name: 'Siapa nama pihak pertama?',
+      });
+      await field.fill('PT Sinar Abadi Logistik');
+      // Enter records the text answer and shows the multi-select page.
+      await field.press('Enter');
+      await expect(dock).toContainText('Question 3 of 5');
+      const boxes = dock.getByRole('checkbox');
+      await boxes.nth(0).click();
+      await boxes.nth(1).click();
+      await boxes.nth(3).click();
+      for (const index of [0, 1, 3])
+        await expect(boxes.nth(index)).toHaveAttribute('aria-checked', 'true');
+      await calm(page);
+    },
+    close: closeStreamed('chat-question-select'),
+  });
+
+  await captureBrandViews(page, 'chat-question-answered', {
+    open: async () => {
+      await openThread(page, env, 'question-answered', record.first());
+      await expect(record.first()).toContainText('Perjanjian kerja');
+      await expect(record.first()).toContainText('Perusahaan dan karyawan');
+      await expect(record.first()).toContainText('Skipped');
+    },
+  });
+
+  await captureBrandViews(page, 'chat-question-dismissed', {
+    open: async () => {
+      await openThread(page, env, 'question-dismissed', record.first());
+      await expect(record.first()).toContainText('Answered in chat');
+    },
+  });
+
+  await captureBrandViews(page, 'chat-approval', {
+    open: async (viewport) => {
+      await openAwaiting(viewport, 'approval-pending');
+      await expect(dock).toContainText('Lexon wants to rename this chat');
+      await expect(dock).toContainText('Draf somasi wanprestasi');
+      await expect(dock).toContainText('Somasi PT Sinar');
+      await expect(dock.getByRole('button', { name: /Approve/ })).toBeVisible();
+    },
+    close: closeStreamed('chat-approval'),
+  });
+
+  await captureBrandViews(page, 'chat-approval-approved', {
+    open: async () => {
+      await openThread(
+        page,
+        env,
+        'approval-approved',
+        page.getByText('Renamed this chat'),
+      );
+    },
+  });
+
+  await captureBrandViews(page, 'chat-approval-rejected', {
+    open: async () => {
+      await openThread(
+        page,
+        env,
+        'approval-rejected',
+        page.getByText('You rejected the rename'),
+      );
+    },
+  });
+
+  await captureBrandViews(page, 'chat-approval-expired', {
+    open: async () => {
+      await openThread(
+        page,
+        env,
+        'approval-expired',
+        page.getByText('Rename expired after 24 hours'),
+      );
+    },
+  });
+});
+
 // Indicator frames. The thinking indicator is driven by the page clock, so
 // these captures alone run with motion allowed. The seed is made deterministic
 // without a product hook: an init script makes the one-word request the
