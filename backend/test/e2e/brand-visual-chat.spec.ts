@@ -819,7 +819,7 @@ test('F5 tool rows, question docks, approvals, and decision records', async ({
         page,
         env,
         'tool-failed',
-        page.getByText("Couldn't calculate the deadline"),
+        page.getByText('Couldn’t calculate the deadline'),
       );
     },
   });
