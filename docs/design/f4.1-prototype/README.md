@@ -1,6 +1,6 @@
 # F4.1 prototype: brand v4.1 and chat experience
 
-**Approved by the product owner on 2026-11-18 (revision 14.9); revision 15 adds the F4.2 failure states (2026-11-19); revision 16 adds the data views kit and the F4.3 platform console (approved 2026-11-21); revision 17 adds the F5 tool, question, and approval states (approved 2026-11-24); revision 18 adds the F6 Matters states (awaiting approval).** This is the visual
+**Approved by the product owner on 2026-11-18 (revision 14.9); revision 15 adds the F4.2 failure states (2026-11-19); revision 16 adds the data views kit and the F4.3 platform console (approved 2026-11-21); revision 17 adds the F5 tool, question, and approval states (approved 2026-11-24).** This is the visual
 target for [F4.1](../../briefs/F4.1-brand-refresh.md). Screens are built **1:1**
 with it: layout, sizes, spacing, type, copy, and states. shadcn `base-nova` and
 assistant-ui provide structure, behavior, and accessibility (LEX-DS-001 v3.1 §5).
@@ -93,10 +93,10 @@ as current.
 ## Revision 18 (F6 Matters and the ethical wall): awaiting owner approval
 
 Sixteen new states for [F6](../../briefs/F6-projects-ethical-wall.md), drawn
-from the brief on top of revision 17. Their 64 views are listed in
-`docs/references/F4.1-visual/index.json` `planned` until they are approved.
-The lead line above and `PROTOTYPE_REVISION` in
-`scripts/visual-compare-prototype.mjs` name revision 18 as current.
+from the brief on top of revision 17, awaiting owner approval. Their 64
+views are listed in `docs/references/F4.1-visual/index.json` `planned`; the
+lead line above and `PROTOTYPE_REVISION` in
+`scripts/visual-compare-prototype.mjs` stay at revision 17 until approval.
 
 - **Matters in the sidebar** (all F6 states): a Matters group (briefcase
   icon) between the Assistant and Platform groups and Recent, listing the
