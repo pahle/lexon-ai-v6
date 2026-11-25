@@ -628,6 +628,131 @@ function toCreateChatMessage<UI_MESSAGE extends UIMessage = UIMessage>(
   } as CreateUIMessage<UI_MESSAGE>;
 }
 
+/**
+ * Canonical ops carry no position on the wire; the stored text marks each
+ * generation boundary with a blank line — the text a paused generation
+ * produced ends where its record renders. The text is therefore split at
+ * `\n\n` runs (skipping fenced code blocks, whose blank lines are not
+ * boundaries) and the k-th op part lands after the k-th segment — the
+ * position its streamed tool part occupied.
+ */
+function splitTextSegments(text: string): {
+  readonly segments: string[];
+  /** The offset at which each segment ends — the start of the following
+   *  `\n\n` run, or `text.length` for the last. */
+  readonly ends: number[];
+} {
+  const segments: string[] = [];
+  const ends: number[] = [];
+  let fenced = false;
+  let start = 0;
+  let index = 0;
+  while (index < text.length) {
+    if (text.startsWith('```', index)) {
+      fenced = !fenced;
+      index += 3;
+      continue;
+    }
+    if (!fenced && text[index] === '\n') {
+      let end = index;
+      while (end < text.length && text[end] === '\n') end += 1;
+      if (end - index >= 2) {
+        segments.push(text.slice(start, index));
+        ends.push(index);
+        start = end;
+      }
+      index = end;
+      continue;
+    }
+    index += 1;
+  }
+  segments.push(text.slice(start));
+  ends.push(text.length);
+  return { segments, ends };
+}
+
+/** The segment whose end covers the streamed char offset, or -1/overflow. */
+function segmentIndexForOffset(
+  ends: readonly number[],
+  offset: number,
+): number {
+  let index = -1;
+  for (let i = 0; i < ends.length; i += 1) {
+    if (ends[i]! <= offset) index = i;
+    else break;
+  }
+  return index;
+}
+
+/**
+ * Splice op parts between text segments: `positions[i]` is the index of the
+ * segment the i-th op follows (-1 anchors before the first segment, an
+ * out-of-range index the tail); with no positions op k follows segment k.
+ */
+function interleaveOpsWithText<P>(
+  text: string,
+  operationParts: readonly P[],
+  positions?: readonly number[],
+): Array<P | { type: 'text'; text: string }> {
+  if (operationParts.length === 0)
+    return text ? [{ type: 'text' as const, text }] : [];
+  if (!text) return [...operationParts];
+  const { segments } = splitTextSegments(text);
+  const before: P[] = [];
+  const tail: P[] = [];
+  const after = new Map<number, P[]>();
+  operationParts.forEach((part, index) => {
+    const position = positions?.[index] ?? index;
+    if (position < 0) before.push(part);
+    else if (position >= segments.length) tail.push(part);
+    else {
+      const bucket = after.get(position);
+      if (bucket) bucket.push(part);
+      else after.set(position, [part]);
+    }
+  });
+  const parts: Array<P | { type: 'text'; text: string }> = [...before];
+  segments.forEach((segment, index) => {
+    if (segment !== '') parts.push({ type: 'text' as const, text: segment });
+    for (const part of after.get(index) ?? []) parts.push(part);
+  });
+  return [...parts, ...tail];
+}
+
+/**
+ * Where the streamed tool parts sat, measured as the character count of
+ * streamed text that came before them; the canonical text's `\n\n`
+ * boundaries turn that back into a segment index.
+ */
+function toolBoundaryOffsets(content: readonly unknown[]): {
+  readonly byId: Map<string, number>;
+  readonly inOrder: number[];
+} {
+  const byId = new Map<string, number>();
+  const inOrder: number[] = [];
+  let textLength = 0;
+  for (const part of content) {
+    if (!part || typeof part !== 'object') continue;
+    const type = (part as { type?: unknown }).type;
+    if (type === 'text') {
+      const text = (part as { text?: unknown }).text;
+      if (typeof text === 'string') textLength += text.length;
+      continue;
+    }
+    if (type !== 'tool-call') continue;
+    inOrder.push(textLength);
+    const record = part as { toolCallId?: unknown; approval?: unknown };
+    const id =
+      typeof record.toolCallId === 'string'
+        ? record.toolCallId
+        : record.approval && typeof record.approval === 'object'
+          ? (record.approval as { id?: unknown }).id
+          : undefined;
+    if (typeof id === 'string' && !byId.has(id)) byId.set(id, textLength);
+  }
+  return { byId, inOrder };
+}
+
 function toUIMessage(message: ChatMessage): ChatUIMessage {
   if (message.role === 'user')
     return {
@@ -642,8 +767,10 @@ function toUIMessage(message: ChatMessage): ChatUIMessage {
       ...(message.reasoningSummary
         ? [{ type: 'reasoning' as const, text: message.reasoningSummary }]
         : []),
-      ...(message.text ? [{ type: 'text' as const, text: message.text }] : []),
-      ...message.operations.map(operationToToolPart),
+      ...interleaveOpsWithText(
+        message.text,
+        message.operations.map(operationToToolPart),
+      ),
     ],
     metadata: {
       status: message.status,
@@ -878,6 +1005,21 @@ function toCanonicalAssistantMessage(
   const otherContent = preservedContent.filter(
     (part) => part.type !== 'tool-call',
   );
+  // Records keep the streamed tool parts' positions: the canonical text's
+  // paragraph boundaries stand in for the position field the wire lacks.
+  const boundaries = splitTextSegments(canonical.text);
+  const streamedOffsets = toolBoundaryOffsets(message.content);
+  const opPositions =
+    canonical.operations.length > 0
+      ? canonical.operations.map((operation, index) => {
+          const offset = streamedOffsets.byId.get(operation.operationId);
+          return offset !== undefined
+            ? segmentIndexForOffset(boundaries.ends, offset)
+            : index;
+        })
+      : streamedOffsets.inOrder.map((offset) =>
+          segmentIndexForOffset(boundaries.ends, offset),
+        );
   const status =
     canonical.status === 'cancelled'
       ? { type: 'incomplete' as const, reason: 'cancelled' as const }
@@ -896,10 +1038,11 @@ function toCanonicalAssistantMessage(
               },
             ]
           : []),
-        ...(canonical.text
-          ? [{ type: 'text' as const, text: canonical.text }]
-          : []),
-        ...operationContent,
+        ...interleaveOpsWithText<(typeof operationContent)[number]>(
+          canonical.text,
+          operationContent,
+          opPositions,
+        ),
         ...otherContent,
       ],
       status,

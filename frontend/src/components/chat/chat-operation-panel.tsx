@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -10,8 +11,10 @@ import {
 import { useAuiState } from '@assistant-ui/react';
 import {
   CheckIcon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  PencilLineIcon,
   XIcon,
 } from 'lucide-react';
 import type {
@@ -26,6 +29,7 @@ import {
 } from '@/components/chat/chat-runtime';
 import { readDockQuestions } from '@/components/chat/chat-tool-row';
 import { composerClasses } from '@/components/chat/composer-styles';
+import { formatPlatformDateTime } from '@/components/platform/platform-format';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
@@ -46,16 +50,12 @@ const fieldValue = (value: unknown): string => {
     .join(' · ');
 };
 
+// "Expires 24 Nov 2026, 10:42" — the platform date-time, viewer-local.
 const formatExpiry = (expiresAt: string | null | undefined) => {
   if (!expiresAt) return 'No expiry';
   const date = new Date(expiresAt);
   if (Number.isNaN(date.getTime())) return 'No expiry';
-  return `Expires ${new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(date)}`;
+  return `Expires ${formatPlatformDateTime(date)}`;
 };
 
 function DescriptorFields({
@@ -75,7 +75,15 @@ function DescriptorFields({
           <dt className="text-muted-foreground w-28 shrink-0">
             {prettifyKey(key)}
           </dt>
-          <dd className="text-foreground min-w-0">{fieldValue(value)}</dd>
+          <dd
+            className={cn(
+              'text-foreground min-w-0',
+              // The proposed title is the headline value of a rename dock.
+              key === 'newTitle' && 'font-semibold',
+            )}
+          >
+            {fieldValue(value)}
+          </dd>
         </div>
       ))}
     </dl>
@@ -188,6 +196,10 @@ const approvalSummaryText = (toolName: string | undefined) =>
     ? 'Lexon wants to rename this chat'
     : `Lexon wants to run ${prettifyKey(toolName ?? 'this operation')}`;
 
+// The `.kbd2` hint chip: a subtle currentColor wash inside the button.
+const kbdClasses =
+  'ml-1.5 inline-flex h-[18px] items-center rounded px-[5px] bg-[color-mix(in_srgb,currentColor_14%,transparent)] text-[11px] font-medium max-md:hidden';
+
 function ApprovalDock({
   operationId,
   summary,
@@ -200,6 +212,12 @@ function ApprovalDock({
   readonly missingDetail: boolean;
 }) {
   const [send, error, sending] = useDecisionSender(awaiting, operationId);
+  // "Ctrl ↵" on Windows/Linux, "⌃↵" on Apple platforms — same convention as
+  // the sidebar shortcut hints.
+  const [isApple, setIsApple] = useState(false);
+  useEffect(() => {
+    setIsApple(/^(Mac|iPhone|iPad|iPod)/.test(window.navigator.platform));
+  }, []);
   const snapshotHash = summary.snapshotHash;
   const reject = () => {
     if (snapshotHash) send({ snapshotHash, action: 'reject' });
@@ -229,8 +247,12 @@ function ApprovalDock({
     >
       <div className="border-border bg-background flex flex-col gap-3 rounded-2xl border p-4 shadow-[0_10px_30px_-14px_rgba(8,6,6,.22),0_2px_6px_-2px_rgba(8,6,6,.06)]">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-[15px] font-medium">
+          <h2 className="flex items-center gap-1.5 text-[15px] font-medium">
             {approvalSummaryText(summary.toolName)}
+            <ChevronDownIcon
+              aria-hidden="true"
+              className="text-muted-foreground size-3.5"
+            />
           </h2>
         </div>
         {missingDetail ? (
@@ -265,9 +287,7 @@ function ApprovalDock({
               aria-keyshortcuts="Escape"
             >
               Reject
-              <kbd className="text-muted-foreground ml-1.5 max-md:hidden">
-                Esc
-              </kbd>
+              <kbd className={cn(kbdClasses, 'text-muted-foreground')}>Esc</kbd>
             </button>
             <button
               type="button"
@@ -277,7 +297,7 @@ function ApprovalDock({
               aria-keyshortcuts="Control+Enter"
             >
               Approve
-              <kbd className="ml-1.5 opacity-70 max-md:hidden">⌃↵</kbd>
+              <kbd className={kbdClasses}>{isApple ? '⌃↵' : 'Ctrl ↵'}</kbd>
             </button>
           </span>
         </div>
@@ -429,6 +449,9 @@ function QuestionDock({
     current.kind !== 'text' &&
     current.allowFreeText !== false;
   const isReady = !missingDetail && current !== undefined;
+  // The question text in the header labels the option group, like the
+  // prototype's `aria-labelledby="aq"`.
+  const questionTextId = useId();
 
   return (
     <section
@@ -437,39 +460,51 @@ function QuestionDock({
       aria-label={
         total > 1
           ? `Question ${page + 1} of ${total} from Lexon`
-          : 'A question from Lexon'
+          : 'Question from Lexon'
       }
       onKeyDown={onKeyDown}
       className={cn(composerClasses.wrapper, 'mb-2 pb-0! max-md:pb-0!')}
     >
       <div className="border-border bg-background flex flex-col gap-3 rounded-2xl border p-4 shadow-[0_10px_30px_-14px_rgba(8,6,6,.22),0_2px_6px_-2px_rgba(8,6,6,.06)]">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-[15px] font-medium">
+          {/* The question text itself heads the dock; the "Question N of M"
+              label stays in the DOM for assistive tech only. */}
+          <h2 className="sr-only">
             {total > 1
               ? `Question ${page + 1} of ${total} from Lexon`
-              : 'A question from Lexon'}
+              : 'Question from Lexon'}
           </h2>
-          <span className="flex items-center gap-1">
+          {current !== undefined ? (
+            <p
+              id={questionTextId}
+              className="min-w-0 text-[15px] leading-[1.45] font-medium"
+            >
+              {current.text}
+            </p>
+          ) : (
+            <Skeleton aria-hidden="true" className="h-5 w-2/5" />
+          )}
+          <span className="text-muted-foreground inline-flex shrink-0 items-center gap-0.5 text-[13px] font-normal">
             {total > 1 ? (
               <>
                 <button
                   type="button"
                   aria-label="Previous question"
                   aria-keyshortcuts="ArrowLeft"
-                  className="text-muted-foreground hover:text-foreground p-1"
+                  className="hover:text-foreground flex size-7 items-center justify-center disabled:opacity-40"
                   onClick={() => setPage((page) => Math.max(0, page - 1))}
                   disabled={page === 0}
                 >
                   <ChevronLeftIcon aria-hidden="true" className="size-4" />
                 </button>
-                <span className="text-muted-foreground text-[13px]">
+                <span className="min-w-11 text-center">
                   {page + 1} of {total}
                 </span>
                 <button
                   type="button"
                   aria-label="Next question"
                   aria-keyshortcuts="ArrowRight"
-                  className="text-muted-foreground hover:text-foreground p-1"
+                  className="hover:text-foreground flex size-7 items-center justify-center disabled:opacity-40"
                   onClick={() =>
                     setPage((page) => Math.min(total - 1, page + 1))
                   }
@@ -477,12 +512,16 @@ function QuestionDock({
                 >
                   <ChevronRightIcon aria-hidden="true" className="size-4" />
                 </button>
+                <span
+                  aria-hidden="true"
+                  className="bg-border mx-1 h-[18px] w-px"
+                />
               </>
             ) : null}
             <button
               type="button"
               aria-label="Answer in chat instead"
-              className="text-muted-foreground hover:text-foreground p-1"
+              className="hover:text-foreground flex size-7 items-center justify-center"
               onClick={dismiss}
             >
               <XIcon aria-hidden="true" className="size-4" />
@@ -493,17 +532,15 @@ function QuestionDock({
           // Same §9-cap fallback as the approval dock: skeleton rows shaped
           // like a question and its option rows (LEX-DS-001 §5.1).
           <div aria-hidden="true" className="flex flex-col gap-3">
-            <Skeleton className="h-5 w-3/4" />
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
           </div>
         ) : (
           <>
-            <p className="text-[15px] font-medium">{current.text}</p>
             {current.kind === 'single' ? (
               <div
                 role="radiogroup"
-                aria-label={current.text}
+                aria-labelledby={questionTextId}
                 className="flex flex-col"
               >
                 {current.options?.map((option, index) => {
@@ -518,38 +555,47 @@ function QuestionDock({
                       role="radio"
                       aria-checked={chosen}
                       onClick={() => selectSingle(index)}
-                      className="border-border flex items-center gap-3 border-t px-1 py-2.5 text-left first:border-t-0"
+                      className="border-border flex items-start gap-3 border-t px-2 py-2.5 text-left first:border-t-0"
                     >
                       <span
                         className={cn(
-                          'flex size-6 shrink-0 items-center justify-center rounded-lg text-[13px]',
+                          'mt-px flex size-6 shrink-0 items-center justify-center rounded-[7px] text-[12.5px]',
                           chosen
                             ? 'bg-(--lexon-tint) text-(--lexon-red-text)'
                             : 'bg-muted text-muted-foreground',
                         )}
                         aria-hidden="true"
                       >
-                        {chosen ? (
-                          <CheckIcon className="size-3.5" />
-                        ) : (
-                          index + 1
-                        )}
+                        {index + 1}
                       </span>
-                      <span className="flex min-w-0 flex-col">
-                        <span className="text-[14.5px]">{option.label}</span>
+                      <span className="flex min-w-0 flex-col leading-[1.45]">
+                        <span
+                          className={cn(
+                            'text-[14.5px]',
+                            chosen && 'font-medium',
+                          )}
+                        >
+                          {option.label}
+                        </span>
                         {option.description ? (
                           <span className="text-muted-foreground text-[13px]">
                             {option.description}
                           </span>
                         ) : null}
                       </span>
+                      {chosen ? (
+                        <CheckIcon
+                          aria-hidden="true"
+                          className="ml-auto size-4 shrink-0 self-center text-(--lexon-red-text)"
+                        />
+                      ) : null}
                     </button>
                   );
                 })}
               </div>
             ) : null}
             {current.kind === 'multiple' ? (
-              <div role="group" aria-label={current.text}>
+              <div role="group" aria-labelledby={questionTextId}>
                 <p className="text-muted-foreground mb-1 text-[13px]">
                   Select all that apply
                 </p>
@@ -562,11 +608,11 @@ function QuestionDock({
                       role="checkbox"
                       aria-checked={on}
                       onClick={() => toggleChecked(index)}
-                      className="border-border flex items-center gap-3 border-t px-1 py-2.5 text-left first:border-t-0"
+                      className="border-border flex items-start gap-3 border-t px-2 py-2.5 text-left first:border-t-0"
                     >
                       <span
                         className={cn(
-                          'flex size-[18px] shrink-0 items-center justify-center rounded-[5px] border',
+                          'mx-[3px] mt-1 flex size-[18px] shrink-0 items-center justify-center rounded-[5px] border-[1.5px]',
                           on
                             ? 'border-(--lexon-red-text) bg-(--lexon-red-text) text-background'
                             : 'border-border bg-background',
@@ -575,8 +621,12 @@ function QuestionDock({
                       >
                         {on ? <CheckIcon className="size-3" /> : null}
                       </span>
-                      <span className="flex min-w-0 flex-col">
-                        <span className="text-[14.5px]">{option.label}</span>
+                      <span className="flex min-w-0 flex-col leading-[1.45]">
+                        <span
+                          className={cn('text-[14.5px]', on && 'font-medium')}
+                        >
+                          {option.label}
+                        </span>
                         {option.description ? (
                           <span className="text-muted-foreground text-[13px]">
                             {option.description}
@@ -609,12 +659,22 @@ function QuestionDock({
                   autoFocus
                 />
               ) : (
+                // The prototype's `.orow`-shaped free-text row: a pen tile
+                // then the muted prompt.
                 <button
                   type="button"
-                  className="text-muted-foreground hover:text-foreground border-border flex items-center gap-3 border-t px-1 py-2.5 text-left text-[14.5px]"
+                  className="hover:bg-muted/50 border-border flex items-start gap-3 border-t px-2 py-2.5 text-left"
                   onClick={() => setFreeTextOpen(true)}
                 >
-                  Write another answer
+                  <span
+                    className="bg-muted text-muted-foreground mt-px flex size-6 shrink-0 items-center justify-center rounded-[7px]"
+                    aria-hidden="true"
+                  >
+                    <PencilLineIcon className="size-[13px]" />
+                  </span>
+                  <span className="text-muted-foreground text-[14.5px] leading-[26px]">
+                    Write another answer
+                  </span>
                 </button>
               )
             ) : null}
