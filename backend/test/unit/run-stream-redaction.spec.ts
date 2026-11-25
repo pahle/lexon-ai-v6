@@ -95,6 +95,13 @@ it('empties streamed tool-input deltas', () => {
   expect(redacted.inputTextDelta).toBe('');
 });
 
+it('returns malformed stored frames untouched instead of throwing', () => {
+  // A corrupt entry must not crash the subscription pump on an unhandled
+  // JSON.parse rejection inside `deliver`.
+  const corrupt = '{"type":"tool-input-available","toolCallId';
+  expect(redactRunStreamEventForReader(corrupt)).toBe(corrupt);
+});
+
 it('passes payload-free lifecycle events through untouched', () => {
   for (const event of [
     {

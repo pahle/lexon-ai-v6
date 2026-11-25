@@ -84,13 +84,21 @@ const READER_PAYLOAD_EVENT =
 
 export function redactRunStreamEventForReader(data: string): string {
   if (!READER_PAYLOAD_EVENT.test(data)) return data;
-  const event = JSON.parse(data) as {
+  let event: {
     type?: string;
     operation?: Record<string, unknown>;
     input?: unknown;
     output?: unknown;
     inputTextDelta?: string;
   };
+  try {
+    event = JSON.parse(data) as typeof event;
+  } catch {
+    // Stored entries are written schema-validated; a corrupt frame forwards
+    // as-is — undeliverable to the client either way — rather than crashing
+    // the subscription pump on an unhandled rejection.
+    return data;
+  }
   switch (event.type) {
     case 'approval-required':
     case 'question-required':
