@@ -155,19 +155,23 @@ schedule (§8).
 2. **deny wins:** if the chat has `project_id` P and a `project_denies` row
    exists for (org, P, caller), access is none — this beats ownership,
    project roles, and org owner/admin status;
-3. at least one grant: owner (`owner_user_id` = caller), **or** project
-   access (`project_id` P and caller is `projects.owner_user_id` of P or a
-   `project_members` row for P — viewer or editor both read), **or** share
-   (`chat_shares` row, only meaningful when `project_id IS NULL`);
+3. at least one grant, **disjoint by `project_id`:** a *standalone* chat
+   (`project_id IS NULL`) grants owner (`owner_user_id` = caller) or share
+   (`chat_shares` row); a *project* chat grants **only** project access —
+   `ops.lexon_project_access(org,P,caller) <> 'none'` — and that includes
+   the chat's owner: ownership of a project chat conveys no read rights by
+   itself. A denied **or removed** member loses their own chats in the
+   project the same way;
 4. current organization membership, enforced by the existing claim fence
    and session invalidation plus the shared `ops.lexon_org_member` check in
    the RLS predicate (brief item 11: "organization membership is required").
 
 **Access level** for rendering/authorization: `owner` > `editor` > `viewer` >
-none. On a chat: owner of the chat = `owner`; project role of the caller =
-that role for project-page capabilities (composer, instructions editing);
-share recipient = `viewer`. On a project: `projects.owner_user_id` = owner,
-member row role otherwise, deny = none, no row = none.
+none. On a chat: standalone chat owner or project-chat owner with access =
+`owner`; other project roles = that role for project-page capabilities
+(composer, instructions editing); share recipient = `viewer`. On a project:
+`projects.owner_user_id` = owner, member row role otherwise, deny = none,
+no row = none.
 
 **Writes stay owner-only** (brief item 26). Project membership never grants
 chat writes. Project writes: settings/members/delete = project owner;
@@ -185,19 +189,22 @@ policies call — the query runs under `lexon_app` RLS, so it cannot read
 ```sql
 c.org_id = $org AND c.deleted_at IS NULL
 AND ops.lexon_org_member(c.org_id, $user)
-AND ( c.owner_user_id = $user
+AND ( (c.project_id IS NULL AND (
+         c.owner_user_id = $user
+         OR EXISTS (SELECT 1 FROM app.chat_shares s
+              WHERE s.org_id=c.org_id AND s.chat_id=c.id AND s.user_id=$user)))
    OR (c.project_id IS NOT NULL
-        AND ops.lexon_project_access(c.org_id, c.project_id, $user) <> 'none')
-   OR (c.project_id IS NULL AND EXISTS (SELECT 1 FROM app.chat_shares s
-        WHERE s.org_id=c.org_id AND s.chat_id=c.id AND s.user_id=$user)) )
+        AND ops.lexon_project_access(c.org_id, c.project_id, $user) <> 'none') )
 ```
 
-`OwnedChatAuthorizationScope` (the existing owner-only scope) stays for every
-write path and for owner-only reads (FTS search stays owner-only in F6 —
-brief out-of-scope item; the owner scope gains the deny clause via
-`lexon_project_access` = 'none' when a deny row exists, so a denied owner
-loses their own project chats). Every read path in §5 uses the new builder.
-There is no unfiltered path.
+`OwnedChatAuthorizationScope` (the owner-only scope used by writes and by
+owner-scoped reads — FTS, Recent, Chats list, `resolveMatch`, `selectLeaf`)
+gains the same disjunction at the owner arm: `owner_user_id = $user AND
+(project_id IS NULL OR ops.lexon_project_access(org,project_id,$user) <>
+'none')`. A project chat is "yours" only while you still have access to
+its project — a denied **or removed** member loses their own project
+chats on every owner-scoped path too (§6). Every read path in §5 uses the
+new builder. There is no unfiltered path.
 
 ### 4.2 The access definers
 
@@ -271,18 +278,26 @@ USING (
   org_id = NULLIF(current_setting('app.org_id',true),'')::uuid
   AND deleted_at IS NULL
   AND ops.lexon_org_member(org_id, NULLIF(current_setting('app.user_id',true),'')::uuid)
-  AND ( owner_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid
+  AND ( (project_id IS NULL AND (
+           owner_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid
+           OR EXISTS (SELECT 1 FROM app.chat_shares s
+                WHERE s.org_id=chats.org_id AND s.chat_id=chats.id
+                  AND s.user_id=NULLIF(current_setting('app.user_id',true),'')::uuid)))
      OR (project_id IS NOT NULL
           AND ops.lexon_project_access(org_id, project_id,
-               NULLIF(current_setting('app.user_id',true),'')::uuid) <> 'none')
-     OR (project_id IS NULL AND EXISTS (SELECT 1 FROM app.chat_shares s
-          WHERE s.org_id=chats.org_id AND s.chat_id=chats.id
-            AND s.user_id=NULLIF(current_setting('app.user_id',true),'')::uuid))));
+               NULLIF(current_setting('app.user_id',true),'')::uuid) <> 'none')));
 ```
 
-`owner_live_chat_update` stays owner-only (rename, `viewed_leaf_id`,
-`active_answer_run_id`, tombstone fence all remain owner paths; readers never
-mutate). `owner_live_chat_insert` gains the project-creation gate in its
+The owner arm is deliberately disjoint by `project_id`: it grants nothing
+on a project chat, so a denied member cannot read their own project chat
+through ownership — the only path to a project chat is
+`lexon_project_access <> 'none'`, and that definer checks deny before
+owner. (`owner_live_chat_update` keeps `owner_user_id` plus the row
+must already be visible via SELECT to be targeted, so denied owners are
+blocked at read — rename, `viewed_leaf_id`, `active_answer_run_id` stay
+owner paths; readers never mutate.)
+
+`owner_live_chat_insert` gains the project-creation gate in its
 WITH CHECK — editor-or-owner on the project, deny and membership already
 inside the definer:
 
@@ -319,7 +334,11 @@ run rows under their own claim:
   unchanged.
 - `ai_runs_owner_live_write` AS RESTRICTIVE FOR INSERT/UPDATE/DELETE:
   identical to today's arms (`initiating_user_id=app.user_id` + owner-only
-  chat clause) — writes stay owner-only.
+  `EXISTS chats` clause) — writes stay owner-only. Under the disjoint
+  owner arm, that `EXISTS` still passes for an owner **with access**
+  (their chat is visible) and fails for a denied owner — which is
+  correct: ordinary run writes stop at access loss, and the finalization
+  that must still commit runs through definers, not these arms (§4.4).
 
 **`app.ai_steps`, `app.ai_checkpoints`, `app.ai_operations`** — same split of
 their 0027 RESTRICTIVE `*_owner_run` policies: SELECT arm becomes an
@@ -402,21 +421,63 @@ and the materialize trigger copies `project_id` onto the new chat row.
 `chat_mutation_requests` needs no change — only the chat owner mutates a
 chat, project or not.
 
+### 4.4 Finalization and cleanup paths under access loss
+
+Once a project chat is invisible to its owner, the F5 access-loss
+finalization still has to commit under their claim: `runs.transition` →
+`failed`, `rejectApprovalForAccessLoss`, the two `chat.*` audit appends,
+`terminalStreamReference`, `#notifyChatInvalidated` (the
+`approval.service.ts` sequence). Under the §4.3 rules every one of those
+repository reads/writes returns zero rows — the run row itself is
+invisible under `ai_runs_access_read` — so the path **cannot** run
+through `lexon_app` claims at all. Rule:
+
+- **No `lexon_app` write arm reads `app.chats` for finalization.** The
+  `*_owner_live_write` arms intentionally fail for a denied owner
+  (§4.3) — ordinary run writes stop, which is correct.
+- **Finalization executes inside definer-backed primitives as the definer
+  role** — the same family the F4 lifecycle recovery uses (R26: the
+  expected-state finalizer definer that terminalizes status/sequence
+  through the run trigger) and the actor-facts definer the capability
+  gate already consults. Detection stays under the owner claim
+  (`lexon_ai_actor_facts` returns `ownerDenied`/`ownerProjectRole` — it is
+  itself a definer and sees everything); the transition + step/operation
+  terminalization + audit append + terminal stream reference are executed
+  by definer functions that return only ids/status, never content (K3,
+  same shape as existing `ops.*` primitives). The plan maps the exact
+  reuse: extend the existing finalizer or add
+  `ops.lexon_ai_finalize_access_loss` — never widen any read policy to
+  make finalization work.
+- **The F4 deletion sweep, `ops.ai_mark_chat_deleted`, and the §8
+  `ops.project_delete` definer touch tombstoned or newly invisible chats
+  the same way** — they run as `SECURITY DEFINER` or `lexon_migrator`
+  internal-policy paths, never through `chats_access_select`.
+- `ops.ai_mark_chat_deleted` gains the project-access clause for project
+  chats (`lexon_project_access <> 'none'`, fail closed) so a denied owner
+  cannot tombstone a chat they can no longer see — the service 404s
+  first either way.
+
+**Integration test (required):** deny the chat owner mid-run → the run
+ends `failed` with `AI_ACCESS_REVOKED`, **exactly one**
+`chat.run_finished.v1` audit event, a terminal stream reference is
+produced, and no retry loop or error storm (watch the worker log). A
+member removed from the project without a deny finalizes identically.
+
 ## 5. Read-path inventory — every existing read path and how it gets the rule
 
 | # | Read path | Code location today | F6 handling |
 |---|---|---|---|
-| 1 | Sidebar **Recent** + Chats page list | `ChatSearchRepository.list` | **Recent and Chats list the user's own chats** (brief items 19, 25) — they keep `OwnedChat` scope, **plus** the `D` deny clause (a denied owner loses their own project chats) and a join to `projects` for the project-name secondary text on own project chats. |
+| 1 | Sidebar **Recent** + Chats page list | `ChatSearchRepository.list` | **Recent and Chats list the user's own chats** (brief items 19, 25) — `OwnedChat` scope with the project-access disjunction on the owner arm (`owner AND (project_id IS NULL OR lexon_project_access<>'none')`) — a denied **or removed** member loses their own project chats here too — plus a join to `projects` for the project-name secondary text on own project chats still accessible. |
 | 2 | Chats page **"Shared with me"** filter | new scope on the same list endpoint | `chat_shares` arm only (project chats can never appear here). |
-| 3 | Chat **search** (FTS) | `CHAT_SEARCH_SQL` `owner_chats` CTE | Stays owner-only (FTS over others' chats is F8). The `D` clause is added to the CTE so a denied owner gets no hits on their own project chats. |
-| 4 | `resolveMatch` (search → message navigation) | `ChatSearchRepository.resolveMatch` | Same owner+D scope. |
+| 3 | Chat **search** (FTS) | `CHAT_SEARCH_SQL` `owner_chats` CTE | Stays owner-only (FTS over others' chats is F8). The CTE gains the same `project_id IS NULL OR lexon_project_access<>'none'` conjunct, so a denied or removed owner gets no hits on their own project chats. |
+| 4 | `resolveMatch` (search → message navigation) | `ChatSearchRepository.resolveMatch` | Same owner+project-access scope. |
 | 5 | Chat **detail / tree** | `ChatRepository.readLive` | Full new predicate (owner/project/share, deny-wins). |
-| 6 | `lockLive` | `ChatRepository` | Owner-only — write fence. |
-| 7 | `rename` | `ChatRepository` | Owner-only. |
-| 8 | `selectLeaf` (viewed-leaf write) | `ChatRepository` | Owner-only; readers do not move the owner's leaf. |
-| 9 | `markDeleted` | `ops.ai_mark_chat_deleted` fence | Owner-only; project deletion gets its own definer (§8). |
+| 6 | `lockLive` | `ChatRepository` | Owner+access scope — a denied/removed member can't take the write fence on their own project chat. |
+| 7 | `rename` | `ChatRepository` | Owner+access scope. |
+| 8 | `selectLeaf` (viewed-leaf write) | `ChatRepository` | Owner+access scope; readers do not move the owner's leaf. |
+| 9 | `markDeleted` | `ops.ai_mark_chat_deleted` fence | Owner+access scope — the definer gains the `lexon_project_access<>'none'` fail-closed check for project chats (§4.4); project deletion gets its own definer (§8). |
 | 10 | **SSE replay + live** | `AiRunRepository.authorizedChatSnapshot`, `AiStepRepository.stream*Proof` chain in `chat-runtime.providers.ts` | Widened to the read predicate (viewer-level grants stream access). Every per-drain re-check re-evaluates it → revocation closes the stream ≤ `REVALIDATION_INTERVAL_MS` (5 s). |
-| 11 | **Run context** (`historyForRun`, history collect) | `ChatMessageRepository`, `ChatHistoryContextProvider` | Owner-scope — only chat owners run chats. The owner-denied case is caught before collect by the capability gate (§9). |
+| 11 | **Run context** (`historyForRun`, history collect) | `ChatMessageRepository`, `ChatHistoryContextProvider` | Owner-scope — only chat owners run chats. The owner-denied/removed case is caught before collect by the capability gate (§9). |
 | 12 | **Title invalidation** fan-out | `pg_notify('lexon_chat_title', {orgId,userId,chatId})` → `PgNotificationListener` → `RunEventsService` pendingChatIds | Payload drops `userId` → `{orgId,chatId}` (content-free). Server fans out to each connected user of that org **that currently passes the read predicate** (owner ∪ project members ∪ share recipients). Denied/removed users are deliberately not notified — their stale view is corrected by §10's stream close and by refetch 404s; notifying them would leak the chatId. Schema `ChatTitleNotificationSchema` and the listener parse updated; `chatId`-null `invalidateAll` path unchanged. |
 | 13 | Access-change invalidation (member removed, deny set, share revoked, role change) | new emits on `lexon_chat_title` / `chat.invalidated` | Member/deny/share mutations emit `chat.invalidated` (`chatId:null` = refresh) to the affected user(s) — the target always gets it (they must refetch and hit 404s), plus project members when their visible set changed. Reuses the existing channel and event schema — no new channel. |
 | 14 | F5 **operation/approval/question reads** (dock panels) | run snapshot serialization | Run/step rows become readable by viewers via §4.3, but **panels render only for the chat owner** — operation payloads are filtered out of the snapshot serialization for non-owner callers; waiting marker reads "Waiting for <owner>" (brief items 18, 24). API-level: decision endpoints stay owner-only (capability policy). |
@@ -449,6 +510,8 @@ non-member or denied caller gets **404**.
 | Share list on a standalone chat owned by denied user | unaffected (deny is per-project) — asserted to catch over-broad predicates |
 | pg_notify title fan-out | denied user receives no `chat.invalidated` for that chat (existence must not leak) |
 | **RLS level (as `lexon_app` + `set_config`, not via service)** | denied editor **and denied project owner** (deny row inserted as migrator to prove deny > owner structurally): zero rows from `chats`, `chat_messages`, `chat_runs`, `ai_runs`, `ai_operations`, `projects`, `project_members`, `project_instructions`; no recursion error on any new-table SELECT; `lexon_project_access` returns the level only |
+| **Member removed without a deny** | member row deleted → their own project chats vanish from `chats`, `chat_runs`, `ai_runs`, FTS, Recent and the Chats list (`lexon_project_access` = 'none' — owner arm gives nothing on `project_id IS NOT NULL`) |
+| Access-loss finalization | deny the chat owner mid-run → run `failed`/`AI_ACCESS_REVOKED`, **exactly one** `chat.run_finished.v1`, terminal stream reference produced, no retry loop (§4.4) |
 | Org admin (non-member) instruction probe | zero rows from `project_instructions` at the RLS level — the admin arm does not exist on that table |
 | Self-lift | admin who denied themselves calls deny-lift → refused by service and by `lexon_project_deny_lift` definer; another admin lifts successfully |
 
