@@ -130,7 +130,30 @@ export class OperationExpirySweep {
           runId: candidate.runId,
           operationId: candidate.id,
         });
-        if (!operation) return { kind: 'skipped' };
+        if (!operation) {
+          // F6 §9: the candidate is listed cross-tenant by the definer but
+          // its rows are invisible here — project access loss. The definer
+          // repeats the expire CAS, settles the sibling ops, fails the run
+          // AI_ACCESS_REVOKED, appends the actor-less audit and notifies;
+          // changed=false covers CAS loss and every live-shape refusal.
+          const lost = await this.options.operations.expireAccessLoss(tx, {
+            runId: candidate.runId,
+            operationId: candidate.id,
+            userId: candidate.initiatingUserId,
+          });
+          if (!lost || !lost.found || !lost.changed) return { kind: 'skipped' };
+          const lostReference = await this.options.runs.terminalStreamReference(
+            tx,
+            candidate.runId,
+          );
+          return lostReference
+            ? {
+                kind: 'terminal',
+                runId: candidate.runId,
+                reference: lostReference,
+              }
+            : { kind: 'skipped' };
+        }
         // Actor-less by contract: the §8 validator admits a decided event
         // without actorUserId only when metadata.status is 'expired'.
         await this.audit.append(tx, {

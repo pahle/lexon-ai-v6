@@ -44,6 +44,7 @@ const chat: ChatRecord = {
   createdAt,
   updatedAt: createdAt,
   lastActivityAt: createdAt,
+  projectId: null,
 };
 
 const tree = {

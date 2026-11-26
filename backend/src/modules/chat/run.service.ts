@@ -143,6 +143,9 @@ export class RunService {
     const actorFacts = await this.facts.read(tx, {
       orgId: actor.orgId,
       userId: actor.userId,
+      // The run row does not exist yet; the bound chat id lets the definer
+      // resolve project standing for the capability gate (F6 §9).
+      ...(resourceIds[0] !== undefined ? { chatId: resourceIds[0] } : {}),
     });
     if (!actorFacts) throw new Error('AI run request denied');
     const decision = await this.authorization.authorize(

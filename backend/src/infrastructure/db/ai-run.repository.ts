@@ -216,6 +216,7 @@ export class AiRunRepository {
       error_code: string | null;
       resolved_config: unknown;
       chat_title: string;
+      owner_user_id: string;
       operations: {
         operationId: string;
         kind: string;
@@ -236,6 +237,7 @@ export class AiRunRepository {
          r.stream_snapshot_generation,r.stream_event_id,r.stream_attempt_id,
          r.stream_revision,r.stream_resumable,r.error_code,r.resolved_config,
          c.title AS chat_title,
+         c.owner_user_id,
          COALESCE((
            SELECT jsonb_agg(
              jsonb_build_object(
@@ -278,6 +280,19 @@ export class AiRunRepository {
     );
     const row = result.rows[0];
     if (!row) return null;
+    // F6 §5 row 14: project members/share recipients pass the chat-read
+    // scope but are never owners — operation payloads stay server-side for
+    // them, exactly the fields stripReaderPayloads drops on the chat detail.
+    const readerView = row.owner_user_id !== userId;
+    const operations = readerView
+      ? row.operations.map((operation) => {
+          const core = { ...operation };
+          delete core.input;
+          delete core.display;
+          delete core.output;
+          return core;
+        })
+      : row.operations;
     const config = row.resolved_config;
     const profileSnapshot =
       typeof config === 'object' &&
@@ -305,7 +320,7 @@ export class AiRunRepository {
       Number(maxToolProposals) < 1 ||
       !Number.isSafeInteger(operationLimit) ||
       operationLimit < 1 ||
-      row.operations.length > operationLimit
+      operations.length > operationLimit
     )
       throw new Error('Invalid committed chat operation snapshot bound');
     const attemptId = row.stream_attempt_id;
@@ -322,7 +337,7 @@ export class AiRunRepository {
       });
     // Ops replay as tool parts in stored order so the client rebuilds the
     // rows identically to the live stream (§9); outcome is the wire status.
-    for (const operation of row.operations) {
+    for (const operation of operations) {
       const input =
         operation.input !== null &&
         typeof operation.input === 'object' &&
@@ -353,7 +368,7 @@ export class AiRunRepository {
       revision: row.stream_revision,
       eventId: row.stream_resumable ? row.stream_event_id : null,
       parts,
-      operations: row.operations,
+      operations,
       status: row.status,
       errorCode: row.error_code,
       reasoningDurationMs: row.reasoning_duration_ms,
@@ -362,6 +377,7 @@ export class AiRunRepository {
       snapshot,
       streamGeneration: Number(row.stream_generation),
       resumable: row.stream_resumable,
+      readerView,
     };
   }
 
@@ -614,22 +630,46 @@ export class AiRunRepository {
       }
     }
     if (
-      !row ||
-      !row.step_id ||
-      row.sequence === null ||
-      row.expected_version === null ||
-      row.fence === null
+      row &&
+      row.step_id &&
+      row.sequence !== null &&
+      row.expected_version !== null &&
+      row.fence !== null
     )
-      return undefined;
+      return {
+        orgId: row.org_id,
+        userId: row.user_id,
+        runId: row.run_id,
+        stepId: row.step_id,
+        sequence: Number(row.sequence),
+        expectedVersion: Number(row.expected_version),
+        fence: Number(row.fence),
+        ...(neutral ? { neutral: true } : {}),
+      };
+    // F6 §9: under project access loss the run row is invisible to the
+    // initiator's app-role read; the definer returns the same terminal anchor
+    // (latest committed/awaiting step, else the failed/cancelled anchor).
+    const proof = await client.query<{
+      step_id: string;
+      sequence: number;
+      expected_version: number;
+      fence: number | string;
+    }>(
+      `SELECT step_id,sequence,expected_version,fence
+         FROM ops.lexon_ai_terminal_stream_proof($1,$2,$3)`,
+      [ctx.orgId, ctx.userId, runId],
+    );
+    const anchor = proof.rows[0];
+    if (!anchor) return undefined;
     return {
-      orgId: row.org_id,
-      userId: row.user_id,
-      runId: row.run_id,
-      stepId: row.step_id,
-      sequence: Number(row.sequence),
-      expectedVersion: Number(row.expected_version),
-      fence: Number(row.fence),
-      ...(neutral ? { neutral: true } : {}),
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      runId,
+      stepId: anchor.step_id,
+      sequence: Number(anchor.sequence),
+      expectedVersion: Number(anchor.expected_version),
+      fence: Number(anchor.fence),
+      neutral: true,
     };
   }
 

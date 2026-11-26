@@ -17,6 +17,7 @@ import {
 } from '../identity-access/index.js';
 import { createProductionRunRegistry, RunRegistry } from './run-registry.js';
 import { ChatHistoryContextProvider } from './chat-history-context.js';
+import { ProjectContextProvider } from './project-context.js';
 import { RunService } from './run.service.js';
 import { ChatService } from './chat.service.js';
 import { ChatSearchService } from './chat-search.service.js';
@@ -40,10 +41,18 @@ export function chatRuntimeProviders(): Provider[] {
         new ChatHistoryContextProvider(database),
     },
     {
+      provide: ProjectContextProvider,
+      inject: [TenantDatabase],
+      useFactory: (database: TenantDatabase) =>
+        new ProjectContextProvider(database),
+    },
+    {
       provide: RunRegistry,
-      inject: [ChatHistoryContextProvider],
-      useFactory: (history: ChatHistoryContextProvider) =>
-        createProductionRunRegistry([history]),
+      inject: [ChatHistoryContextProvider, ProjectContextProvider],
+      useFactory: (
+        history: ChatHistoryContextProvider,
+        project: ProjectContextProvider,
+      ) => createProductionRunRegistry([history, project]),
     },
   ];
 }

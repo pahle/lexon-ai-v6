@@ -95,7 +95,71 @@ export class ApprovalService {
             )
               throw new ChatApiError('CHAT_NOT_FOUND');
             const run = await this.runs.find(tx, input.runId);
-            if (!run || run.initiatingUserId !== actor.userId) {
+            if (!run) {
+              // F6 §9: the paused run is invisible to the initiator under
+              // project access loss — the definer rejects the decided op,
+              // settles every sibling op, fails the run, appends the audit
+              // pair and notifies the bound chats, all under the same claims
+              // binding. found=false maps to the identical refusal a foreign
+              // or absent run gets.
+              const lost = await this.operations.accessLossDecide(tx, {
+                runId: input.runId,
+                operationId: input.operationId,
+                snapshotHash: input.snapshotHash,
+                userId: actor.userId,
+              });
+              if (!lost || !lost.found) {
+                if (ownedChat) throw new ChatApiError('CHAT_NOT_FOUND');
+                throw new Error('AI approval decision refused');
+              }
+              if (!lost.changed) {
+                // The definer's idempotent arm returns the stored op state
+                // for an already-decided (or expired) row — the same 200
+                // shape a losing decide race gets on the visible path.
+                if (
+                  lost.operationStatus !== null &&
+                  (lost.operationDecision !== null ||
+                    lost.operationStatus === 'expired')
+                )
+                  return {
+                    kind: 'stored',
+                    outcome: {
+                      operationId: input.operationId,
+                      status:
+                        lost.operationStatus === 'succeeded'
+                          ? 'completed'
+                          : (lost.operationStatus as OperationDecisionResult['status']),
+                      decision:
+                        lost.operationDecision as OperationDecisionResult['decision'],
+                      decidedAt: lost.operationDecidedAt?.toISOString() ?? null,
+                    },
+                  };
+                if (ownedChat) throw new ChatApiError('CHAT_NOT_FOUND');
+                throw new Error('AI approval decision refused');
+              }
+              if (
+                lost.stepId === null ||
+                lost.stepSequence === null ||
+                lost.stepExpectedVersion === null ||
+                lost.stepFence === null
+              ) {
+                if (ownedChat) throw new ChatApiError('CHAT_NOT_FOUND');
+                throw new Error('AI approval decision refused');
+              }
+              return {
+                kind: 'terminal',
+                reference: {
+                  orgId: actor.orgId,
+                  userId: actor.userId,
+                  runId: input.runId,
+                  stepId: lost.stepId,
+                  sequence: lost.stepSequence,
+                  expectedVersion: lost.stepExpectedVersion,
+                  fence: lost.stepFence,
+                },
+              };
+            }
+            if (run.initiatingUserId !== actor.userId) {
               if (ownedChat) throw new ChatApiError('CHAT_NOT_FOUND');
               throw new Error('AI approval decision refused');
             }

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type {
   ChatDetail,
   ChatListScope,
+  ChatOperationSnapshot,
   ChatPage,
   ChatMutationResult,
   CreateChatInput,
@@ -66,6 +67,20 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+/** F6 §5 row 14 reader view: drop every decisionable payload so the wire op
+ * carries only the ids/status/hash core the "Waiting for <owner>" marker
+ * needs. The fields are optional on the wire schema, same as the event-byte
+ * cap fallback, so this adds no contract surface. */
+function stripReaderPayloads(
+  operation: ChatOperationSnapshot,
+): ChatOperationSnapshot {
+  const core = { ...operation };
+  delete core.input;
+  delete core.display;
+  delete core.output;
+  return core;
 }
 
 /**
@@ -279,7 +294,10 @@ export class ChatService {
                 effort: input.effort,
               });
               const { runId } = await this.runService.startWithin(tx, actor, {
-                profileId: 'chat',
+                // F6 §9: project-bound chats run the project-chat profile so
+                // the project context provider is selected by contextBudgets
+                // alone.
+                profileId: chat.projectId ? 'project-chat' : 'chat',
                 prompt: input.text,
                 effort: input.effort,
                 resourceIds: [chatId],
@@ -550,11 +568,14 @@ export class ChatService {
         }
         const tree = await this.messages.tree(tx, chatId);
         if (!tree) throw new ChatApiError('CHAT_NOT_FOUND');
+        // F6 §5 row 14: only the owner gets decisionable payloads — readers
+        // (project members, share recipients) see the op core so the UI can
+        // render the "Waiting for <owner>" marker, but input/display/output
+        // never leave the server for them.
+        const readerView = chat.ownerUserId !== actor.userId;
         const parsed = ChatDetailSchema.parse({
           id: chatId,
           title: chat.title || 'New chat',
-          // F6: 'owner' renders the composer surface; project members and
-          // share recipients get the read-only view (§5 row 5, brief 18/24).
           access:
             chat.ownerUserId === actor.userId
               ? ('owner' as const)
@@ -579,9 +600,14 @@ export class ChatService {
                   reasoningSummary: message.reasoningSummary,
                   reasoningDurationMs: message.reasoningDurationMs,
                   feedback: message.feedback,
-                  operations: z
-                    .array(ChatOperationSnapshotSchema)
-                    .parse(message.operations),
+                  operations: readerView
+                    ? z
+                        .array(ChatOperationSnapshotSchema)
+                        .parse(message.operations)
+                        .map(stripReaderPayloads)
+                    : z
+                        .array(ChatOperationSnapshotSchema)
+                        .parse(message.operations),
                   createdAt: message.createdAt.toISOString(),
                 };
           }),

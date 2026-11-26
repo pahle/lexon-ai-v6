@@ -72,6 +72,57 @@ export function capRequiredEvent(
   return [reparsed.data];
 }
 
+/**
+ * F6 §5 row 14 reader redaction: a stored run-stream event keeps its
+ * ids/status core but never carries operation payloads to a non-owner
+ * subscriber — the same fields the §9 byte-cap fallback drops, so the client
+ * treats a redacted frame like a capped one (pending markers and tool rows
+ * still render). Payload-free event types return the stored bytes untouched.
+ */
+const READER_PAYLOAD_EVENT =
+  /"(approval-required|question-required|tool-input-available|tool-input-delta|tool-output-available)"/;
+
+export function redactRunStreamEventForReader(data: string): string {
+  if (!READER_PAYLOAD_EVENT.test(data)) return data;
+  let event: {
+    type?: string;
+    operation?: Record<string, unknown>;
+    input?: unknown;
+    output?: unknown;
+    inputTextDelta?: string;
+  };
+  try {
+    event = JSON.parse(data) as typeof event;
+  } catch {
+    // Stored entries are written schema-validated; a corrupt frame forwards
+    // as-is — undeliverable to the client either way — rather than crashing
+    // the subscription pump on an unhandled rejection.
+    return data;
+  }
+  switch (event.type) {
+    case 'approval-required':
+    case 'question-required':
+      if (event.operation && typeof event.operation === 'object') {
+        delete event.operation.input;
+        delete event.operation.display;
+        delete event.operation.output;
+      }
+      break;
+    case 'tool-input-available':
+      delete event.input;
+      break;
+    case 'tool-input-delta':
+      event.inputTextDelta = '';
+      break;
+    case 'tool-output-available':
+      delete event.output;
+      break;
+    default:
+      return data;
+  }
+  return JSON.stringify(event);
+}
+
 /** Split large textual stream parts without breaking UTF-8 or JSON escaping. */
 export function encodeStreamParts(
   event: RunStreamEvent,

@@ -230,6 +230,13 @@ describe('run registry', () => {
       capabilities: ['chat.ask', 'chat.deadline', 'chat.rename'],
       maxIterations: 6,
     });
+    // F6: project-chat mirrors chat's tool surface plus the project context
+    // budget — identical engines/limits by construction (§9).
+    expect(byId.get('project-chat')).toMatchObject({
+      capabilities: ['chat.ask', 'chat.deadline', 'chat.rename'],
+      maxIterations: 6,
+      contextBudgets: { 'chat-history': 131_072, project: 2_000 },
+    });
     expect(byId.get('chat-title')).toMatchObject({
       capabilities: [],
       maxIterations: 1,
@@ -237,10 +244,11 @@ describe('run registry', () => {
     expect(PRODUCTION_ENGINE_REGISTRATIONS.profiles).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: 'chat', priority: 1 }),
+        expect.objectContaining({ id: 'project-chat', priority: 1 }),
         expect.objectContaining({ id: 'chat-title', priority: 5 }),
       ]),
     );
-    expect(PRODUCTION_ENGINE_REGISTRATIONS.profiles).toHaveLength(2);
+    expect(PRODUCTION_ENGINE_REGISTRATIONS.profiles).toHaveLength(3);
     expect(PRODUCTION_ENGINE_REGISTRATIONS.tools).toHaveLength(3);
   });
 });
