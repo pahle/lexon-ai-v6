@@ -135,7 +135,11 @@ test('org metadata list, deny add removes the member atomically, and denied call
     };
     const row = page.items.find((item) => item.id === project.id);
     expect(row).toBeDefined();
-    expect(row).toMatchObject({ name: 'Walled matter', memberCount: 1 });
+    expect(row).toMatchObject({
+      name: 'Walled matter',
+      memberCount: 1,
+      restrictedCount: 0,
+    });
     expect(row).not.toHaveProperty('instructions');
     expect(row).not.toHaveProperty('myRole');
 
@@ -167,6 +171,17 @@ test('org metadata list, deny add removes the member atomically, and denied call
       ]),
     );
     expect(audits.rows).toHaveLength(2);
+
+    // The settings Restricted column counts live deny rows on the metadata
+    // list — no identities, just the number.
+    const afterDeny = await fetch(`${origin}/api/org/projects`, {
+      headers: adminB.cookieHeaders,
+    });
+    expect(
+      (
+        (await afterDeny.json()) as { items: Record<string, unknown>[] }
+      ).items.find((item) => item.id === project.id),
+    ).toMatchObject({ restrictedCount: 1 });
 
     // A repeated deny inserts nothing: 201 against the existing row, no
     // second deny_added/member_removed audit.

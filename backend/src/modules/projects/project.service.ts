@@ -564,6 +564,7 @@ export class ProjectService {
           },
           memberCount: row.memberCount,
           chatCount: row.chatCount,
+          restrictedCount: row.restrictedCount,
           lastActivityAt: row.lastActivityAt.toISOString(),
           createdAt: row.createdAt.toISOString(),
         }),

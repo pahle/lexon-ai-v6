@@ -162,8 +162,9 @@ export class ChatSearchRepository {
       activity_at: string;
       awaiting_user: boolean;
       project_name: string | null;
+      owner_user_id: string;
     }>(
-      `SELECT chat.id,chat.title,chat.updated_at,
+      `SELECT chat.id,chat.title,chat.updated_at,chat.owner_user_id,
          to_char(chat.last_activity_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS activity_at,
          latest.created_at AS last_message_at,
          project.name AS project_name,

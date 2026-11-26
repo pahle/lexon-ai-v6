@@ -340,6 +340,7 @@ test('mobile user menu opens settings and closing restores focus to the navigati
     'Security',
     'Members',
     'Invitations',
+    'Matters',
     'General',
   ]);
   await act(async () =>

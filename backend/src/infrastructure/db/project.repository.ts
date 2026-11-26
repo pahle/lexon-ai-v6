@@ -15,6 +15,9 @@ export interface ProjectRecord {
   readonly practiceArea: string | null;
   readonly memberCount: number;
   readonly chatCount: number;
+  /** F6 task 10: settings-Matters column — live deny rows. Only orgList
+   * selects it; other paths emit the 0 default and never expose it. */
+  readonly restrictedCount: number;
   readonly lastActivityAt: Date;
   readonly createdAt: Date;
 }
@@ -32,6 +35,7 @@ interface ProjectRow {
   practice_area: string | null;
   member_count: number;
   chat_count: number;
+  restricted_count?: number;
   last_activity_at: Date;
   created_at: Date;
 }
@@ -62,6 +66,7 @@ function mapProject(row: ProjectRow): ProjectRecord {
     practiceArea: row.practice_area,
     memberCount: row.member_count,
     chatCount: row.chat_count,
+    restrictedCount: row.restricted_count ?? 0,
     lastActivityAt: row.last_activity_at,
     createdAt: row.created_at,
   };
@@ -371,7 +376,11 @@ export class ProjectRepository {
     const keyIndex = input.cursor ? params.push(input.cursor.key) : 0;
     const idIndex = input.cursor ? params.push(input.cursor.id) : 0;
     const result = await client.query<ProjectRow>(
-      `SELECT p.* FROM app.projects p
+      `SELECT p.*,
+         (SELECT count(*)::int FROM app.project_denies d
+           WHERE d.org_id=p.org_id AND d.project_id=p.id
+         ) AS restricted_count
+       FROM app.projects p
        WHERE p.org_id=$1
          ${input.q !== undefined ? `AND p.name ILIKE $${qIndex}` : ''}
          ${input.cursor ? `AND (p.name,p.id)>($${keyIndex},$${idIndex})` : ''}

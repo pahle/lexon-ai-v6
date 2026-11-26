@@ -40,8 +40,9 @@ import type {
 } from '../../infrastructure/db/index.js';
 import { requireSession } from '../../infrastructure/db/index.js';
 import type { RunStreams } from '../../infrastructure/queue/index.js';
-import type { RunActor } from '../identity-access/index.js';
+import type { RunActor, VerifiedIdentity } from '../identity-access/index.js';
 import { IdentityError } from '../identity-access/index.js';
+import { OrganizationAuthPort } from '../identity-access/index.js';
 import { RunAuthorizationService } from '../identity-access/index.js';
 import { AuditService } from '../audit/index.js';
 import { RunService } from './run.service.js';
@@ -121,7 +122,51 @@ export class ChatService {
     private readonly runService: RunService,
     private readonly authorization: RunAuthorizationService,
     private readonly streams?: RunStreams,
+    private readonly port?: OrganizationAuthPort,
   ) {}
+
+  /**
+   * F6 §10: reader labels carry the owner's display name, resolved through
+   * the auth-side member directory (lexon_app never reads auth tables).
+   * Pages stop once every needed id is found; a departed or unresolvable
+   * owner simply yields no name — the wire field is optional and the UI
+   * falls back to the generic read-only label.
+   */
+  private async memberNames(
+    identity: VerifiedIdentity,
+    orgId: string,
+    userIds: ReadonlySet<string>,
+  ): Promise<Map<string, string>> {
+    const names = new Map<string, string>();
+    if (!this.port || userIds.size === 0) return names;
+    await this.port.transaction(identity, async (tx, headers) => {
+      let cursor: string | undefined;
+      for (let page = 0; page < 10; page += 1) {
+        const result = await tx.call('listMembers', {
+          headers,
+          query: {
+            organizationId: orgId,
+            limit: 100,
+            sortBy: 'id',
+            sortDirection: 'asc',
+            ...(cursor
+              ? {
+                  filterField: 'id',
+                  filterOperator: 'gt' as const,
+                  filterValue: cursor,
+                }
+              : {}),
+          },
+        });
+        for (const member of result.members)
+          if (userIds.has(member.userId))
+            names.set(member.userId, member.user.name);
+        if (names.size === userIds.size || result.members.length < 100) return;
+        cursor = result.members.at(-1)!.id;
+      }
+    });
+    return names;
+  }
 
   async create(
     actor: RunActor,
@@ -574,6 +619,7 @@ export class ChatService {
     actor: RunActor,
     chatId: string,
     options?: { ifNoneMatch?: string | undefined },
+    identity?: VerifiedIdentity,
   ): Promise<ChatServiceGetResult> {
     this.authorization.assertLiveActor(actor);
     return this.database.withTenant(
@@ -596,6 +642,29 @@ export class ChatService {
         // render the "Waiting for <owner>" marker, but input/display/output
         // never leave the server for them.
         const readerView = chat.ownerUserId !== actor.userId;
+        // F6 §10: a reader's chrome labels name the owner and, on project
+        // chats, the matter ("<owner>'s chat · read-only" / "Shared by
+        // <name>"). Both stay absent for the owner and both degrade to the
+        // generic label when they cannot be resolved.
+        const readerNames =
+          readerView && identity !== undefined
+            ? {
+                ...(chat.projectId === null
+                  ? {}
+                  : {
+                      projectName:
+                        (await this.projects.find(tx, chat.projectId))?.name ??
+                        undefined,
+                    }),
+                ownerName: (
+                  await this.memberNames(
+                    identity,
+                    actor.orgId,
+                    new Set([chat.ownerUserId]),
+                  )
+                ).get(chat.ownerUserId),
+              }
+            : {};
         const parsed = ChatDetailSchema.parse({
           id: chatId,
           title: chat.title || 'New chat',
@@ -603,6 +672,7 @@ export class ChatService {
             chat.ownerUserId === actor.userId
               ? ('owner' as const)
               : ('reader' as const),
+          ...readerNames,
           messages: tree.messages.map((message) => {
             return message.role === 'user'
               ? {
@@ -646,6 +716,7 @@ export class ChatService {
   async list(
     actor: RunActor,
     input: { cursor?: string; limit?: number; scope?: ChatListScope } = {},
+    identity?: VerifiedIdentity,
   ): Promise<ChatPage> {
     this.authorization.assertLiveActor(actor);
     const request = z
@@ -677,6 +748,17 @@ export class ChatService {
         );
         const hasMore = rows.length > request.limit;
         const pageRows = hasMore ? rows.slice(0, request.limit) : rows;
+        // F6 §10: shared-scope rows render "Shared by <name>" — resolved
+        // through the member directory, omitted when a departed owner's name
+        // cannot be resolved.
+        const ownerNames =
+          request.scope === 'shared' && identity !== undefined
+            ? await this.memberNames(
+                identity,
+                actor.orgId,
+                new Set(pageRows.map((row) => row.owner_user_id)),
+              )
+            : new Map<string, string>();
         const items = pageRows.map((row) => ({
           id: row.id,
           title: row.title || 'New chat',
@@ -686,6 +768,9 @@ export class ChatService {
           ...(row.project_name === null
             ? {}
             : { projectName: row.project_name }),
+          ...(ownerNames.has(row.owner_user_id)
+            ? { ownerName: ownerNames.get(row.owner_user_id) }
+            : {}),
         }));
         const last = pageRows.at(-1);
         return ChatPageSchema.parse({

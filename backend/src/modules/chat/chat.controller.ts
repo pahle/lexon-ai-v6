@@ -150,11 +150,15 @@ export class ChatController {
       })
       .parse(query);
     return this.authorization.withActor(identity, (actor) =>
-      this.chats.list(actor, {
-        ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
-        ...(input.limit === undefined ? {} : { limit: input.limit }),
-        ...(input.scope === undefined ? {} : { scope: input.scope }),
-      }),
+      this.chats.list(
+        actor,
+        {
+          ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
+          ...(input.limit === undefined ? {} : { limit: input.limit }),
+          ...(input.scope === undefined ? {} : { scope: input.scope }),
+        },
+        identity,
+      ),
     );
   }
 
@@ -191,7 +195,12 @@ export class ChatController {
   ) {
     const identity = currentVerifiedIdentity();
     const result = await this.authorization.withActor(identity, (actor) =>
-      this.chats.get(actor, UuidSchema.parse(chatId), { ifNoneMatch }),
+      this.chats.get(
+        actor,
+        UuidSchema.parse(chatId),
+        { ifNoneMatch },
+        identity,
+      ),
     );
     // Explicit ETag on both 200 and 304 (never Express's body hash) and
     // no-store so a stale poll body is never replayed. No Vary.

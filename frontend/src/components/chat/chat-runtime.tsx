@@ -27,6 +27,7 @@ import type {
 } from '@assistant-ui/react';
 import type { CreateUIMessage, UIMessage } from 'ai';
 import type {
+  ChatAccess,
   ChatGetResult,
   ChatMessage,
   ChatOperationSnapshot,
@@ -116,6 +117,38 @@ const ChatAwaitingContext = createContext<ChatAwaiting | null>(null);
 
 export function useChatAwaiting(): ChatAwaiting | null {
   return useContext(ChatAwaitingContext);
+}
+
+/**
+ * F6 §10 read-only view: the caller's access level plus the reader label
+ * fields (owner/project name). 'owner' is the default so bare ChatTree
+ * fixtures and paths that never attach a detail behave as before.
+ */
+export interface ChatAccessView {
+  readonly access: ChatAccess;
+  readonly ownerName?: string | undefined;
+  readonly projectName?: string | undefined;
+}
+
+const ChatAccessContext = createContext<ChatAccessView>({ access: 'owner' });
+
+export function useChatAccess(): ChatAccessView {
+  return useContext(ChatAccessContext);
+}
+
+function readChatAccess(tree: ChatTree): ChatAccessView {
+  const detail = tree as Partial<{
+    access: ChatAccess;
+    ownerName: string;
+    projectName: string;
+  }>;
+  return {
+    access: detail.access === 'reader' ? 'reader' : 'owner',
+    ownerName:
+      typeof detail.ownerName === 'string' ? detail.ownerName : undefined,
+    projectName:
+      typeof detail.projectName === 'string' ? detail.projectName : undefined,
+  };
 }
 
 export interface ChatRuntimeProps {
@@ -439,26 +472,30 @@ function ChatRuntimeSession({
     onRunIdRef.current?.(runId);
   }, [runId]);
 
+  const accessView = useMemo(() => readChatAccess(tree), [tree]);
+
   return (
     <ChatStopContext.Provider value={stop}>
       <ChatActiveRunContext.Provider value={serverActiveRunId !== undefined}>
-        <AssistantRuntimeProvider runtime={runtime}>
-          <ChatAwaitingBridge
-            runId={serverActiveRunId ?? runId}
-            version={operationsVersion}
-            getOperation={getOperation}
-            decide={decideOperation}
-            refreshTree={() => refreshTreeNowRef.current()}
-          >
-            {children}
-          </ChatAwaitingBridge>
-          {selectionSaveFailed ? (
-            <span role="alert">
-              Could not save this branch selection. Reload the conversation
-              before sending another message.
-            </span>
-          ) : null}
-        </AssistantRuntimeProvider>
+        <ChatAccessContext.Provider value={accessView}>
+          <AssistantRuntimeProvider runtime={runtime}>
+            <ChatAwaitingBridge
+              runId={serverActiveRunId ?? runId}
+              version={operationsVersion}
+              getOperation={getOperation}
+              decide={decideOperation}
+              refreshTree={() => refreshTreeNowRef.current()}
+            >
+              {children}
+            </ChatAwaitingBridge>
+            {selectionSaveFailed ? (
+              <span role="alert">
+                Could not save this branch selection. Reload the conversation
+                before sending another message.
+              </span>
+            ) : null}
+          </AssistantRuntimeProvider>
+        </ChatAccessContext.Provider>
       </ChatActiveRunContext.Provider>
     </ChatStopContext.Provider>
   );

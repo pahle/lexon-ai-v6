@@ -607,6 +607,7 @@ it('refreshes the mounted thread title after the workspace title event', async (
     chatId,
     'org:user',
     'Initial title',
+    { access: undefined, projectBound: false },
   );
   workspaceState.chatTitleRefreshVersion = 1;
   await view.rerender(thread());
@@ -616,6 +617,7 @@ it('refreshes the mounted thread title after the workspace title event', async (
     chatId,
     'org:user',
     'Updated title',
+    { access: undefined, projectBound: false },
   );
   await view.unmount();
 });
@@ -671,6 +673,7 @@ it('does not let a delayed initial tree overwrite a newer title refresh', async 
     chatId,
     'org:user',
     'Updated title',
+    { access: undefined, projectBound: false },
   );
   await act(async () => resolveInitial(tree('Initial title')));
   await settle();
@@ -678,6 +681,7 @@ it('does not let a delayed initial tree overwrite a newer title refresh', async 
     chatId,
     'org:user',
     'Updated title',
+    { access: undefined, projectBound: false },
   );
   await view.unmount();
 });

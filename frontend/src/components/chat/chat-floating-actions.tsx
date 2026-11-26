@@ -11,7 +11,7 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { MoreHorizontal, PencilLine, Plus, Trash } from 'lucide-react';
+import { MoreHorizontal, PencilLine, Plus, Share2, Trash } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,13 +26,23 @@ import { useWorkspace } from '../shell/workspace-provider';
 import { ChatDeleteDialog } from './chat-delete-dialog';
 import { finishChatRename } from './chat-history';
 import { ChatRenameDialog } from './chat-rename-dialog';
+import { ChatShareDialog } from './chat-share-dialog';
 
-/** `title` is null only while it cannot be known yet (render a skeleton). */
-export type OpenChat = { id: string; title: string | null };
+/**
+ * `title` is null only while it cannot be known yet (render a skeleton).
+ * `access`/`projectBound` ride the workspace-provider publish slot (F6 §10).
+ */
+export type OpenChat = {
+  id: string;
+  title: string | null;
+  access?: 'owner' | 'reader' | undefined;
+  projectBound?: boolean | undefined;
+};
 
+type ListCacheItem = { id: string; title: string; projectName?: string };
 type ListCacheData =
-  | { items?: { id: string; title: string }[] }
-  | { pages: { items?: { id: string; title: string }[] }[] }
+  | { items?: ListCacheItem[] }
+  | { pages: { items?: ListCacheItem[] }[] }
   | undefined;
 
 const CHAT_THREAD_PATH = /^\/chats\/([0-9a-f-]{36})$/i;
@@ -60,25 +70,35 @@ export function useOpenChat(): OpenChat | null {
   // While the thread loads, its title is already known from the chat lists
   // (Recent, All chats) in the query cache, so the header never shows the
   // generic "Chat" for a chat that has a title.
+  const findListed = useCallback(() => {
+    if (!id || !orgId || !userId) return undefined;
+    for (const [, data] of queryClient.getQueriesData<ListCacheData>({
+      queryKey: chatListQueryKey({ orgId, userId }),
+    })) {
+      const pages = data && 'pages' in data ? data.pages : [data];
+      for (const page of pages) {
+        const found = page?.items?.find((item) => item.id === id);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  }, [id, orgId, queryClient, userId]);
+  // Snapshots stay primitive so useSyncExternalStore sees a stable value.
   const listedTitle = useSyncExternalStore(
     useCallback(
       (notify) => queryClient.getQueryCache().subscribe(notify),
       [queryClient],
     ),
-    () => {
-      if (!id || !orgId || !userId) return null;
-      for (const [, data] of queryClient.getQueriesData<ListCacheData>({
-        queryKey: chatListQueryKey({ orgId, userId }),
-      })) {
-        const pages = data && 'pages' in data ? data.pages : [data];
-        for (const page of pages) {
-          const found = page?.items?.find((item) => item.id === id);
-          if (found) return found.title;
-        }
-      }
-      return null;
-    },
+    () => findListed()?.title ?? null,
     () => null,
+  );
+  const listedBound = useSyncExternalStore(
+    useCallback(
+      (notify) => queryClient.getQueryCache().subscribe(notify),
+      [queryClient],
+    ),
+    () => findListed()?.projectName !== undefined,
+    () => false,
   );
   const client = useMemo(() => createChatClient({ baseUrl: '/api' }), []);
   const published =
@@ -103,11 +123,16 @@ export function useOpenChat(): OpenChat | null {
   const actorScope = identity
     ? `${identity.organization.id}:${identity.user.id}`
     : '';
-  const title =
+  const mine =
     chatTitle && chatTitle.chatId === id && chatTitle.actorScope === actorScope
-      ? chatTitle.title
-      : listedTitle;
-  return { id, title };
+      ? chatTitle
+      : null;
+  return {
+    id,
+    title: mine ? mine.title : listedTitle,
+    access: mine?.access,
+    projectBound: mine?.projectBound ?? listedBound,
+  };
 }
 
 // 28px round icon buttons with 16px icons (LEX-DS-001 v3.1 §5.5 Header).
@@ -134,7 +159,14 @@ const pillButton =
 
 export function ChatFloatingActions({ chat: open }: { chat: OpenChat | null }) {
   // Dialogs need a string; the generic word never reaches the header.
-  const chat = open ? { id: open.id, title: open.title ?? 'Chat' } : null;
+  const chat = open
+    ? {
+        id: open.id,
+        title: open.title ?? 'Chat',
+        access: open.access ?? 'owner',
+        projectBound: open.projectBound ?? false,
+      }
+    : null;
   const pathname = usePathname();
   const statusPageShown = useStatusPageShown();
   const { identity, setChatTitle } = useWorkspace();
@@ -143,12 +175,18 @@ export function ChatFloatingActions({ chat: open }: { chat: OpenChat | null }) {
   const [renaming, setRenaming] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [deleting, setDeleting] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const scope = identity
     ? { orgId: identity.organization.id, userId: identity.user.id }
     : null;
   // The prototype shows the pill on the new chat and on a thread only: the
   // Chats list has none (and a status page hides it, below).
   if (pathname === '/chats' || statusPageShown) return null;
+  const reader = chat?.access === 'reader';
+  const canShare =
+    chat !== null &&
+    !chat.projectBound &&
+    identity?.organization.kind === 'team';
   return (
     <div
       data-slot="chat-floating-pill"
@@ -162,42 +200,50 @@ export function ChatFloatingActions({ chat: open }: { chat: OpenChat | null }) {
       >
         <Plus aria-hidden="true" />
       </Link>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <button
-              type="button"
-              aria-label="Chat actions"
-              disabled={!chat}
-              ref={triggerRef}
-              className={cn(
-                pillButton,
-                'aria-expanded:bg-accent aria-expanded:text-foreground disabled:pointer-events-none disabled:opacity-50',
-              )}
-            />
-          }
-        >
-          <MoreHorizontal aria-hidden="true" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          alignOffset={-3}
-          sideOffset={9}
-          className="w-[180px]"
-        >
-          <DropdownMenuItem onClick={() => setRenaming(true)}>
-            <PencilLine aria-hidden="true" data-icon="inline-start" />
-            Rename
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="text-(--lexon-red-text) focus:text-(--lexon-red-text)"
-            onClick={() => setDeleting(true)}
+      {reader ? null : (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                aria-label="Chat actions"
+                disabled={!chat}
+                ref={triggerRef}
+                className={cn(
+                  pillButton,
+                  'aria-expanded:bg-accent aria-expanded:text-foreground disabled:pointer-events-none disabled:opacity-50',
+                )}
+              />
+            }
           >
-            <Trash aria-hidden="true" data-icon="inline-start" />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            <MoreHorizontal aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            alignOffset={-3}
+            sideOffset={9}
+            className="w-[180px]"
+          >
+            <DropdownMenuItem onClick={() => setRenaming(true)}>
+              <PencilLine aria-hidden="true" data-icon="inline-start" />
+              Rename
+            </DropdownMenuItem>
+            {canShare ? (
+              <DropdownMenuItem onClick={() => setSharing(true)}>
+                <Share2 aria-hidden="true" data-icon="inline-start" />
+                Share
+              </DropdownMenuItem>
+            ) : null}
+            <DropdownMenuItem
+              className="text-(--lexon-red-text) focus:text-(--lexon-red-text)"
+              onClick={() => setDeleting(true)}
+            >
+              <Trash aria-hidden="true" data-icon="inline-start" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
       {chat && scope ? (
         <>
           <ChatRenameDialog
@@ -226,6 +272,15 @@ export function ChatFloatingActions({ chat: open }: { chat: OpenChat | null }) {
             onOpenChange={setDeleting}
             showTrigger={false}
           />
+          {canShare ? (
+            <ChatShareDialog
+              chat={chat}
+              client={client}
+              scope={scope}
+              open={sharing}
+              onOpenChange={setSharing}
+            />
+          ) : null}
         </>
       ) : null}
     </div>

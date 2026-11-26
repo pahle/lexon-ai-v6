@@ -315,7 +315,7 @@ it('loads cursor pages and groups Chats history by activity date', async () => {
   await act(async () => loadMore?.click());
   await settle();
   expect(api.list).toHaveBeenCalledWith(
-    { limit: 20, cursor: 'next' },
+    { limit: 20, scope: 'own', cursor: 'next' },
     expect.any(AbortSignal),
   );
   expect(view.container.textContent).toContain('October 2026');
