@@ -3,6 +3,9 @@ export interface RouteAccess {
   kind: 'public' | 'workspace' | 'account' | 'platform';
   allowIncompleteMfa?: boolean;
   allowOrganizationSelection?: boolean;
+  // The member-add route legitimately carries a target userId in its body —
+  // everywhere else the key stays an override attempt (F6 §11).
+  allowUserIdKey?: boolean;
 }
 export const ROUTE_ACCESS = Symbol('LexonRouteAccess');
 export const PublicRoute = () =>

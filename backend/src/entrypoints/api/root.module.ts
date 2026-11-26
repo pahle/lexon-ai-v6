@@ -14,13 +14,19 @@ import { chatApiProviders } from '../../modules/chat/chat-runtime.providers.js';
 import { ChatController } from '../../modules/chat/chat.controller.js';
 import { OperationsController } from '../../modules/chat/operations.controller.js';
 import { RunEventsController } from '../../modules/chat/run-events.controller.js';
-import { RunAuthorizationModule } from '../../modules/identity-access/index.js';
+import {
+  OrganizationAuthPort,
+  RunAuthorizationModule,
+} from '../../modules/identity-access/index.js';
+import { ProjectsController } from '../../modules/projects/projects.controller.js';
+import { OrgMembersController } from '../../modules/projects/org-members.controller.js';
+import { projectsApiProviders } from '../../modules/projects/projects.providers.js';
 @Module({})
 export class ApiRootModule {
   static forConfig(
     config: Extract<RuntimeConfig, { runtime: 'api' }>,
     identityModules: DynamicModule[] = [],
-    auth?: { check(): Promise<'up' | 'down'> },
+    auth?: { check(): Promise<'up' | 'down'>; port?: OrganizationAuthPort },
   ): DynamicModule {
     return {
       module: ApiRootModule,
@@ -51,6 +57,12 @@ export class ApiRootModule {
         ...runtimeProviders(config, auth),
         ...chatRuntimeProviders(),
         ...chatApiProviders(config),
+        ...(auth?.port
+          ? [
+              { provide: OrganizationAuthPort, useValue: auth.port },
+              ...projectsApiProviders(config),
+            ]
+          : []),
       ],
       controllers: [
         HealthController,
@@ -58,6 +70,7 @@ export class ApiRootModule {
         ChatController,
         OperationsController,
         RunEventsController,
+        ...(auth?.port ? [ProjectsController, OrgMembersController] : []),
       ],
     };
   }
