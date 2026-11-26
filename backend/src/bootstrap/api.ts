@@ -44,7 +44,7 @@ export async function createApi(
             reauthSeconds: config.auth.reauthSeconds,
           }),
         ],
-        { check: identity.check },
+        { check: identity.check, port: identity.port },
       ),
       {
         bodyParser: false,

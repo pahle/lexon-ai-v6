@@ -34,6 +34,9 @@ export async function createAuthFixture(
     rejectSignupResponse?: boolean;
     policy?: AuthEngineOptions['policy'];
     mailTransport?: import('../../email/index.js').MailTransport;
+    // Share the secret with an API under test so sessions minted by this
+    // fixture authenticate against it (auth cookies are secret-signed).
+    secret?: string | undefined;
   } = {},
 ) {
   const origin = 'http://localhost:3000';
@@ -51,7 +54,7 @@ export async function createAuthFixture(
   const { auth, integration } = await composeAuthIntegration({
     authUrl: services.authUrl,
     origin,
-    secret: randomBytes(48).toString('base64url'),
+    secret: options.secret ?? randomBytes(48).toString('base64url'),
     ...(options.policy ? { policy: options.policy } : {}),
     plugins: options.rejectSignupResponse
       ? [

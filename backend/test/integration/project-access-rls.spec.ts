@@ -465,15 +465,17 @@ test('the deny definers refuse owner targets and self-lift; ungranted roles are 
       { orgId: scenario.orgId, userId: scenario.users.admin },
       async (client) => {
         const result = (
-          await client.query<{ lexon_project_deny_add: boolean }>(
-            'SELECT ops.lexon_project_deny_add($1,$2,$3,$4)',
-            [
-              scenario.orgId,
-              scenario.projectId,
-              scenario.users.admin,
-              scenario.users.viewer,
-            ],
-          )
+          await client.query<{
+            lexon_project_deny_add: {
+              denied: boolean;
+              removedMember: boolean;
+            };
+          }>('SELECT ops.lexon_project_deny_add($1,$2,$3,$4)', [
+            scenario.orgId,
+            scenario.projectId,
+            scenario.users.admin,
+            scenario.users.viewer,
+          ])
         ).rows[0]!.lexon_project_deny_add;
         const denied = (
           await client.query<{ lexon_project_denied: boolean }>(
@@ -484,7 +486,10 @@ test('the deny definers refuse owner targets and self-lift; ungranted roles are 
         return { result, denied };
       },
     );
-    expect(added).toEqual({ result: true, denied: true });
+    expect(added).toEqual({
+      result: { denied: true, removedMember: true },
+      denied: true,
+    });
     const memberRows = await pools.migrator.query<{ count: string }>(
       'SELECT count(*) FROM app.project_members WHERE org_id=$1 AND project_id=$2 AND user_id=$3',
       [scenario.orgId, scenario.projectId, scenario.users.viewer],

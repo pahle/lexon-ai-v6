@@ -499,8 +499,10 @@ export class ChatRepository {
   /** Audience for one chat-scoped notification, resolved once per
    * notification by the fan-out dispatcher. Runs under org-scoped service
    * claims ({orgId} only — the definer refuses user-bound claims):
-   * standalone chats return owner + share recipients, project chats return
-   * owner + current members minus denies, org members only. */
+   * standalone chats return the org-member owner + share recipients;
+   * project chats return every candidate (project owner and members)
+   * that the ops.lexon_project_access_for oracle resolves to a real
+   * level — deny, member removal and org removal all exclude. */
   async notificationAudience(
     tx: TenantSession,
     chatId: string,
@@ -534,6 +536,63 @@ export class ChatRepository {
         userIds,
       }),
     ]);
+  }
+
+  /** chat_shares: the SELECT policy lets a grantor or the recipient see the
+   * row (no chats join — that is what keeps the policy pair acyclic). */
+  async listShares(
+    tx: TenantSession,
+    chatId: string,
+  ): Promise<
+    { user_id: string; granted_by_user_id: string; created_at: Date }[]
+  > {
+    if (!uuid.safeParse(chatId).success) return [];
+    const { client, ctx } = requireSession(tx);
+    if (!ctx.userId) return [];
+    const result = await client.query<{
+      user_id: string;
+      granted_by_user_id: string;
+      created_at: Date;
+    }>(
+      `SELECT user_id,granted_by_user_id,created_at FROM app.chat_shares
+       WHERE org_id=$1 AND chat_id=$2
+       ORDER BY created_at,user_id`,
+      [ctx.orgId, chatId],
+    );
+    return result.rows;
+  }
+
+  /** The owner_insert WITH CHECK does the enforcement: the chat must be
+   * caller-owned and standalone (project_id IS NULL), and every target an
+   * org member — a refusal surfaces as 42501 for the service to map. */
+  async addShares(
+    tx: TenantSession,
+    chatId: string,
+    userIds: readonly string[],
+  ): Promise<number> {
+    const { client, ctx } = requireSession(tx);
+    const result = await client.query(
+      `INSERT INTO app.chat_shares(org_id,chat_id,user_id,granted_by_user_id)
+       SELECT $1,$2,unnest($3::uuid[]),$4
+       ON CONFLICT (org_id,chat_id,user_id) DO NOTHING`,
+      [ctx.orgId, chatId, [...userIds], ctx.userId],
+    );
+    return result.rowCount ?? 0;
+  }
+
+  async revokeShare(
+    tx: TenantSession,
+    chatId: string,
+    userId: string,
+  ): Promise<boolean> {
+    if (!uuid.safeParse(userId).success) return false;
+    const { client, ctx } = requireSession(tx);
+    const result = await client.query(
+      `DELETE FROM app.chat_shares
+       WHERE org_id=$1 AND chat_id=$2 AND user_id=$3`,
+      [ctx.orgId, chatId, userId],
+    );
+    return (result.rowCount ?? 0) === 1;
   }
 
   async selectLeaf(

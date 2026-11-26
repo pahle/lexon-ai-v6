@@ -359,8 +359,9 @@ export class CancelSignals {
 
   /** F6 fix-batch: resolves the audience once per chat-scoped notification
    * under org-scoped service claims (ops.lexon_chat_notification_audience
-   * evaluates the live read predicate — standalone owner + shares, project
-   * owner + members minus denies, org members only), then delivers to the
+   * evaluates the live read predicate — standalone org-member owner +
+   * shares, project-chat candidates filtered through
+   * ops.lexon_project_access_for), then delivers to the
    * matching connections only. A denied, removed or non-member connection
    * never learns the chatId. Access-change payloads (chatId null + userIds)
    * deliver a refresh to exactly the listed users; an audience lookup
