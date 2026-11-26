@@ -279,3 +279,87 @@ test('denied members get the identical 404 on every project read route', async (
     await app.close();
   }
 });
+
+// POST /chats with projectId binds the materialized chat to the project
+// (F6 §4.3: the create-request INSERT gate admits owner/editor only).
+test('a chat created with projectId binds to the project; a viewer cannot bind', async ({
+  services,
+}) => {
+  const { app, origin, env } = await boot(services);
+  const proof = await createAuthFixture(services, {
+    secret: env.AUTH_SECRET,
+  });
+  const organizations = createOrganizationInspector(services);
+  try {
+    const signIn = (name: string) =>
+      proof.signIn({
+        body: { name, email: `${randomUUID()}@example.test`, password },
+      });
+    const [owner, viewer] = await Promise.all([
+      signIn('Owner'),
+      signIn('Viewer'),
+    ]);
+    const team = await organizations.seedTeam([owner.userId, viewer.userId]);
+    for (const user of [owner, viewer]) await activate(proof, user, team.id);
+    const create = await fetch(`${origin}/api/projects`, {
+      method: 'POST',
+      headers: jsonHeaders(owner.cookieHeaders),
+      body: JSON.stringify({ name: 'Bound chats' }),
+    });
+    expect(create.status).toBe(201);
+    const project = (await create.json()) as { id: string };
+    const add = await fetch(`${origin}/api/projects/${project.id}/members`, {
+      method: 'POST',
+      headers: jsonHeaders(owner.cookieHeaders),
+      body: JSON.stringify({ userId: viewer.userId, role: 'viewer' }),
+    });
+    expect(add.status).toBe(201);
+
+    const ownedChatId = randomUUID();
+    const owned = await fetch(`${origin}/api/chats`, {
+      method: 'POST',
+      headers: jsonHeaders(owner.cookieHeaders),
+      body: JSON.stringify({
+        chatId: ownedChatId,
+        userMessageId: randomUUID(),
+        requestId: randomUUID(),
+        text: 'bound chat',
+        effort: 'high',
+        projectId: project.id,
+      }),
+    });
+    expect(owned.status).toBe(201);
+    const chats = await fetch(`${origin}/api/projects/${project.id}/chats`, {
+      headers: owner.cookieHeaders,
+    });
+    expect(chats.status).toBe(200);
+    const bound = ((await chats.json()) as { items: { id: string }[] }).items;
+    expect(bound.map((chat) => chat.id)).toContain(ownedChatId);
+
+    // A viewer's create-request fails the owner/editor gate.
+    const foreignChatId = randomUUID();
+    const refused = await fetch(`${origin}/api/chats`, {
+      method: 'POST',
+      headers: jsonHeaders(viewer.cookieHeaders),
+      body: JSON.stringify({
+        chatId: foreignChatId,
+        userMessageId: randomUUID(),
+        requestId: randomUUID(),
+        text: 'viewers cannot bind',
+        effort: 'high',
+        projectId: project.id,
+      }),
+    });
+    expect(refused.status).toBeGreaterThanOrEqual(400);
+    const after = await fetch(`${origin}/api/projects/${project.id}/chats`, {
+      headers: owner.cookieHeaders,
+    });
+    const boundAfter = ((await after.json()) as { items: { id: string }[] })
+      .items;
+    expect(boundAfter.map((chat) => chat.id)).not.toContain(foreignChatId);
+  } finally {
+    await proof.close();
+    await organizations.close();
+    await app.close();
+  }
+});

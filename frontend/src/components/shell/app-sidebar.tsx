@@ -4,7 +4,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronRight, Ellipsis, MessageCircle, Shield, X } from 'lucide-react';
+import {
+  Briefcase,
+  ChevronRight,
+  Ellipsis,
+  MessageCircle,
+  Shield,
+  X,
+} from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useWorkspace } from './workspace-provider';
 import {
   Sidebar,
@@ -38,6 +46,7 @@ import { UserMenu } from './user-menu';
 import { Button } from '../ui/button';
 import { RecentChats } from '../chat/chat-history';
 import { createChatClient } from '../../lib/chat-client';
+import { createMattersClient, type MattersApi } from '../../lib/matters-api';
 import { requestRouteHeadingFocus } from './navigation-focus';
 import { shouldOpenNewChatShortcut } from '../../lib/chat-navigation';
 
@@ -198,6 +207,42 @@ function NavigationGroup({
   );
 }
 
+/** Matters navigation group: five most recently active matters + All matters. */
+function MattersNav({
+  client,
+  orgId,
+  onNavigate,
+}: {
+  client: MattersApi;
+  orgId: string;
+  onNavigate: () => void;
+}) {
+  const pathname = usePathname() ?? '';
+  const matters = useQuery({
+    queryKey: ['matters', orgId, 'nav'],
+    queryFn: ({ signal }) =>
+      client.list({ sort: 'activity', limit: 5 }, signal),
+    retry: false,
+  });
+  const destinations: Destination[] = [
+    ...(matters.data?.items ?? []).map((m) => ({
+      title: m.name,
+      href: `/matters/${m.id}`,
+    })),
+    { title: 'All matters', href: '/matters' },
+  ];
+  return (
+    <NavigationGroup
+      title="Matters"
+      icon={Briefcase}
+      active={pathname.startsWith('/matters')}
+      collapsedMenu
+      onNavigate={onNavigate}
+      destinations={destinations}
+    />
+  );
+}
+
 export function AppSidebar() {
   const { identity } = useWorkspace();
   const router = useRouter();
@@ -210,6 +255,10 @@ export function AppSidebar() {
   } | null>(null);
   const pathname = usePathname() ?? '';
   const chatClient = useMemo(() => createChatClient({ baseUrl: '/api' }), []);
+  const mattersClient = useMemo(
+    () => createMattersClient({ baseUrl: '/api' }),
+    [],
+  );
   const chatScope = identity
     ? { orgId: identity.organization.id, userId: identity.user.id }
     : null;
@@ -335,6 +384,13 @@ export function AppSidebar() {
                   { title: 'Chats', href: '/chats' },
                 ]}
               />
+              {chatScope ? (
+                <MattersNav
+                  client={mattersClient}
+                  orgId={chatScope.orgId}
+                  onNavigate={requestNavigationFocus}
+                />
+              ) : null}
               {identity.platformAdmin ? (
                 <NavigationGroup
                   title="Platform"

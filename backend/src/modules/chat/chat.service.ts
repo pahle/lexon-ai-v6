@@ -189,6 +189,7 @@ export class ChatService {
             chatId: input.chatId,
             userMessageId: input.userMessageId,
             assistantMessageId: runId,
+            ...(input.projectId ? { projectId: input.projectId } : {}),
           });
           await this.audit.append(tx, {
             version: 1,

@@ -70,21 +70,24 @@ export class ChatMutationRepository {
       readonly chatId: string;
       readonly userMessageId: string;
       readonly assistantMessageId: string;
+      readonly projectId?: string;
     },
   ): Promise<void> {
     if (
       !uuid.safeParse(input.requestId).success ||
       !uuid.safeParse(input.chatId).success ||
       !uuid.safeParse(input.userMessageId).success ||
-      !uuid.safeParse(input.assistantMessageId).success
+      !uuid.safeParse(input.assistantMessageId).success ||
+      (input.projectId !== undefined &&
+        !uuid.safeParse(input.projectId).success)
     )
       throw new Error('Invalid chat create request');
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) throw new Error('Invalid chat owner');
     await client.query(
       `INSERT INTO app.chat_create_requests
-       (org_id,owner_user_id,request_id,chat_id,user_message_id,assistant_message_id)
-       VALUES($1,$2,$3,$4,$5,$6)`,
+       (org_id,owner_user_id,request_id,chat_id,user_message_id,assistant_message_id,project_id)
+       VALUES($1,$2,$3,$4,$5,$6,$7)`,
       [
         ctx.orgId,
         ctx.userId,
@@ -92,6 +95,7 @@ export class ChatMutationRepository {
         input.chatId,
         input.userMessageId,
         input.assistantMessageId,
+        input.projectId ?? null,
       ],
     );
   }

@@ -228,6 +228,9 @@ export const CreateChatInputSchema = z.strictObject({
   requestId: uuid,
   text: chatText,
   effort: ChatEffortSchema,
+  // Binds the new chat to a project (F6): the create-request INSERT policy
+  // enforces owner/editor standing server-side.
+  projectId: uuid.optional(),
 });
 export type CreateChatInput = z.infer<typeof CreateChatInputSchema>;
 
