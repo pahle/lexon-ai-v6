@@ -1,8 +1,10 @@
 -- Fix batch (F6 batch-1 review): four corrections in one migration.
 -- 1. Settle-definer owner-access guard: finalize/decide/expire/facts now
---    refuse unless the run's bound chat is a live project chat whose
---    lexon_project_access for the initiator is 'none' — no false
---    AI_ACCESS_REVOKED on a healthy run. Subsumes the tombstone guard.
+--    refuse unless the run's bound chat is a live chat the initiator can
+--    no longer read — project-bound with lexon_project_access='none', or
+--    standalone with the initiator's org membership gone — so no false
+--    AI_ACCESS_REVOKED lands on a healthy run while org removal mid-run
+--    still settles. Subsumes the tombstone guard.
 -- 2. chat_messages_project_activity stops touching the projects hot row on
 --    every message: last_activity_at moves only when it is older than 60s.
 -- 3. The lexon_app projects UPDATE grant narrows to the editable columns.
@@ -34,20 +36,24 @@ BEGIN
   IF NOT FOUND THEN RETURN; END IF;
   -- Fix-batch minor: settle requires the bound-chat owner access to be
   -- actually lost, the same fact lexon_ai_access_loss_facts probes — the
-  -- resourceIds->>0 chat must be a live project-bound chat whose
-  -- lexon_project_access for the initiator is 'none'. A live standalone
-  -- bound chat is always owner-visible (the write fence proves
-  -- chat_owner=initiator at bind time), so anything else means the
-  -- invisibility has another cause (foreign run, tombstone, transient)
-  -- and must never write a false AI_ACCESS_REVOKED audit.
+  -- resourceIds->>0 chat must be a live chat the initiator can no longer
+  -- read: a project-bound chat whose lexon_project_access is 'none' (deny,
+  -- member removal, org removal — project_access returns 'none' for all),
+  -- or a standalone bound chat whose initiator lost org membership (the
+  -- write fence proves chat_owner=initiator at bind time, so a live
+  -- standalone chat is invisible only when lexon_org_member fails).
+  -- Anything else means the invisibility has another cause (foreign run,
+  -- tombstone, transient) and must never write a false AI_ACCESS_REVOKED.
   IF run_row.resolved_config->'resourceIds'->>0 IS NULL
     OR NOT EXISTS (
       SELECT 1 FROM app.chats c
        WHERE c.org_id=input_org_id
          AND c.id::text=run_row.resolved_config->'resourceIds'->>0
          AND c.deleted_at IS NULL
-         AND c.project_id IS NOT NULL
-         AND ops.lexon_project_access(c.org_id,c.project_id,input_user_id)='none') THEN
+         AND ((c.project_id IS NOT NULL
+           AND ops.lexon_project_access(c.org_id,c.project_id,input_user_id)='none')
+          OR (c.project_id IS NULL
+           AND NOT ops.lexon_org_member(c.org_id,input_user_id)))) THEN
     RETURN;
   END IF;
   run_status:=run_row.status;
@@ -108,20 +114,24 @@ BEGIN
   IF NOT FOUND THEN RETURN NEXT; RETURN; END IF;
   -- Fix-batch minor: settle requires the bound-chat owner access to be
   -- actually lost, the same fact lexon_ai_access_loss_facts probes — the
-  -- resourceIds->>0 chat must be a live project-bound chat whose
-  -- lexon_project_access for the initiator is 'none'. A live standalone
-  -- bound chat is always owner-visible (the write fence proves
-  -- chat_owner=initiator at bind time), so anything else means the
-  -- invisibility has another cause (foreign run, tombstone, transient)
-  -- and must never write a false AI_ACCESS_REVOKED audit.
+  -- resourceIds->>0 chat must be a live chat the initiator can no longer
+  -- read: a project-bound chat whose lexon_project_access is 'none' (deny,
+  -- member removal, org removal — project_access returns 'none' for all),
+  -- or a standalone bound chat whose initiator lost org membership (the
+  -- write fence proves chat_owner=initiator at bind time, so a live
+  -- standalone chat is invisible only when lexon_org_member fails).
+  -- Anything else means the invisibility has another cause (foreign run,
+  -- tombstone, transient) and must never write a false AI_ACCESS_REVOKED.
   IF run_row.resolved_config->'resourceIds'->>0 IS NULL
     OR NOT EXISTS (
       SELECT 1 FROM app.chats c
        WHERE c.org_id=input_org_id
          AND c.id::text=run_row.resolved_config->'resourceIds'->>0
          AND c.deleted_at IS NULL
-         AND c.project_id IS NOT NULL
-         AND ops.lexon_project_access(c.org_id,c.project_id,input_user_id)='none') THEN
+         AND ((c.project_id IS NOT NULL
+           AND ops.lexon_project_access(c.org_id,c.project_id,input_user_id)='none')
+          OR (c.project_id IS NULL
+           AND NOT ops.lexon_org_member(c.org_id,input_user_id)))) THEN
     RETURN NEXT; RETURN;
   END IF;
   -- The fence pair mirrors ai_chat_deleted_cancel_facts: a live run's step
@@ -260,20 +270,24 @@ BEGIN
   op_found:=true;
   -- Fix-batch minor: settle requires the bound-chat owner access to be
   -- actually lost, the same fact lexon_ai_access_loss_facts probes — the
-  -- resourceIds->>0 chat must be a live project-bound chat whose
-  -- lexon_project_access for the initiator is 'none'. A live standalone
-  -- bound chat is always owner-visible (the write fence proves
-  -- chat_owner=initiator at bind time), so anything else means the
-  -- invisibility has another cause (foreign run, tombstone, transient)
-  -- and must never write a false AI_ACCESS_REVOKED audit.
+  -- resourceIds->>0 chat must be a live chat the initiator can no longer
+  -- read: a project-bound chat whose lexon_project_access is 'none' (deny,
+  -- member removal, org removal — project_access returns 'none' for all),
+  -- or a standalone bound chat whose initiator lost org membership (the
+  -- write fence proves chat_owner=initiator at bind time, so a live
+  -- standalone chat is invisible only when lexon_org_member fails).
+  -- Anything else means the invisibility has another cause (foreign run,
+  -- tombstone, transient) and must never write a false AI_ACCESS_REVOKED.
   IF run_row.resolved_config->'resourceIds'->>0 IS NULL
     OR NOT EXISTS (
       SELECT 1 FROM app.chats c
        WHERE c.org_id=input_org_id
          AND c.id::text=run_row.resolved_config->'resourceIds'->>0
          AND c.deleted_at IS NULL
-         AND c.project_id IS NOT NULL
-         AND ops.lexon_project_access(c.org_id,c.project_id,input_user_id)='none') THEN
+         AND ((c.project_id IS NOT NULL
+           AND ops.lexon_project_access(c.org_id,c.project_id,input_user_id)='none')
+          OR (c.project_id IS NULL
+           AND NOT ops.lexon_org_member(c.org_id,input_user_id)))) THEN
     RETURN QUERY SELECT op_found,changed,operation_status,operation_decision,
       operation_decided_at,step_id,step_sequence,step_expected_version,
       step_fence,run_version; RETURN;
@@ -441,20 +455,24 @@ BEGIN
   op_found:=true;
   -- Fix-batch minor: settle requires the bound-chat owner access to be
   -- actually lost, the same fact lexon_ai_access_loss_facts probes — the
-  -- resourceIds->>0 chat must be a live project-bound chat whose
-  -- lexon_project_access for the initiator is 'none'. A live standalone
-  -- bound chat is always owner-visible (the write fence proves
-  -- chat_owner=initiator at bind time), so anything else means the
-  -- invisibility has another cause (foreign run, tombstone, transient)
-  -- and must never write a false AI_ACCESS_REVOKED audit.
+  -- resourceIds->>0 chat must be a live chat the initiator can no longer
+  -- read: a project-bound chat whose lexon_project_access is 'none' (deny,
+  -- member removal, org removal — project_access returns 'none' for all),
+  -- or a standalone bound chat whose initiator lost org membership (the
+  -- write fence proves chat_owner=initiator at bind time, so a live
+  -- standalone chat is invisible only when lexon_org_member fails).
+  -- Anything else means the invisibility has another cause (foreign run,
+  -- tombstone, transient) and must never write a false AI_ACCESS_REVOKED.
   IF run_row.resolved_config->'resourceIds'->>0 IS NULL
     OR NOT EXISTS (
       SELECT 1 FROM app.chats c
        WHERE c.org_id=input_org_id
          AND c.id::text=run_row.resolved_config->'resourceIds'->>0
          AND c.deleted_at IS NULL
-         AND c.project_id IS NOT NULL
-         AND ops.lexon_project_access(c.org_id,c.project_id,input_user_id)='none') THEN
+         AND ((c.project_id IS NOT NULL
+           AND ops.lexon_project_access(c.org_id,c.project_id,input_user_id)='none')
+          OR (c.project_id IS NULL
+           AND NOT ops.lexon_org_member(c.org_id,input_user_id)))) THEN
     RETURN QUERY SELECT op_found,changed,operation_kind,step_id,step_sequence,
       step_expected_version,step_fence,run_version; RETURN;
   END IF;

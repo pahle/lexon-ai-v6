@@ -252,10 +252,68 @@ Non-blocking observations (recorded for batch 2 / follow-ups):
 
 Recorded in `.superpowers/sdd/2026-11-25-f6-projects-ethical-wall/progress.md`
 and `batch-1-report.md`: `chat-sse-load` marginal-capacity (PR #94),
-40P01 raced decision (became PR #97 fix), `ai-execution`
-proposal-limits truncation (PR #97, environmental),
-`ai-worker-crash` pause-release race (environmental), sse-load
+40P01 raced decision (became PR #97 fix, root-caused again on the fix
+branch — see fix-batch section), `ai-execution`
+proposal-limits truncation (resolved as regression, see fix-batch
+section), `ai-worker-crash` pause-release race (environmental), sse-load
 bad-object push artifact, organizations axe-scan (unrelated e2e).
+
+## Fix batch — `f6-fix-batch1`
+
+Three review findings fixed on one branch (commits `6fc42b64`,
+`1204ffb2`), plus minors 4–5:
+
+1. **O(connections) invalidation fan-out** — every chat-scoped
+   notification ran a `withTenant` `readLive` per connected user. Fix:
+   `ops.lexon_chat_notification_audience(org, chat)` definer resolves
+   the audience once per notification under org-scoped service claims;
+   dispatch delivers to matching connections only (audience-once
+   dispatch + `notifyAccessChanged` wiring on this same mechanism — a
+   deviation from the task-4 plan location, recorded here per review).
+2. **Stream truncation regression** — root cause: `authorizeCommitted`
+   ran once per stream *part* (each a full tenant tx) inside a 250 ms
+   `publicationDeadlineMs`; a 15-event batch serialized 15+ tenant
+   transactions and the deadline-bound part broke the lifecycle
+   publish loop. Fixed: `authorizeCommitted` takes the event batch once
+   per `publishCommitted` call (spec counts calls === 1).
+3. **40P01 decide/send deadlock** — DETAIL captured: decide held
+   `ai_operations` (decideApproval UPDATE) and wanted `chats` via the
+   0026 write-fence trigger (ops→chats); send held `chats` (lockLive)
+   and wanted the op (chats→ops) — a pre-0026 inversion the 0043
+   subquery weight made CI-visible. Fix: `lockLiveForRun` locks bound
+   chats (ORDER BY id, FOR UPDATE) before op locks so decide takes
+   chats→ops too; `withAuthRetry` stays as defense. Stress spec: 40
+   raced iterations green.
+
+**Per-statement latencies** — EXPLAIN (ANALYZE, BUFFERS) as `lexon_app`
+on a seeded migrated template (postgres:17.11, warm cache, plan+exec):
+
+| Path | Pre-0043 | Post-0044 |
+|---|---|---|
+| `streamCommittedProof` owner/standalone | ~3.6 ms | ~3.2 ms |
+| `streamCommittedProof` member/project | n/a | ~10.5 ms (7.2 plan) |
+| `chats` readLive member/project | ~0.09 ms | ~0.44 ms |
+| step-commit UPDATE `ai_steps` | ~2.4 ms | ~5.2 ms |
+| decide UPDATE `ai_operations` | ~1.8 ms | ~5.3 ms |
+
+Post-0043 predicates (chat-read EXISTS arms, `lexon_org_member`/
+`lexon_project_access` definers, RESTRICTIVE access_read policies) add
+2–5× per statement, dominated by planning. **Task-11 perf-gate input:**
+re-measure the same five statements under the 500-user/50-chat load
+shape and compare against these baselines; the fix-batch commit
+(`6fc42b64`) reduced `publishCommitted` to one proof per batch
+regardless of event count.
+
+Minors: `projects` UPDATE grant narrowed to
+`(name, matter_number, practice_area, updated_at)`; settle definers
+(`access_loss_facts`/`finalize`/`decide`/`expire`) refuse unless the
+bound `resourceIds->>0` chat is one the initiator actually lost —
+project-bound with `lexon_project_access='none'`, or standalone with
+the initiator's org membership gone (org-removal mid-run still settles;
+integration tests: healthy-run refusal and org-removal settle, both in
+`project-access-loss.spec.ts`). `lexon_project_chat_activity` rewrites
+`projects.last_activity_at` only when it is older than 60 s, removing
+the per-message hot row.
 
 ## Batch-2 remaining work
 

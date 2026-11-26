@@ -702,6 +702,166 @@ test('access_loss_decide rejects the awaiting op, settles the run and returns th
   }
 });
 
+test('org removal mid-run on a standalone chat settles AI_ACCESS_REVOKED with exactly one run_finished', async ({
+  services,
+}) => {
+  const pools = createPlatformPools(services);
+  try {
+    const scenario = await createProjectScenario(pools);
+    const live = await seedLiveRun(pools, scenario, {
+      runStatus: 'awaiting_approval',
+      stepState: 'awaiting_approval',
+      opKind: 'approval',
+      opExpiresAt: 'future',
+      chatId: scenario.standaloneChatId,
+    });
+    // Remove the initiator from the org mid-run. The team invariant keeps an
+    // 'owner' member, so the admin is promoted before the owner's row goes.
+    const client = await pools.migrator.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `UPDATE auth.member SET role='owner'
+           WHERE organization_id=$1 AND user_id=$2`,
+        [scenario.orgId, scenario.users.admin],
+      );
+      await client.query(
+        `DELETE FROM auth.member
+           WHERE organization_id=$1 AND user_id=$2`,
+        [scenario.orgId, scenario.users.owner],
+      );
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+    // The standalone chat's bound run is invisible to the initiator: the
+    // owner arm matches but lexon_org_member no longer does.
+    const invisible = await withAppTenant(
+      pools.app,
+      { orgId: scenario.orgId, userId: scenario.users.owner },
+      async (c) =>
+        Number(
+          (
+            await c.query<{ count: string }>(
+              'SELECT count(*) FROM app.ai_runs WHERE id=$1',
+              [live.runId],
+            )
+          ).rows[0]!.count,
+        ),
+    );
+    expect(invisible).toBe(0);
+    const decided = await withAppTenant(
+      pools.app,
+      { orgId: scenario.orgId, userId: scenario.users.owner },
+      async (client) =>
+        (
+          await client.query<{
+            found: boolean;
+            changed: boolean;
+            operation_status: string | null;
+            operation_decision: string | null;
+          }>(
+            `SELECT found,changed,operation_status,operation_decision
+               FROM ops.lexon_ai_access_loss_decide($1,$2,$3,$4,$5)`,
+            [
+              scenario.orgId,
+              scenario.users.owner,
+              live.runId,
+              live.operationId,
+              'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+            ],
+          )
+        ).rows[0],
+    );
+    expect(decided).toEqual({
+      found: true,
+      changed: true,
+      operation_status: 'rejected',
+      operation_decision: 'reject',
+    });
+    expect(await runRow(pools, live.runId)).toMatchObject({
+      status: 'failed',
+      error_code: 'AI_ACCESS_REVOKED',
+    });
+    expect(await auditCount(pools, 'chat.run_finished.v1', live.runId)).toBe(1);
+    expect(await auditCount(pools, 'chat.tool_operation.v1', live.runId)).toBe(
+      1,
+    );
+  } finally {
+    await pools.close();
+  }
+});
+
+test('the settle definers refuse a healthy standalone run — no false AI_ACCESS_REVOKED', async ({
+  services,
+}) => {
+  const pools = createPlatformPools(services);
+  try {
+    const scenario = await createProjectScenario(pools);
+    const live = await seedLiveRun(pools, scenario, {
+      runStatus: 'awaiting_approval',
+      stepState: 'awaiting_approval',
+      opKind: 'approval',
+      opExpiresAt: 'future',
+      chatId: scenario.standaloneChatId,
+    });
+    // The run is still fully visible to its owner — the definer is callable
+    // directly and must refuse to stamp a false access-loss outcome.
+    const decided = await withAppTenant(
+      pools.app,
+      { orgId: scenario.orgId, userId: scenario.users.owner },
+      async (client) =>
+        (
+          await client.query<{
+            found: boolean;
+            changed: boolean;
+          }>(
+            `SELECT found,changed
+               FROM ops.lexon_ai_access_loss_decide($1,$2,$3,$4,$5)`,
+            [
+              scenario.orgId,
+              scenario.users.owner,
+              live.runId,
+              live.operationId,
+              'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+            ],
+          )
+        ).rows[0],
+    );
+    expect(decided?.found).toBe(true);
+    expect(decided?.changed).toBe(false);
+    const finalized = await withAppTenant(
+      pools.app,
+      { orgId: scenario.orgId, userId: scenario.users.owner },
+      async (client) =>
+        (
+          await client.query<{ changed: boolean }>(
+            `SELECT changed
+               FROM ops.lexon_ai_finalize_access_loss($1,$2,$3,1,$4,$5,1)`,
+            [
+              scenario.orgId,
+              scenario.users.owner,
+              live.runId,
+              live.headSequence,
+              live.stepId,
+            ],
+          )
+        ).rows[0],
+    );
+    expect(finalized?.changed).toBe(false);
+    expect(await runRow(pools, live.runId)).toMatchObject({
+      status: 'awaiting_approval',
+      error_code: null,
+    });
+    expect(await auditCount(pools, 'chat.run_finished.v1', live.runId)).toBe(0);
+  } finally {
+    await pools.close();
+  }
+});
+
 test('expire_access_loss expires the past-due op and fails the paused run', async ({
   services,
 }) => {
