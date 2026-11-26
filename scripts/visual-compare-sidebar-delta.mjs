@@ -16,12 +16,7 @@
 //
 //   node scripts/visual-compare-sidebar-delta.mjs \
 //     [--set F4.1-visual] [--capture-root <dir>] [--out-dir <dir>] [--ids a,b]
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { chromium } from 'playwright-core';
 import { selectPendingCapture } from './visual-pending-selection.mjs';
@@ -214,7 +209,7 @@ async function contactInPage(args) {
     ctx.fillStyle = tile.regionOk ? '#1c1b19' : '#b00020';
     ctx.font = '600 11px sans-serif';
     ctx.fillText(
-      `${tile.id} ${tile.differing === 0 ? '(identical)' : `${tile.percent}%`}${tile.regionOk ? '' : ' OUT-OF-REGION'}`,
+      `${tile.id} ${tile.label ?? (tile.differing === 0 ? '(identical)' : `${tile.percent}%`)}${tile.regionOk ? '' : ' OUT-OF-REGION'}`,
       x,
       y + 12,
     );
@@ -392,7 +387,8 @@ async function main() {
     if (verdict.noBaseline.length) {
       const b64 = await page.evaluate(contactInPage, {
         tiles: verdict.noBaseline.map((id) => ({
-          id: `${id} (no baseline)`,
+          id,
+          label: '(no baseline)',
           regionOk: true,
           differing: 0,
           percent: 0,

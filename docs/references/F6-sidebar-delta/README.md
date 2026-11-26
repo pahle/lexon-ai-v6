@@ -67,9 +67,30 @@ use, so review and promotion read the same bytes.
 
 ## After approval
 
-The approval lands as a follow-up commit: `baseline/<id>.png` is replaced
-with the capture for the approved ids only (same `selectPendingCapture`
-selection), `index.json` removes them from `pending`, and CI must come back
-green with zero task-9 pending ids before task 10 (`f6-t10-sharing`) is
-rebased and continues. This packet is Linux UI round 1 of 2 — same captures
-as the first build, tooling fix only.
+Owner + reviewer approved this packet on `c9a5893c` (176 sidebar-delta ids
+re-baselined, 8 pixel-identical kept, 6 non-pixel-locked ids cleared from
+pending without baselines). The write-back commit on this branch:
+
+- `scripts/visual-promote-pending.mjs` (`promotePendingApprovals`, spec
+  `scripts/test/visual-promote-pending.spec.mjs` 5/5) wrote the
+  `selectPendingCapture`-selected bytes to `review/<id>.png` **and**
+  `baseline/<id>.png` for the 184 approved ids, refreshed their
+  `approval.json` `images` sha256/dimensions, appended the
+  `F6 task 9 sidebar re-baseline` amendment (sourceSha `0accec6c`, CI run
+  45807656646), removed all 190 ids from `index.json` `pending`, and dropped
+  the 14 noise-only `reapproved` entries the re-baseline supersedes (6
+  remain for views outside this batch). For the 6 cleared ids only the
+  `review/` evidence file was updated — no baseline, no `images` entry,
+  locks unchanged (`svg-snapshot`/`engine-tests`).
+- New guard `assertBaselineLocks` (`scripts/visual-mode.mjs`, cases in
+  `scripts/test/visual-pixel-lock.spec.mjs`): fails if `baseline/` ever
+  gains a file for a non-pixel-locked or unindexed view.
+- Contact-sheet labels on `contact-no-baseline.png` now read "(no
+  baseline)" (previously mislabeled "(identical)").
+- Verified: `assertApprovedVisualSet` validates all 416 approved views
+  (review hashes = `images` sha256, baseline hashes = `images` sha256) and
+  `assertBaselineLocks` passes on the written set.
+
+CI must come back green with zero task-9 pending ids before task 10
+(`f6-t10-sharing`) is rebased and continues. This packet is Linux UI round
+1 of 2 — same captures as the first build, tooling fix only.
