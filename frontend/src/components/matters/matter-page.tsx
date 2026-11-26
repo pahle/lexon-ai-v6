@@ -89,7 +89,7 @@ export function MatterPage({
     },
   });
 
-  if (project.isPending) return <LoadingState message="Loading this matter…" />;
+  if (project.isPending) return <LoadingState message="Loading this matter" />;
   // A 404 (denied, removed, or absent matter) is the same not-found state as a
   // missing route — a retry can never succeed. Other failures can.
   if (project.isError)

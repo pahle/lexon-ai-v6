@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -202,9 +203,15 @@ export function MembersDialog({
             ))}
           </ul>
           {members.isPending ? (
-            <p className="text-muted-foreground text-[13px]">
-              Loading members…
-            </p>
+            <div
+              className="flex flex-col gap-2"
+              role="status"
+              aria-label="Loading members"
+            >
+              {[0, 1].map((row) => (
+                <Skeleton key={row} aria-hidden="true" className="h-8 w-full" />
+              ))}
+            </div>
           ) : null}
           {members.isError ? (
             <p role="alert" className="text-destructive text-[13px]">
