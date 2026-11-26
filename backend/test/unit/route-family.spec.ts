@@ -22,6 +22,9 @@ const EXPECTED: Record<string, 'identity' | 'service'> = {
   'invitations/:invitationId': 'identity',
   chats: 'service',
   runs: 'service',
+  org: 'service',
+  'org/projects': 'service',
+  projects: 'service',
   diagnostics: 'service',
   health: 'service',
 };
