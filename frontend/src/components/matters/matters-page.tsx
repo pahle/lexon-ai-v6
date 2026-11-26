@@ -3,12 +3,7 @@
 import { useState } from 'react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import {
-  EyeIcon,
-  FolderPlusIcon,
-  PlusIcon,
-  TrashIcon,
-} from 'lucide-react';
+import { EyeIcon, FolderPlusIcon, PlusIcon, TrashIcon } from 'lucide-react';
 import type { ProjectSummary } from '@lexon/contracts';
 import type { MattersApi } from '@/lib/matters-api';
 import {

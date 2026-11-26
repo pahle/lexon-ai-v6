@@ -76,11 +76,7 @@ export interface MattersApi {
     input: contracts.OrgMemberSearchQuery,
     signal?: AbortSignal,
   ): Promise<contracts.OrgMemberSummary[]>;
-  orgList(input?: {
-    q?: string;
-    cursor?: string;
-    limit?: number;
-  }): Promise<{
+  orgList(input?: { q?: string; cursor?: string; limit?: number }): Promise<{
     items: contracts.OrgProjectSummary[];
     nextCursor: string | null;
   }>;
