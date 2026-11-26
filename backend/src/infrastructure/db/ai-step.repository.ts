@@ -309,12 +309,14 @@ export class AiStepRepository {
       claim.committedRunVersion,
       claim.committedStatus,
     ];
-    // One publication authorizes a whole event batch: every operation-bearing
-    // event contributes its own EXISTS arm in a single query (one tenant tx
-    // per publishCommitted call, not per part — the per-part loop made a
-    // 15-event batch cost 15 serialized tenant transactions against the
-    // 250 ms publication deadline).
-    const operationArms: string[] = [];
+    // One publication authorizes a whole event batch in a single query (one
+    // tenant tx per publishCommitted call, not per part — the per-part loop
+    // made a 15-event batch cost 15 serialized tenant transactions against the
+    // 250 ms publication deadline). The per-event arms join one VALUES list in
+    // a single aggregate: a per-arm EXISTS subplan costs ~4 ms per event (a
+    // 32-part batch ~125 ms), while one run-scoped scan over app.ai_operations
+    // is a few ms. count(*) = arm count ⇔ every event's arm matched.
+    const armValues: string[] = [];
     for (const event of events) {
       if (!('operationId' in event) || event.operationId == null) continue;
       const idParam = `$${params.length + 1}`;
@@ -325,26 +327,31 @@ export class AiStepRepository {
         event.type,
         event.type === 'operation-status' ? event.status : '',
       );
-      operationArms.push(`EXISTS (
-           SELECT 1 FROM app.ai_operations o
-           JOIN app.ai_steps operation_step
-             ON operation_step.org_id=o.org_id AND operation_step.run_id=o.run_id
-            AND operation_step.id=o.step_id
-           WHERE o.org_id=s.org_id AND o.run_id=s.run_id
-             AND operation_step.sequence<=s.sequence
-             AND o.id=${idParam} AND (
-               (${typeParam}='approval-required' AND o.status='awaiting_approval'
-                 AND o.kind='approval') OR
-               (${typeParam}='question-required' AND o.status='awaiting_approval'
-                 AND o.kind='question') OR
-               (${typeParam}='tool-input-available') OR
-               (${typeParam}='tool-output-available' AND
-                 o.status IN ('succeeded','failed','outcome_unknown','answered')) OR
-               (${typeParam}='operation-status' AND
-                 CASE WHEN o.status='succeeded' THEN 'completed' ELSE o.status END=${statusParam})
-             )
-         )`);
+      armValues.push(`(${idParam},${typeParam},${statusParam})`);
     }
+    const armCountParam = armValues.length > 0 ? `$${params.length + 1}` : '';
+    if (armValues.length > 0) params.push(armValues.length);
+    const armCheck =
+      armValues.length > 0
+        ? `AND (SELECT count(*) FROM (VALUES ${armValues.join(',')})
+                AS arm(op_id, ev_type, ev_status)
+             JOIN app.ai_operations o
+               ON o.org_id=s.org_id AND o.run_id=s.run_id AND o.id=arm.op_id::uuid
+             JOIN app.ai_steps operation_step
+               ON operation_step.org_id=o.org_id AND operation_step.run_id=o.run_id
+              AND operation_step.id=o.step_id
+             WHERE operation_step.sequence<=s.sequence AND (
+               (arm.ev_type='approval-required' AND o.status='awaiting_approval'
+                 AND o.kind='approval') OR
+               (arm.ev_type='question-required' AND o.status='awaiting_approval'
+                 AND o.kind='question') OR
+               (arm.ev_type='tool-input-available') OR
+               (arm.ev_type='tool-output-available' AND
+                 o.status IN ('succeeded','failed','outcome_unknown','answered')) OR
+               (arm.ev_type='operation-status' AND
+                 CASE WHEN o.status='succeeded' THEN 'completed' ELSE o.status END=arm.ev_status)
+             )) = ${armCountParam}`
+        : '';
     const result = await client.query<{
       status:
         'running' | 'awaiting_approval' | 'completed' | 'failed' | 'cancelled';
@@ -369,7 +376,7 @@ export class AiStepRepository {
          AND r.next_sequence >= $4 + 1
          AND s.id=$6 AND s.sequence=$4 AND s.expected_version=$5 AND s.fence=$7
          AND s.state IN ('committed','awaiting_approval')
-         ${operationArms.map((arm) => `AND ${arm}`).join('\n         ')}
+         ${armCheck}
          AND NOT EXISTS (
            SELECT 1 FROM app.ai_steps newer
            WHERE newer.org_id=s.org_id AND newer.run_id=s.run_id
