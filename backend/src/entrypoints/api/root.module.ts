@@ -20,6 +20,7 @@ import {
 } from '../../modules/identity-access/index.js';
 import { ProjectsController } from '../../modules/projects/projects.controller.js';
 import { OrgMembersController } from '../../modules/projects/org-members.controller.js';
+import { OrgProjectsController } from '../../modules/projects/org-projects.controller.js';
 import { projectsApiProviders } from '../../modules/projects/projects.providers.js';
 @Module({})
 export class ApiRootModule {
@@ -70,7 +71,9 @@ export class ApiRootModule {
         ChatController,
         OperationsController,
         RunEventsController,
-        ...(auth?.port ? [ProjectsController, OrgMembersController] : []),
+        ...(auth?.port
+          ? [ProjectsController, OrgMembersController, OrgProjectsController]
+          : []),
       ],
     };
   }

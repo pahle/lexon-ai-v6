@@ -330,6 +330,13 @@
       "when": 1793404800046,
       "tag": "0046_project_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1793404800047,
+      "tag": "0047_ethical_wall_audit",
+      "breakpoints": true
     }
   ]
 }

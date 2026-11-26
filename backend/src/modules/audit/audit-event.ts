@@ -500,7 +500,28 @@ const projectMemberRemoved = z.strictObject({
   type: z.literal('project.member_removed.v1'),
   subjectUserId: UuidSchema,
   memberId: UuidSchema,
-  metadata: z.strictObject({ projectId: UuidSchema }),
+  metadata: z.strictObject({
+    projectId: UuidSchema,
+    reason: z.literal('deny').optional(),
+  }),
+});
+const projectDenyAdded = z.strictObject({
+  ...projectAudit,
+  type: z.literal('project.deny_added.v1'),
+  subjectUserId: UuidSchema,
+  metadata: z.strictObject({
+    projectId: UuidSchema,
+    setByUserId: UuidSchema,
+  }),
+});
+const projectDenyLifted = z.strictObject({
+  ...projectAudit,
+  type: z.literal('project.deny_lifted.v1'),
+  subjectUserId: UuidSchema,
+  metadata: z.strictObject({
+    projectId: UuidSchema,
+    setByUserId: UuidSchema,
+  }),
 });
 export const AuditEventSchema = z.union([
   failed,
@@ -542,6 +563,8 @@ export const AuditEventSchema = z.union([
   projectMemberAdded,
   projectMemberRole,
   projectMemberRemoved,
+  projectDenyAdded,
+  projectDenyLifted,
 ]);
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 export type OrgAuditEvent = AuditEvent & { orgId: string };

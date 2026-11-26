@@ -181,6 +181,8 @@ test('project create, list, detail, settings and instructions honor the access m
     expect(ownerSettings.status).toBe(200);
     expect((await ownerSettings.json()).matterNumber).toBe('M-2026-02');
   } finally {
+    await proof.close();
+    await organizations.close();
     await pools.close();
     await app.close();
   }
@@ -266,6 +268,8 @@ test('denied members get the identical 404 on every project read route', async (
       requestId: '',
     });
   } finally {
+    await proof.close();
+    await organizations.close();
     await pools.close();
     await app.close();
   }

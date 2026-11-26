@@ -204,6 +204,8 @@ test('member add, role change and remove enforce owner-only writes and emit acce
   } finally {
     for (const response of opened)
       await response.body?.cancel().catch(() => undefined);
+    await proof.close();
+    await organizations.close();
     await pools.close();
     await app.close();
   }
@@ -239,6 +241,8 @@ test('org member search returns picker rows for the member-add target', async ({
       expect.arrayContaining([owner.userId, member.userId]),
     );
   } finally {
+    await proof.close();
+    await organizations.close();
     await app.close();
   }
 });

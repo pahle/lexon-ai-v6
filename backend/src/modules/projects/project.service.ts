@@ -2,18 +2,24 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import {
+  DenyAddInputSchema,
+  DenySummarySchema,
   MattersListQuerySchema,
   MemberAddInputSchema,
   MemberRoleInputSchema,
   OrgMemberSearchQuerySchema,
   OrgMemberSearchResultSchema,
   OrgMemberSummarySchema,
+  OrgProjectSummarySchema,
+  OrgProjectsQuerySchema,
   ProjectCreateInputSchema,
   ProjectInstructionsInputSchema,
   ProjectMemberSummarySchema,
   ProjectPageSchema,
   ProjectSettingsInputSchema,
+  type DenySummary,
   type OrgMemberSummary,
+  type OrgProjectSummary,
   type ProjectMemberSummary,
   type ProjectPage,
   type ProjectSummary,
@@ -500,6 +506,193 @@ export class ProjectService {
         await this.chats.notifyAccessChanged(tx, {
           chatId: null,
           userIds: [userId],
+        });
+      },
+    );
+  }
+
+  /** Org owner/admin metadata list — deny beats admin, so a denied admin's
+   * own row is absent (the projects SELECT policy does the filtering). */
+  async listOrgProjects(
+    ctx: TenantRequestContext,
+    identity: VerifiedIdentity,
+    query: unknown,
+  ): Promise<{
+    items: OrgProjectSummary[];
+    pageInfo: { nextCursor: string | null };
+  }> {
+    const parsed = OrgProjectsQuerySchema.parse(query);
+    const limit = Math.min(
+      parsed.limit ?? this.config.pagination.defaultLimit,
+      this.config.pagination.maxLimit,
+    );
+    const cursor = parsed.cursor ? decodeCursor(parsed.cursor) : null;
+    const rows = await this.database.withTenant(
+      { orgId: ctx.orgId, userId: ctx.userId },
+      async (tx) => {
+        if (!(await this.projects.isOrgOwnerAdmin(tx))) throw forbidden();
+        return this.projects.orgList(tx, {
+          ...(parsed.q !== undefined ? { q: parsed.q } : {}),
+          cursor,
+          limit: limit + 1,
+        });
+      },
+    );
+    const pageRows = rows.slice(0, limit);
+    const directory = await this.directory(identity, ctx.orgId);
+    const last = pageRows.at(-1);
+    return {
+      items: pageRows.map((row) =>
+        OrgProjectSummarySchema.parse({
+          version: 1,
+          id: row.id,
+          name: row.name,
+          matterNumber: row.matterNumber,
+          practiceArea: row.practiceArea,
+          owner: {
+            userId: row.ownerUserId,
+            name: directory.get(row.ownerUserId)?.name ?? '',
+          },
+          memberCount: row.memberCount,
+          chatCount: row.chatCount,
+          lastActivityAt: row.lastActivityAt.toISOString(),
+          createdAt: row.createdAt.toISOString(),
+        }),
+      ),
+      pageInfo: {
+        nextCursor:
+          rows.length > limit && last ? encodeCursor(last.name, last.id) : null,
+      },
+    };
+  }
+
+  async listDenies(
+    ctx: TenantRequestContext,
+    identity: VerifiedIdentity,
+    projectId: string,
+  ): Promise<{ items: DenySummary[] }> {
+    const rows = await this.database.withTenant(
+      { orgId: ctx.orgId, userId: ctx.userId },
+      async (tx) => {
+        if (!(await this.projects.isOrgOwnerAdmin(tx))) throw forbidden();
+        return this.projects.listDenies(tx, projectId);
+      },
+    );
+    const directory = await this.directory(identity, ctx.orgId);
+    return {
+      items: rows.map((row) =>
+        DenySummarySchema.parse({
+          version: 1,
+          userId: row.user_id,
+          name: directory.get(row.user_id)?.name ?? '',
+          email: directory.get(row.user_id)?.email ?? '',
+          setByUserId: row.set_by_user_id,
+          createdAt: row.created_at.toISOString(),
+        }),
+      ),
+    };
+  }
+
+  /** Deny-add: the definer is claims-bound (actor = session user) and owns
+   * the member-row removal + notify. Its result reports removedMember —
+   * admins cannot see project_members under the access-select policy, so a
+   * removed member earns a second audit, member_removed with reason 'deny'. */
+  async addDeny(
+    ctx: TenantRequestContext,
+    identity: VerifiedIdentity,
+    projectId: string,
+    input: unknown,
+  ): Promise<DenySummary> {
+    const row = await this.database.withTenant(
+      { orgId: ctx.orgId, userId: ctx.userId },
+      async (tx) => {
+        if (!(await this.projects.isOrgOwnerAdmin(tx))) throw forbidden();
+        const body = DenyAddInputSchema.parse(input);
+        let added: { denied: boolean; removedMember: boolean };
+        try {
+          added = await this.projects.denyAdd(tx, projectId, body.userId);
+        } catch (error) {
+          const failure = pgFailure(error);
+          if (failure.constraint === 'project_owner_deny') throw invalid();
+          if (rlsRefusal(error)) throw notFound();
+          throw error;
+        }
+        await this.audit.append(tx, {
+          version: 1,
+          eventId: randomUUID(),
+          occurredAt: new Date().toISOString(),
+          type: 'project.deny_added.v1',
+          outcome: 'success',
+          orgId: ctx.orgId,
+          actorUserId: ctx.userId,
+          subjectUserId: body.userId,
+          metadata: { projectId, setByUserId: ctx.userId },
+        });
+        if (added.removedMember)
+          await this.audit.append(tx, {
+            version: 1,
+            eventId: randomUUID(),
+            occurredAt: new Date().toISOString(),
+            type: 'project.member_removed.v1',
+            outcome: 'success',
+            orgId: ctx.orgId,
+            actorUserId: ctx.userId,
+            subjectUserId: body.userId,
+            memberId: body.userId,
+            metadata: { projectId, reason: 'deny' },
+          });
+        return {
+          user_id: body.userId,
+          set_by_user_id: ctx.userId,
+          created_at: new Date(),
+        };
+      },
+    );
+    const directory = await this.directory(identity, ctx.orgId);
+    return DenySummarySchema.parse({
+      version: 1,
+      userId: row.user_id,
+      name: directory.get(row.user_id)?.name ?? '',
+      email: directory.get(row.user_id)?.email ?? '',
+      setByUserId: row.set_by_user_id,
+      createdAt: row.created_at.toISOString(),
+    });
+  }
+
+  async liftDeny(
+    ctx: TenantRequestContext,
+    projectId: string,
+    userId: string,
+  ): Promise<void> {
+    await this.database.withTenant(
+      { orgId: ctx.orgId, userId: ctx.userId },
+      async (tx) => {
+        if (!(await this.projects.isOrgOwnerAdmin(tx))) throw forbidden();
+        const existing = (await this.projects.listDenies(tx, projectId)).find(
+          (row) => row.user_id === userId,
+        );
+        try {
+          const lifted = await this.projects.denyLift(tx, projectId, userId);
+          if (!lifted) throw notFound();
+        } catch (error) {
+          if (pgFailure(error).constraint === 'project_deny_self_lift')
+            throw invalid();
+          if (rlsRefusal(error)) throw notFound();
+          throw error;
+        }
+        await this.audit.append(tx, {
+          version: 1,
+          eventId: randomUUID(),
+          occurredAt: new Date().toISOString(),
+          type: 'project.deny_lifted.v1',
+          outcome: 'success',
+          orgId: ctx.orgId,
+          actorUserId: ctx.userId,
+          subjectUserId: userId,
+          metadata: {
+            projectId,
+            setByUserId: existing?.set_by_user_id ?? ctx.userId,
+          },
         });
       },
     );

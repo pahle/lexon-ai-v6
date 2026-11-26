@@ -43,6 +43,12 @@ export interface ProjectMemberRow {
   created_at: Date;
 }
 
+export interface ProjectDenyRow {
+  user_id: string;
+  set_by_user_id: string;
+  created_at: Date;
+}
+
 function mapProject(row: ProjectRow): ProjectRecord {
   return {
     id: row.id,
@@ -341,5 +347,93 @@ export class ProjectRepository {
       [ctx.orgId, projectId],
     );
     return result.rows;
+  }
+
+  /** Org owner/admin metadata list. The projects SELECT policy already
+   * enforces `org_owner_admin AND NOT project_denied` — a plain select
+   * returns exactly the admin-visible set (deny beats admin, §6). */
+  async orgList(
+    tx: TenantSession,
+    input: {
+      q?: string;
+      cursor: { key: string; id: string } | null;
+      limit: number;
+    },
+  ): Promise<ProjectRecord[]> {
+    const { client, ctx } = requireSession(tx);
+    if (!ctx.userId) return [];
+    const params: unknown[] = [ctx.orgId, input.limit];
+    const qIndex = input.q !== undefined ? params.push(`%${input.q}%`) : 0;
+    const keyIndex = input.cursor ? params.push(input.cursor.key) : 0;
+    const idIndex = input.cursor ? params.push(input.cursor.id) : 0;
+    const result = await client.query<ProjectRow>(
+      `SELECT p.* FROM app.projects p
+       WHERE p.org_id=$1
+         ${input.q !== undefined ? `AND p.name ILIKE $${qIndex}` : ''}
+         ${input.cursor ? `AND (p.name,p.id)>($${keyIndex},$${idIndex})` : ''}
+       ORDER BY p.name,p.id
+       LIMIT $2`,
+      params,
+    );
+    return result.rows.map(mapProject);
+  }
+
+  async isOrgOwnerAdmin(tx: TenantSession): Promise<boolean> {
+    const { client, ctx } = requireSession(tx);
+    if (!ctx.userId) return false;
+    const result = await client.query<{ admin: boolean }>(
+      `SELECT ops.lexon_org_owner_admin($1,$2) AS admin`,
+      [ctx.orgId, ctx.userId],
+    );
+    return result.rows[0]?.admin ?? false;
+  }
+
+  async listDenies(
+    tx: TenantSession,
+    projectId: string,
+  ): Promise<ProjectDenyRow[]> {
+    if (!uuid.safeParse(projectId).success) return [];
+    const { client, ctx } = requireSession(tx);
+    if (!ctx.userId) return [];
+    const result = await client.query<ProjectDenyRow>(
+      `SELECT user_id,set_by_user_id,created_at FROM app.project_denies
+       WHERE org_id=$1 AND project_id=$2
+       ORDER BY created_at,user_id`,
+      [ctx.orgId, projectId],
+    );
+    return result.rows;
+  }
+
+  /** The deny definers own the mutation: claims-bound, org-admin-gated,
+   * member-row removal in the same statement, and the access-change notify.
+   * Errors propagate — the service maps the 42501 + constraint pairs. */
+  async denyAdd(
+    tx: TenantSession,
+    projectId: string,
+    target: string,
+  ): Promise<{ denied: boolean; removedMember: boolean }> {
+    const { client, ctx } = requireSession(tx);
+    const result = await client.query<{
+      added: { denied: boolean; removedMember: boolean };
+    }>(`SELECT ops.lexon_project_deny_add($1,$2,$3,$4) AS added`, [
+      ctx.orgId,
+      projectId,
+      ctx.userId,
+      target,
+    ]);
+    return result.rows[0]?.added ?? { denied: false, removedMember: false };
+  }
+
+  async denyLift(
+    tx: TenantSession,
+    projectId: string,
+    target: string,
+  ): Promise<boolean> {
+    const { client, ctx } = requireSession(tx);
+    const result = await client.query<{ lifted: boolean }>(
+      `SELECT ops.lexon_project_deny_lift($1,$2,$3,$4) AS lifted`,
+      [ctx.orgId, projectId, ctx.userId, target],
+    );
+    return result.rows[0]?.lifted ?? false;
   }
 }

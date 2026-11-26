@@ -155,9 +155,62 @@ async function replayMigrationFunctions(
   }
 }
 
+export async function revertEthicalWallAudit0047ForUpgradeTest(
+  migratorUrl: string,
+): Promise<void> {
+  const client = new Client({ connectionString: migratorUrl });
+  try {
+    await client.connect();
+    const role = await client.query<{ current_user: string }>(
+      'SELECT current_user',
+    );
+    if (role.rows[0]?.current_user !== 'lexon_migrator')
+      throw new Error('Wrong migration test role');
+    const journal = JSON.parse(
+      await readFile(
+        new URL('../../../../drizzle/meta/_journal.json', import.meta.url),
+        'utf8',
+      ),
+    ) as { entries: Array<{ tag: string; when: number }> };
+    const migration = journal.entries.find(
+      (entry) => entry.tag === '0047_ethical_wall_audit',
+    );
+    if (!migration) throw new Error('Migration 0047 journal entry missing');
+    await client.query('BEGIN');
+    // Reverses 0047_ethical_wall_audit: the validator regains its 0046 body
+    // (the deny arms and member_removed reason drop) and deny_add returns to
+    // its 0045 boolean shape so migrateDatabase replays 0047 cleanly.
+    await client.query('DROP FUNCTION auth.lexon_validate_audit(jsonb);');
+    await client.query(
+      'DROP FUNCTION ops.lexon_project_deny_add(uuid,uuid,uuid,uuid);',
+    );
+    await replayMigrationFunctions(client, '0046_project_audit.sql', [
+      'auth.lexon_validate_audit',
+    ]);
+    await replayMigrationFunctions(client, '0045_fix_batch.sql', [
+      'ops.lexon_project_deny_add',
+    ]);
+    const removed = await client.query(
+      'DELETE FROM drizzle.__drizzle_migrations WHERE created_at=$1::bigint',
+      [migration.when],
+    );
+    if (removed.rowCount !== 1)
+      throw new Error('Expected to remove the 0047 migration journal row');
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
 export async function revertProjectAudit0046ForUpgradeTest(
   migratorUrl: string,
 ): Promise<void> {
+  // The 0047 deny-arm validator rewrite is newest — it unwinds first, same
+  // newest-to-oldest rule the rest of the chain follows.
+  await revertEthicalWallAudit0047ForUpgradeTest(migratorUrl);
   const client = new Client({ connectionString: migratorUrl });
   try {
     await client.connect();

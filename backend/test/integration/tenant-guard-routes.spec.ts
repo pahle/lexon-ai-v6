@@ -99,7 +99,13 @@ test('every workspace route still rejects the userId override key except the doc
     // The only body route permitted to carry {userId} — member-add. Task 6
     // extends the list with POST /org/projects/:id/denies; nothing else may
     // ever appear here.
-    expect(allowed).toEqual(['POST projects/:projectId/members']);
+    expect(allowed).toEqual(
+      expect.arrayContaining([
+        'POST projects/:projectId/members',
+        'POST org/projects/:projectId/denies',
+      ]),
+    );
+    expect(allowed).toHaveLength(2);
   } finally {
     await app.close();
   }
