@@ -95,7 +95,11 @@ test('ci.yml uploads pending visual captures as one per-run, per-shard artifact'
     /pattern: visual-pending-\$\{\{ github\.run_id \}\}-shard-\*/u,
   );
   assert.match(merge, /Every pending view was captured by some shard/u);
-  assert.match(merge, /process\.exit\(1\)/u);
+  // pending.txt is appended before the screenshot; a crash can leave a claim
+  // without a file, so coverage alone is not proof — the gate is the
+  // verify-pending-captures script, which checks claimed files exist.
+  assert.match(merge, /verify-pending-captures\.mjs/u);
+  assert.match(merge, /--shards-dir pending-shards/u);
   assert.match(
     upload,
     /upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02/u,

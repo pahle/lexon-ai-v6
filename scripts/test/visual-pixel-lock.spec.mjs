@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { test } from 'node:test';
 import {
   assertApprovedVisualSet,
+  assertBaselineLocks,
   assertIndexedArtifact,
   buildVisualBaselineManifest,
   isPixelLocked,
@@ -126,6 +127,38 @@ test('compare mode has no baseline artifact for an svg-snapshot view', () => {
     assertIndexedArtifact(index, 'free', directory, { mode: 'capture' }),
     resolve(directory, 'review/free.png'),
   );
+});
+
+test('baseline/ must not gain a file for a non-pixel-locked or unknown view', () => {
+  const { directory, index } = set();
+  // Current state passes: only the pixel-locked view has a baseline.
+  assert.doesNotThrow(() => assertBaselineLocks(index, directory));
+  writeFileSync(join(directory, 'baseline/free.png'), png(9));
+  assert.throws(
+    () => assertBaselineLocks(index, directory),
+    /free.*svg-snapshot.*no pixel golden/,
+  );
+  index.views.free.lock = 'engine-tests';
+  assert.throws(
+    () => assertBaselineLocks(index, directory),
+    /free.*engine-tests.*no pixel golden/,
+  );
+  delete index.views.free;
+  assert.throws(
+    () => assertBaselineLocks(index, directory),
+    /baseline\/free\.png has no indexed view/,
+  );
+});
+
+test('the checked-in baseline set contains only pixel-locked indexed views', () => {
+  const visualRoot = resolve(
+    import.meta.dirname,
+    '../../docs/references/F4.1-visual',
+  );
+  const index = JSON.parse(
+    readFileSync(join(visualRoot, 'index.json'), 'utf8'),
+  );
+  assert.doesNotThrow(() => assertBaselineLocks(index, visualRoot));
 });
 
 test('the engine-tests lock is neither a pixel golden nor an svg snapshot', () => {
