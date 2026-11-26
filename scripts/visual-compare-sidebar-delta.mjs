@@ -25,6 +25,7 @@ import {
 } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { chromium } from 'playwright-core';
+import { selectPendingCapture } from './visual-pending-selection.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const setDir = resolve(root, 'docs/references/F4.1-visual');
@@ -254,14 +255,21 @@ async function main() {
   mkdirSync(resolve(outDir, 'contact'), { recursive: true });
 
   const pending = args.ids ?? index.pending ?? [];
+  // Only the shard whose pending.txt lists an id holds its real capture; the
+  // other shards' review folders ship the checked-in bytes. Selection throws
+  // on vacuous/conflicting picks — a baseline-vs-baseline compare must never
+  // reach a review sheet.
   const captureFor = new Map();
-  for (const shard of readdirSync(captureRoot)) {
-    const review = resolve(captureRoot, shard, 'review');
-    if (!existsSync(review)) continue;
-    for (const file of readdirSync(review)) {
-      if (file.endsWith('.png'))
-        captureFor.set(file.slice(0, -4), resolve(review, file));
-    }
+  const selectionMeta = new Map();
+  for (const id of pending) {
+    const baselinePath = resolve(baselineDir, `${id}.png`);
+    const picked = selectPendingCapture({
+      captureRoot,
+      id,
+      baselinePath: existsSync(baselinePath) ? baselinePath : null,
+    });
+    captureFor.set(id, picked.path);
+    selectionMeta.set(id, picked);
   }
 
   const browser = await chromium.launch();
@@ -324,11 +332,16 @@ async function main() {
       const regionX = SIDEBAR_REGION_X[view.viewport];
       const inside = out.bbox === null || out.bbox.x1 < regionX;
       (inside ? verdict.insideRegion : verdict.outsideRegion).push(id);
+      const meta = selectionMeta.get(id) ?? {};
       results.push({
         id,
         status: 'diffed',
         viewport: view.viewport,
         theme: view.theme,
+        captureShard: meta.shard,
+        identicalToBaseline: meta.identicalToBaseline ?? false,
+        identicalToCheckedIn: meta.identicalToCheckedIn ?? false,
+        staleReviewDrift: meta.staleReviewDrift ?? false,
         percent: Number(out.percent.toFixed(2)),
         differing: out.differing,
         bbox: out.bbox,
