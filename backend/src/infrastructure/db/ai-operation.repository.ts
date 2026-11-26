@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { buildAuthorizationPredicate } from './authorization-predicate.js';
 import { canonicalJson, jsonbTextBytes } from './canonical-json.js';
 import {
+  applyClaimLaneLockTimeout,
   inspectPool,
   requireSession,
   type TenantSession,
@@ -570,6 +571,7 @@ export class AiOperationRepository {
         !/^[0-9a-f]{64}$/.test(input.snapshotHash))
     )
       return null;
+    await applyClaimLaneLockTimeout(client);
     const result = await client.query<{
       found: boolean;
       changed: boolean;
@@ -642,6 +644,7 @@ export class AiOperationRepository {
       !uuid.safeParse(input.operationId).success
     )
       return null;
+    await applyClaimLaneLockTimeout(client);
     const result = await client.query<{
       found: boolean;
       changed: boolean;

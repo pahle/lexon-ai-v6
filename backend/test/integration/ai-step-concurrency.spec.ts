@@ -6,8 +6,10 @@ import {
   AiAttemptRepository,
   AiRunRepository,
   AiStepRepository,
+  CLAIM_LANE_LOCK_TIMEOUT_MS,
   OutboxRepository,
   TenantDatabase,
+  requireSession,
 } from '../../src/infrastructure/db/index.js';
 import { JobExecutor } from '../../src/modules/platform/job-executor.js';
 import { StepCoordinator } from '../../src/modules/chat/step-coordinator.js';
@@ -1167,6 +1169,56 @@ test('an expired previous owner cannot checkpoint, settle, or commit after takeo
       settle: false,
       commit: false,
     });
+  } finally {
+    await ai.close();
+  }
+});
+
+test('a claim behind a held claim lane reports busy at the lane bound and claims after release', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const tenant = ai.tenants[0]!;
+    let releaseLane!: () => void;
+    let acquiredLane!: () => void;
+    const acquired = new Promise<void>((resolve) => {
+      acquiredLane = resolve;
+    });
+    const release = new Promise<void>((resolve) => {
+      releaseLane = resolve;
+    });
+    const holder = (ai.database as TenantDatabase).withTenant(
+      tenant,
+      async (tx) => {
+        const { client } = requireSession(tx);
+        await client.query(
+          `SELECT pg_advisory_xact_lock(hashtextextended('lexon.ai_step_claim:' || $1::text,0))`,
+          [tenant.orgId],
+        );
+        acquiredLane();
+        await release;
+      },
+    );
+    try {
+      await acquired;
+      const startedAt = performance.now();
+      const busy = await ai.claim(0, run.id, 1, 1, 30_000);
+      const waitedMs = performance.now() - startedAt;
+      // The unbounded wait this bound replaces produced the CI 30s hangs: a
+      // stalled holder left every same-org claimant in pg_stat_activity until
+      // test timeout. Now the claimant reads the lane as busy at the bound.
+      expect(busy).toBeNull();
+      expect(waitedMs).toBeLessThan(CLAIM_LANE_LOCK_TIMEOUT_MS + 10_000);
+      releaseLane();
+      await holder;
+      expect(await ai.claim(0, run.id, 1, 1, 30_000)).not.toBeNull();
+    } finally {
+      releaseLane();
+      await holder.catch(() => undefined);
+    }
   } finally {
     await ai.close();
   }

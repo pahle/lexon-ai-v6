@@ -52,6 +52,64 @@ export async function dropDatabase(
   }
 }
 
+// Diagnostics on lock wait: a claim-lane writer stalled client-side leaves its
+// followers in pg_stat_activity wait_event_type='Lock' until test timeout —
+// which is exactly the 30s-hang signature CI showed. Poll the spec database so
+// a hanging run reports its blocker instead of just failing late.
+const LOCK_WAIT_POLL_MS = 1000;
+const LOCK_WAIT_THRESHOLD_S = 2;
+
+export function startLockWaitMonitor(
+  postgresAdminUrl: string,
+  dbName: string,
+): () => Promise<void> {
+  const client = new Client({ connectionString: postgresAdminUrl });
+  let stopped = false;
+  let poll: ReturnType<typeof setInterval> | undefined;
+  const query = `
+    SELECT a.pid, a.wait_event, a.state,
+           round(extract(epoch from now()-a.query_start)::numeric,1) AS wait_s,
+           pg_blocking_pids(a.pid) AS blockers,
+           left(regexp_replace(a.query,'[[:space:]]+',' ','g'),180) AS query
+    FROM pg_stat_activity a
+    WHERE a.datname=$1 AND a.wait_event_type='Lock'
+      AND now()-a.query_start > interval '${LOCK_WAIT_THRESHOLD_S} seconds'
+    ORDER BY a.query_start`;
+  const blockers = `
+    SELECT b.pid, b.wait_event_type, b.wait_event, b.state,
+           left(regexp_replace(b.query,'[[:space:]]+',' ','g'),180) AS query
+    FROM pg_stat_activity b
+    WHERE b.datname=$1 AND b.pid IN (
+      SELECT unnest(pg_blocking_pids(a.pid))
+      FROM pg_stat_activity a
+      WHERE a.datname=$1 AND a.wait_event_type='Lock'
+        AND now()-a.query_start > interval '${LOCK_WAIT_THRESHOLD_S} seconds'
+    )`;
+  void client
+    .connect()
+    .then(() => {
+      poll = setInterval(() => {
+        void (async () => {
+          const waiters = await client.query(query, [dbName]);
+          if (!waiters.rows.length) return;
+          const holders = await client.query(blockers, [dbName]);
+          console.error(
+            `[lock-wait monitor] ${dbName} waits >${LOCK_WAIT_THRESHOLD_S}s:`,
+            JSON.stringify({ waiters: waiters.rows, blockers: holders.rows }),
+          );
+        })().catch(() => undefined);
+      }, LOCK_WAIT_POLL_MS);
+      poll.unref();
+    })
+    .catch(() => undefined);
+  return async () => {
+    if (stopped) return;
+    stopped = true;
+    if (poll) clearInterval(poll);
+    await client.end().catch(() => undefined);
+  };
+}
+
 export async function revertProjectActorFacts0044ForUpgradeTest(
   migratorUrl: string,
 ): Promise<void> {
@@ -155,9 +213,94 @@ async function replayMigrationFunctions(
   }
 }
 
+export async function revertFixBatch20051ForUpgradeTest(
+  migratorUrl: string,
+): Promise<void> {
+  const client = new Client({ connectionString: migratorUrl });
+  try {
+    await client.connect();
+    const role = await client.query<{ current_user: string }>(
+      'SELECT current_user',
+    );
+    if (role.rows[0]?.current_user !== 'lexon_migrator')
+      throw new Error('Wrong migration test role');
+    const journal = JSON.parse(
+      await readFile(
+        new URL('../../../../drizzle/meta/_journal.json', import.meta.url),
+        'utf8',
+      ),
+    ) as { entries: Array<{ tag: string; when: number }> };
+    const migration = journal.entries.find(
+      (entry) => entry.tag === '0051_fix_batch2',
+    );
+    if (!migration) throw new Error('Migration 0051 journal entry missing');
+    await client.query('BEGIN');
+    // Reverses 0051_fix_batch2: the internal level evaluator drops and the
+    // three wrappers/definers regain their 0043/0050/0047 bodies so
+    // migrateDatabase replays 0051 cleanly. lexon_project_access is
+    // policy-referenced, so OR REPLACE keeps the oid rather than dropping
+    // under RLS bindings.
+    await client.query(`
+      CREATE OR REPLACE FUNCTION ops.lexon_project_access(input_org_id uuid, input_project_id uuid, input_user_id uuid)
+      RETURNS text
+      LANGUAGE plpgsql STABLE SECURITY DEFINER
+      SET search_path=pg_catalog,app,auth,pg_temp AS $restore$
+      DECLARE context_org uuid; context_user uuid; owner_id uuid; member_role text;
+      BEGIN
+        context_org:=NULLIF(current_setting('app.org_id',true),'')::uuid;
+        context_user:=NULLIF(current_setting('app.user_id',true),'')::uuid;
+        IF context_org IS NULL OR context_user IS NULL
+          OR input_org_id IS DISTINCT FROM context_org
+          OR input_user_id IS DISTINCT FROM context_user
+          OR input_project_id IS NULL THEN RETURN 'none'; END IF;
+        IF NOT ops.lexon_org_member(input_org_id,input_user_id) THEN RETURN 'none'; END IF;
+        IF ops.lexon_project_denied(input_org_id,input_project_id,input_user_id)
+          THEN RETURN 'none'; END IF;
+        SELECT p.owner_user_id INTO owner_id FROM app.projects p
+          WHERE p.org_id=input_org_id AND p.id=input_project_id;
+        IF NOT FOUND THEN RETURN 'none'; END IF;
+        IF owner_id=input_user_id THEN RETURN 'owner'; END IF;
+        SELECT m.role INTO member_role FROM app.project_members m
+          WHERE m.org_id=input_org_id AND m.project_id=input_project_id
+            AND m.user_id=input_user_id;
+        RETURN COALESCE(member_role,'none');
+      END $restore$;
+      REVOKE ALL ON FUNCTION ops.lexon_project_access(uuid,uuid,uuid) FROM PUBLIC,lexon_auth;
+      GRANT EXECUTE ON FUNCTION ops.lexon_project_access(uuid,uuid,uuid) TO lexon_app;
+    `);
+    await client.query(
+      'DROP FUNCTION ops.lexon_project_access_for(uuid,uuid,uuid);',
+    );
+    await client.query(
+      'DROP FUNCTION ops.lexon_project_access_level(uuid,uuid,uuid);',
+    );
+    await replayMigrationFunctions(client, '0050_chat_audience_access.sql', [
+      'ops.lexon_project_access_for',
+    ]);
+    await replayMigrationFunctions(client, '0047_ethical_wall_audit.sql', [
+      'ops.lexon_project_deny_add',
+    ]);
+    const removed = await client.query(
+      'DELETE FROM drizzle.__drizzle_migrations WHERE created_at=$1::bigint',
+      [migration.when],
+    );
+    if (removed.rowCount !== 1)
+      throw new Error('Expected to remove the 0051 migration journal row');
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
 export async function revertChatAudienceAccess0050ForUpgradeTest(
   migratorUrl: string,
 ): Promise<void> {
+  // The 0051 fix-batch guard is newest — it unwinds first, same
+  // newest-to-oldest rule the rest of the chain follows.
+  await revertFixBatch20051ForUpgradeTest(migratorUrl);
   const client = new Client({ connectionString: migratorUrl });
   try {
     await client.connect();

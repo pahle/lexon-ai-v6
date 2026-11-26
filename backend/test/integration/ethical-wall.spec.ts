@@ -168,6 +168,23 @@ test('org metadata list, deny add removes the member atomically, and denied call
     );
     expect(audits.rows).toHaveLength(2);
 
+    // A repeated deny inserts nothing: 201 against the existing row, no
+    // second deny_added/member_removed audit.
+    const repeat = await denyPost(
+      origin,
+      project.id,
+      adminA.cookieHeaders,
+      member.userId,
+    );
+    expect(repeat.status).toBe(201);
+    const repeatAudits = await pools.migrator.query(
+      `SELECT type FROM ops.audit_events
+        WHERE type IN ('project.deny_added.v1','project.member_removed.v1')
+          AND metadata->>'projectId'=$1`,
+      [project.id],
+    );
+    expect(repeatAudits.rows).toHaveLength(2);
+
     // Denied member → byte-identical 404 on every project path.
     const fetch404 = (id: string) =>
       fetch(`${origin}/api/projects/${id}`, {
@@ -384,7 +401,9 @@ test('self-deny is allowed, self-lift refused, a second admin lifts, and concurr
     expect(peerLift.status).toBe(204);
 
     // Concurrent deny+lift on the member: last commit wins, no duplicate
-    // rows, both events audited.
+    // rows, every inserted/deleted row audited. The second deny audits
+    // only when the lift commits first (it re-inserts); seen-after-commit
+    // ordering leaves deny_added at the two earlier arms.
     const denyMember = () =>
       denyPost(origin, project.id, adminA.cookieHeaders, member.userId);
     const liftMember = () =>
@@ -400,20 +419,20 @@ test('self-deny is allowed, self-lift refused, a second admin lifts, and concurr
       [project.id, member.userId],
     );
     expect(rows.rows).toEqual([]);
-    const audits = await pools.migrator.query(
+    const audits = await pools.migrator.query<{ type: string }>(
       `SELECT type FROM ops.audit_events
         WHERE type IN ('project.deny_added.v1','project.deny_lifted.v1')
-          AND metadata->>'projectId'=$1
-        ORDER BY type`,
+          AND metadata->>'projectId'=$1`,
       [project.id],
     );
-    expect(audits.rows).toEqual([
-      { type: 'project.deny_added.v1' },
-      { type: 'project.deny_added.v1' },
-      { type: 'project.deny_added.v1' },
-      { type: 'project.deny_lifted.v1' },
-      { type: 'project.deny_lifted.v1' },
-    ]);
+    const added = audits.rows.filter(
+      (row) => row.type === 'project.deny_added.v1',
+    ).length;
+    const liftedCount = audits.rows.filter(
+      (row) => row.type === 'project.deny_lifted.v1',
+    ).length;
+    expect(added === 2 || added === 3).toBe(true);
+    expect(liftedCount).toBe(2);
   } finally {
     await proof.close();
     await organizations.close();

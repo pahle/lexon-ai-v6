@@ -1,7 +1,11 @@
 import { z } from 'zod';
 import { OutboxRepository } from './outbox.repository.js';
 import { buildAuthorizationPredicate } from './authorization-predicate.js';
-import { requireSession, type TenantSession } from './tenant-session.js';
+import {
+  applyClaimLaneLockTimeout,
+  requireSession,
+  type TenantSession,
+} from './tenant-session.js';
 import {
   chatCleanupJobId,
   type ChatCleanupPhase,
@@ -134,6 +138,7 @@ export class ChatRepository {
       userId: ctx.userId,
       excludeDeleted: true,
     });
+    await applyClaimLaneLockTimeout(client);
     await client.query(
       `SELECT c.id FROM app.chat_runs cr
        JOIN app.chats c ON c.org_id=cr.org_id AND c.id=cr.chat_id
@@ -638,6 +643,7 @@ export class ChatRepository {
       userId: ctx.userId,
       excludeDeleted: true,
     });
+    await applyClaimLaneLockTimeout(client);
     const result = await client.query<{ deleted: boolean }>(
       'SELECT ops.ai_mark_chat_deleted($1,$2,$3) AS deleted',
       [scope.orgId, scope.userId, chatId],

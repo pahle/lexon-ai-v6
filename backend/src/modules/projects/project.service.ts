@@ -626,35 +626,46 @@ export class ProjectService {
           if (rlsRefusal(error)) throw notFound();
           throw error;
         }
-        await this.audit.append(tx, {
-          version: 1,
-          eventId: randomUUID(),
-          occurredAt: new Date().toISOString(),
-          type: 'project.deny_added.v1',
-          outcome: 'success',
-          orgId: ctx.orgId,
-          actorUserId: ctx.userId,
-          subjectUserId: body.userId,
-          metadata: { projectId, setByUserId: ctx.userId },
-        });
-        if (added.removedMember)
+        // deny_added (and member_removed reason=deny) describe the row
+        // going in — a repeated deny reports denied=false and writes no
+        // second audit.
+        if (added.denied) {
           await this.audit.append(tx, {
             version: 1,
             eventId: randomUUID(),
             occurredAt: new Date().toISOString(),
-            type: 'project.member_removed.v1',
+            type: 'project.deny_added.v1',
             outcome: 'success',
             orgId: ctx.orgId,
             actorUserId: ctx.userId,
             subjectUserId: body.userId,
-            memberId: body.userId,
-            metadata: { projectId, reason: 'deny' },
+            metadata: { projectId, setByUserId: ctx.userId },
           });
-        return {
-          user_id: body.userId,
-          set_by_user_id: ctx.userId,
-          created_at: new Date(),
-        };
+          if (added.removedMember)
+            await this.audit.append(tx, {
+              version: 1,
+              eventId: randomUUID(),
+              occurredAt: new Date().toISOString(),
+              type: 'project.member_removed.v1',
+              outcome: 'success',
+              orgId: ctx.orgId,
+              actorUserId: ctx.userId,
+              subjectUserId: body.userId,
+              memberId: body.userId,
+              metadata: { projectId, reason: 'deny' },
+            });
+        }
+        if (added.denied)
+          return {
+            user_id: body.userId,
+            set_by_user_id: ctx.userId,
+            created_at: new Date(),
+          };
+        const existing = (await this.projects.listDenies(tx, projectId)).find(
+          (row) => row.user_id === body.userId,
+        );
+        if (!existing) throw notFound();
+        return existing;
       },
     );
     const directory = await this.directory(identity, ctx.orgId);
