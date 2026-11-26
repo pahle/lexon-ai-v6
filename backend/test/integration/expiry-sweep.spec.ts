@@ -68,10 +68,10 @@ function createStreams(ai: Ai, streamsUrl: string, prefix: string) {
           { orgId: claim.orgId, userId: claim.userId },
           (tx) => steps.streamTerminalProof(tx, claim),
         ),
-      authorizeCommitted: (claim, event) =>
+      authorizeCommitted: (claim, events) =>
         ai.database.withTenant(
           { orgId: claim.orgId, userId: claim.userId },
-          (tx) => steps.streamCommittedProof(tx, claim, event),
+          (tx) => steps.streamCommittedProof(tx, claim, events),
         ),
       reconcile: async (entries) =>
         Promise.all(

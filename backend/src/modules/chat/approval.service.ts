@@ -11,6 +11,7 @@ import type {
   TenantDatabase,
 } from '../../infrastructure/db/index.js';
 import {
+  ChatRepository,
   isRetryableAuthError,
   requireSession,
   withAuthRetry,
@@ -61,6 +62,7 @@ type DecidePublication =
 
 export class ApprovalService {
   private readonly audit = new AuditService();
+  private readonly chats = new ChatRepository();
   constructor(
     private readonly database: TenantDatabase,
     private readonly runs: AiRunRepository,
@@ -163,6 +165,13 @@ export class ApprovalService {
               if (ownedChat) throw new ChatApiError('CHAT_NOT_FOUND');
               throw new Error('AI approval decision refused');
             }
+            // Lock order: the op UPDATE below fires the 0026 write-fence
+            // trigger which takes the bound chats row. Locking the bound
+            // chats first keeps this transaction on the send path's
+            // chats→operations order; without it decide holds the op row and
+            // waits on the chat while send holds the chat and waits on the
+            // op (the captured 40P01 cycle).
+            await this.chats.lockLiveForRun(tx, input.runId);
             const operation = (
               await this.operations.forRun(tx, {
                 runId: input.runId,

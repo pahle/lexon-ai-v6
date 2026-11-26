@@ -842,7 +842,7 @@ test('SSE snapshot, stream proofs and the registry state accept viewer claims on
     };
     expect(
       await fixture.database.withTenant(viewerTenant, (tx) =>
-        steps.streamCommittedProof(tx, committed, committedEvent),
+        steps.streamCommittedProof(tx, committed, [committedEvent]),
       ),
     ).toBeDefined();
     expect(
@@ -869,7 +869,7 @@ test('SSE snapshot, stream proofs and the registry state accept viewer claims on
         steps.streamCommittedProof(
           tx,
           { ...committed, userId: member.userId },
-          committedEvent,
+          [committedEvent],
         ),
       ),
     ).toBeUndefined();
@@ -901,7 +901,7 @@ test('SSE snapshot, stream proofs and the registry state accept viewer claims on
     });
     expect(
       await fixture.database.withTenant(viewerTenant, (tx) =>
-        steps.streamCommittedProof(tx, committed, committedEvent),
+        steps.streamCommittedProof(tx, committed, [committedEvent]),
       ),
     ).toBeUndefined();
     expect(

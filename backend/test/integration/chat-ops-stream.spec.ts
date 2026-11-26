@@ -730,7 +730,7 @@ test('committed stream proofs authorize operation lifecycle events against the p
     const steps = new AiStepRepository();
     const proof = (event: Record<string, unknown>) =>
       database.withTenant(seeded.tenant, (tx) =>
-        steps.streamCommittedProof(tx, claim, event as never),
+        steps.streamCommittedProof(tx, claim, [event as never]),
       );
 
     // Any op row authorizes its input event.

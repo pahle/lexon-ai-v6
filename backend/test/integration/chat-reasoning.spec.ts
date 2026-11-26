@@ -62,10 +62,10 @@ test('executor streams only typed summaries and reload matches measured timing',
           (tx) => steps.advanceTerminalStreamGeneration(tx, claim, observed),
           { timeoutMs: 500 },
         ),
-      authorizeCommitted: (claim, event) =>
+      authorizeCommitted: (claim, events) =>
         fixture.database.withTenant(
           { orgId: claim.orgId, userId: claim.userId },
-          (tx) => steps.streamCommittedProof(tx, claim, event),
+          (tx) => steps.streamCommittedProof(tx, claim, events),
         ),
       reconcile: async (entries) =>
         Promise.all(

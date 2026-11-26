@@ -118,6 +118,32 @@ export class ChatRepository {
     return result.rows[0] ? mapChat(result.rows[0]) : null;
   }
 
+  /**
+   * Lock every live chat bound to a run, in id order. Decide paths must take
+   * this before locking ai_operations: the operation UPDATE fires the 0026
+   * write-fence trigger which locks the bound chat, so deciding ops-then-chat
+   * inverts the send path's chats-then-ops order (the 40P01 cycle).
+   */
+  async lockLiveForRun(tx: TenantSession, runId: string): Promise<void> {
+    if (!uuid.safeParse(runId).success) return;
+    const { client, ctx } = requireSession(tx);
+    if (!ctx.userId) return;
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      excludeDeleted: true,
+    });
+    await client.query(
+      `SELECT c.id FROM app.chat_runs cr
+       JOIN app.chats c ON c.org_id=cr.org_id AND c.id=cr.chat_id
+       WHERE cr.org_id=$1 AND cr.run_id=$2
+         AND ${scope.where('c', '$1', '$3')}
+       ORDER BY c.id FOR UPDATE OF c`,
+      [scope.orgId, runId, scope.userId],
+    );
+  }
+
   async readLive(
     tx: TenantSession,
     chatId: string,
@@ -468,6 +494,46 @@ export class ChatRepository {
       JSON.stringify({ orgId: ctx.orgId, chatId }),
     ]);
     return true;
+  }
+
+  /** Audience for one chat-scoped notification, resolved once per
+   * notification by the fan-out dispatcher. Runs under org-scoped service
+   * claims ({orgId} only — the definer refuses user-bound claims):
+   * standalone chats return owner + share recipients, project chats return
+   * owner + current members minus denies, org members only. */
+  async notificationAudience(
+    tx: TenantSession,
+    chatId: string,
+  ): Promise<ReadonlySet<string>> {
+    const { client, ctx } = requireSession(tx);
+    if (!uuid.safeParse(chatId).success) return new Set();
+    const result = await client.query<{ user_id: string }>(
+      'SELECT user_id FROM ops.lexon_chat_notification_audience($1,$2)',
+      [ctx.orgId, chatId],
+    );
+    return new Set(result.rows.map((row) => row.user_id));
+  }
+
+  /** Emits an access-change notification inside the caller's transaction so
+   * the invalidation commits atomically with the mutation that caused it.
+   * `chatId: null` asks the listed connections to refresh without naming a
+   * chat (deny/member-removal must not leak the id to a user who just lost
+   * it); a chatId scopes the refresh to that chat. */
+  async notifyAccessChanged(
+    tx: TenantSession,
+    input: { chatId: string | null; userIds: readonly string[] },
+  ): Promise<void> {
+    const { client, ctx } = requireSession(tx);
+    if (input.chatId !== null && !uuid.safeParse(input.chatId).success) return;
+    const userIds = input.userIds.filter((id) => uuid.safeParse(id).success);
+    if (userIds.length === 0) return;
+    await client.query("SELECT pg_notify('lexon_chat_title', $1)", [
+      JSON.stringify({
+        orgId: ctx.orgId,
+        chatId: input.chatId,
+        userIds,
+      }),
+    ]);
   }
 
   async selectLeaf(

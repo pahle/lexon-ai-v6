@@ -55,6 +55,10 @@ export async function dropDatabase(
 export async function revertProjectActorFacts0044ForUpgradeTest(
   migratorUrl: string,
 ): Promise<void> {
+  // The 0045 fix batch re-OR-REPLACE'd this migration's settle definers and
+  // deny definers, so it unwinds first — newest-to-oldest, same rule the
+  // 0043 caller documents below.
+  await revertFixBatch0045ForUpgradeTest(migratorUrl);
   const client = new Client({ connectionString: migratorUrl });
   try {
     await client.connect();
@@ -126,13 +130,104 @@ export async function revertProjectActorFacts0044ForUpgradeTest(
   }
 }
 
+/** Replays the statement chunks that define `names` from a migration file —
+ * each `--> statement-breakpoint` chunk carries the CREATE plus its REVOKE/
+ * GRANT lines, so replaying the chunk restores body and grants atomically.
+ * Used by the fix-batch revert to hand the pre-0045 bodies back before the
+ * journal row drops. Callers DROP first when the target was OR REPLACE'd. */
+async function replayMigrationFunctions(
+  client: Client,
+  file: string,
+  names: readonly string[],
+): Promise<void> {
+  const sql = await readFile(
+    new URL(`../../../../drizzle/${file}`, import.meta.url),
+    'utf8',
+  );
+  const statements = sql.split(/-->\s*statement-breakpoint/);
+  for (const name of names) {
+    const pattern = new RegExp(
+      `CREATE( OR REPLACE)? FUNCTION ${name.replace('.', '\\.')}\\s*\\(`,
+    );
+    const statement = statements.find((chunk) => pattern.test(chunk));
+    if (!statement) throw new Error(`Migration body for ${name} missing`);
+    await client.query(statement);
+  }
+}
+
+export async function revertFixBatch0045ForUpgradeTest(
+  migratorUrl: string,
+): Promise<void> {
+  const client = new Client({ connectionString: migratorUrl });
+  try {
+    await client.connect();
+    const role = await client.query<{ current_user: string }>(
+      'SELECT current_user',
+    );
+    if (role.rows[0]?.current_user !== 'lexon_migrator')
+      throw new Error('Wrong migration test role');
+    const journal = JSON.parse(
+      await readFile(
+        new URL('../../../../drizzle/meta/_journal.json', import.meta.url),
+        'utf8',
+      ),
+    ) as { entries: Array<{ tag: string; when: number }> };
+    const migration = journal.entries.find(
+      (entry) => entry.tag === '0045_fix_batch',
+    );
+    if (!migration) throw new Error('Migration 0045 journal entry missing');
+    await client.query('BEGIN');
+    // Reverses 0045_fix_batch so migrateDatabase replays it through the real
+    // drizzle path: the notification-audience definer drops outright, the
+    // settle definers regain their 0044 bodies, the activity trigger and the
+    // deny definers regain their 0043 bodies (no threshold, no pg_notify),
+    // and the projects column grant widens back to the 0043 column set.
+    await client.query(`
+      DROP FUNCTION ops.lexon_chat_notification_audience(uuid,uuid);
+      DROP FUNCTION ops.lexon_ai_access_loss_facts(uuid,uuid,uuid);
+      DROP FUNCTION ops.lexon_ai_finalize_access_loss(uuid,uuid,uuid,integer,integer,uuid,bigint);
+      DROP FUNCTION ops.lexon_ai_access_loss_decide(uuid,uuid,uuid,uuid,text);
+      DROP FUNCTION ops.lexon_ai_expire_access_loss(uuid,uuid,uuid,uuid);
+      DROP TRIGGER chat_messages_project_activity ON app.chat_messages;
+      DROP FUNCTION ops.lexon_project_chat_activity();
+      DROP FUNCTION ops.lexon_project_deny_add(uuid,uuid,uuid,uuid);
+      DROP FUNCTION ops.lexon_project_deny_lift(uuid,uuid,uuid,uuid);
+      REVOKE UPDATE ON app.projects FROM lexon_app;
+      GRANT UPDATE (id,org_id,owner_user_id,name,matter_number,practice_area,created_at,updated_at) ON app.projects TO lexon_app;
+    `);
+    await replayMigrationFunctions(client, '0044_project_actor_facts.sql', [
+      'ops.lexon_ai_access_loss_facts',
+      'ops.lexon_ai_finalize_access_loss',
+      'ops.lexon_ai_access_loss_decide',
+      'ops.lexon_ai_expire_access_loss',
+    ]);
+    await replayMigrationFunctions(client, '0043_projects.sql', [
+      'ops.lexon_project_chat_activity',
+      'ops.lexon_project_deny_add',
+      'ops.lexon_project_deny_lift',
+    ]);
+    const removed = await client.query(
+      'DELETE FROM drizzle.__drizzle_migrations WHERE created_at=$1::bigint',
+      [migration.when],
+    );
+    if (removed.rowCount !== 1)
+      throw new Error('Expected to remove the 0045 migration journal row');
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
 export async function revertProjects0043ForUpgradeTest(
   migratorUrl: string,
 ): Promise<void> {
   // The 0044 access-loss definers (and its ai_mark_chat_deleted rewrite)
   // unwind first so the 0043 rewind below never orphans a function body that
   // references ops.lexon_project_access — same newest-to-oldest rule the
-  // 0042 caller documents.
+  // 0042 caller documents. The 0045 fix batch rides inside that call.
   await revertProjectActorFacts0044ForUpgradeTest(migratorUrl);
   const client = new Client({ connectionString: migratorUrl });
   try {

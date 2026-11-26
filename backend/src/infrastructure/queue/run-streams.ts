@@ -68,10 +68,10 @@ export interface RunStreamAuthority {
   authorizeTerminal(
     claim: TerminalStreamReference,
   ): Promise<TerminalStreamProof | undefined>;
-  /** Return fresh lineage proof for a committed operation/approval/status event. */
+  /** Return fresh lineage proof covering every event of one committed publication batch. */
   authorizeCommitted?(
     claim: CommittedStreamReference,
-    event: RunStreamEvent,
+    events: readonly RunStreamEvent[],
   ): Promise<CommittedStreamProof | undefined>;
   /** Inspect at most 24 registered runs using each stored K3 tenant context. */
   reconcile(
@@ -409,12 +409,32 @@ export class RunStreams {
       async (generation) => {
         const serverDeadlineAt = await this.#serverDeadline(deadlineAt);
         if (serverDeadlineAt === undefined) return 'unavailable';
+        if (performance.now() >= deadlineAt) return 'unavailable';
+        const epoch = await this.#readEpoch();
+        if (!epoch) return 'unavailable';
+        if (performance.now() >= deadlineAt) return 'unavailable';
+        const proof = await this.#authority.authorizeCommitted?.(claim, parts);
+        if (
+          !proof ||
+          proof.stepId !== claim.stepId ||
+          proof.sequence !== claim.sequence ||
+          proof.expectedVersion !== claim.expectedVersion ||
+          proof.fence !== claim.fence ||
+          proof.runVersion !== claim.committedRunVersion ||
+          proof.status !== claim.committedStatus ||
+          proof.nextSequence < claim.sequence + 1 ||
+          !Number.isSafeInteger(proof.streamGeneration) ||
+          proof.streamGeneration < 0
+        )
+          return 'stale';
         for (const part of parts) {
           if (performance.now() >= deadlineAt) return 'unavailable';
           if (!this.#isCurrent(claim, generation)) return 'stale';
           const written = await this.#publishCommittedPart(
             claim,
             part,
+            proof,
+            epoch,
             deadlineAt,
             serverDeadlineAt,
           );
@@ -625,29 +645,13 @@ export class RunStreams {
   async #publishCommittedPart(
     claim: CommittedStreamReference,
     event: RunStreamEvent,
+    proof: CommittedStreamProof,
+    epoch: string,
     deadlineAt: number,
     serverDeadlineAt: number,
   ): Promise<'written' | 'unavailable' | 'stale'> {
     if (performance.now() >= deadlineAt) return 'unavailable';
     try {
-      const epoch = await this.#readEpoch();
-      if (!epoch) return 'unavailable';
-      if (performance.now() >= deadlineAt) return 'unavailable';
-      const proof = await this.#authority.authorizeCommitted?.(claim, event);
-      if (
-        !proof ||
-        proof.stepId !== claim.stepId ||
-        proof.sequence !== claim.sequence ||
-        proof.expectedVersion !== claim.expectedVersion ||
-        proof.fence !== claim.fence ||
-        proof.runVersion !== claim.committedRunVersion ||
-        proof.status !== claim.committedStatus ||
-        proof.nextSequence < claim.sequence + 1 ||
-        !Number.isSafeInteger(proof.streamGeneration) ||
-        proof.streamGeneration < 0
-      )
-        return 'stale';
-      if (performance.now() >= deadlineAt) return 'unavailable';
       const serialized = JSON.stringify(event);
       if (
         Buffer.byteLength(serialized, 'utf8') >

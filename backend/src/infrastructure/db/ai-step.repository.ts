@@ -258,7 +258,7 @@ export class AiStepRepository {
   async streamCommittedProof(
     tx: TenantSession,
     claim: CommittedStreamReference,
-    event: RunStreamEvent,
+    events: readonly RunStreamEvent[],
   ): Promise<
     | {
         status:
@@ -289,6 +289,53 @@ export class AiStepRepository {
       userId: claim.userId,
       excludeDeleted: true,
     });
+    const params: unknown[] = [
+      scope.orgId,
+      claim.runId,
+      claim.userId,
+      claim.sequence,
+      claim.expectedVersion,
+      claim.stepId,
+      claim.fence,
+      claim.committedRunVersion,
+      claim.committedStatus,
+    ];
+    // One publication authorizes a whole event batch: every operation-bearing
+    // event contributes its own EXISTS arm in a single query (one tenant tx
+    // per publishCommitted call, not per part — the per-part loop made a
+    // 15-event batch cost 15 serialized tenant transactions against the
+    // 250 ms publication deadline).
+    const operationArms: string[] = [];
+    for (const event of events) {
+      if (!('operationId' in event) || event.operationId == null) continue;
+      const idParam = `$${params.length + 1}`;
+      const typeParam = `$${params.length + 2}`;
+      const statusParam = `$${params.length + 3}`;
+      params.push(
+        event.operationId,
+        event.type,
+        event.type === 'operation-status' ? event.status : '',
+      );
+      operationArms.push(`EXISTS (
+           SELECT 1 FROM app.ai_operations o
+           JOIN app.ai_steps operation_step
+             ON operation_step.org_id=o.org_id AND operation_step.run_id=o.run_id
+            AND operation_step.id=o.step_id
+           WHERE o.org_id=s.org_id AND o.run_id=s.run_id
+             AND operation_step.sequence<=s.sequence
+             AND o.id=${idParam} AND (
+               (${typeParam}='approval-required' AND o.status='awaiting_approval'
+                 AND o.kind='approval') OR
+               (${typeParam}='question-required' AND o.status='awaiting_approval'
+                 AND o.kind='question') OR
+               (${typeParam}='tool-input-available') OR
+               (${typeParam}='tool-output-available' AND
+                 o.status IN ('succeeded','failed','outcome_unknown','answered')) OR
+               (${typeParam}='operation-status' AND
+                 CASE WHEN o.status='succeeded' THEN 'completed' ELSE o.status END=${statusParam})
+             )
+         )`);
+    }
     const result = await client.query<{
       status:
         'running' | 'awaiting_approval' | 'completed' | 'failed' | 'cancelled';
@@ -313,44 +360,13 @@ export class AiStepRepository {
          AND r.next_sequence >= $4 + 1
          AND s.id=$6 AND s.sequence=$4 AND s.expected_version=$5 AND s.fence=$7
          AND s.state IN ('committed','awaiting_approval')
-         AND ($10::uuid IS NULL OR EXISTS (
-           SELECT 1 FROM app.ai_operations o
-           JOIN app.ai_steps operation_step
-             ON operation_step.org_id=o.org_id AND operation_step.run_id=o.run_id
-            AND operation_step.id=o.step_id
-           WHERE o.org_id=s.org_id AND o.run_id=s.run_id
-             AND operation_step.sequence<=s.sequence
-             AND o.id=$10 AND (
-               ($11='approval-required' AND o.status='awaiting_approval'
-                 AND o.kind='approval') OR
-               ($11='question-required' AND o.status='awaiting_approval'
-                 AND o.kind='question') OR
-               ($11='tool-input-available') OR
-               ($11='tool-output-available' AND
-                 o.status IN ('succeeded','failed','outcome_unknown','answered')) OR
-               ($11='operation-status' AND
-                 CASE WHEN o.status='succeeded' THEN 'completed' ELSE o.status END=$12)
-             )
-         ))
+         ${operationArms.map((arm) => `AND ${arm}`).join('\n         ')}
          AND NOT EXISTS (
            SELECT 1 FROM app.ai_steps newer
            WHERE newer.org_id=s.org_id AND newer.run_id=s.run_id
              AND newer.sequence>s.sequence AND newer.state IN ('committed','awaiting_approval')
          )`,
-      [
-        scope.orgId,
-        claim.runId,
-        claim.userId,
-        claim.sequence,
-        claim.expectedVersion,
-        claim.stepId,
-        claim.fence,
-        claim.committedRunVersion,
-        claim.committedStatus,
-        'operationId' in event ? event.operationId : null,
-        event.type,
-        event.type === 'operation-status' ? event.status : '',
-      ],
+      params,
     );
     const row = result.rows[0];
     return row

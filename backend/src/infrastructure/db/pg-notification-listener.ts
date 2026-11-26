@@ -6,12 +6,14 @@ export const CHAT_TITLE_NOTIFICATION_CHANNEL = 'lexon_chat_title';
 const RUN_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 // F6 §5 row 12: the payload is content-free — {orgId,chatId} only. The
-// server fans out per connected user that passes the read predicate, so no
-// userId is emitted (a deny-listed id in the payload would be a leak and a
-// member-only payload would miss share recipients).
+// server resolves the audience once per notification via
+// ops.lexon_chat_notification_audience and fans out to matching
+// connections. Access-change notifications add userIds: explicit targets
+// whose chat list changed (chatId null = refresh-only, nothing leaks).
 const ChatTitleNotificationSchema = z.strictObject({
   orgId: z.uuid(),
-  chatId: z.uuid(),
+  chatId: z.uuid().nullable(),
+  userIds: z.array(z.uuid()).optional(),
 });
 export type ChatTitleNotification = z.infer<typeof ChatTitleNotificationSchema>;
 
@@ -60,7 +62,12 @@ export class PgNotificationListener {
         if (parsed.success)
           this.options.onChatTitleNotification({
             orgId: parsed.data.orgId.toLowerCase(),
-            chatId: parsed.data.chatId.toLowerCase(),
+            chatId: parsed.data.chatId?.toLowerCase() ?? null,
+            ...(parsed.data.userIds
+              ? {
+                  userIds: parsed.data.userIds.map((id) => id.toLowerCase()),
+                }
+              : {}),
           });
       }
     });
