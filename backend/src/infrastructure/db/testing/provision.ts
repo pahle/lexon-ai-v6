@@ -155,9 +155,61 @@ async function replayMigrationFunctions(
   }
 }
 
+export async function revertChatShareAudit0048ForUpgradeTest(
+  migratorUrl: string,
+): Promise<void> {
+  const client = new Client({ connectionString: migratorUrl });
+  try {
+    await client.connect();
+    const role = await client.query<{ current_user: string }>(
+      'SELECT current_user',
+    );
+    if (role.rows[0]?.current_user !== 'lexon_migrator')
+      throw new Error('Wrong migration test role');
+    const journal = JSON.parse(
+      await readFile(
+        new URL('../../../../drizzle/meta/_journal.json', import.meta.url),
+        'utf8',
+      ),
+    ) as { entries: Array<{ tag: string; when: number }> };
+    const migration = journal.entries.find(
+      (entry) => entry.tag === '0048_chat_share_audit',
+    );
+    if (!migration) throw new Error('Migration 0048 journal entry missing');
+    await client.query('BEGIN');
+    // Reverses 0048_chat_share_audit: the validator regains its 0047 body
+    // (the share arms drop) and the row trigger returns to its 0037 dispatch
+    // (chat.% back to the AI validator) so migrateDatabase replays 0048.
+    await client.query('DROP FUNCTION auth.lexon_validate_audit(jsonb);');
+    await replayMigrationFunctions(client, '0047_ethical_wall_audit.sql', [
+      'auth.lexon_validate_audit',
+    ]);
+    // The audit-row trigger binds by name and is never re-created after 0005:
+    // OR REPLACE restores the 0037 dispatch, no drop needed.
+    await replayMigrationFunctions(client, '0037_chat_mutation_audit.sql', [
+      'auth.lexon_validate_audit_row',
+    ]);
+    const removed = await client.query(
+      'DELETE FROM drizzle.__drizzle_migrations WHERE created_at=$1::bigint',
+      [migration.when],
+    );
+    if (removed.rowCount !== 1)
+      throw new Error('Expected to remove the 0048 migration journal row');
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
 export async function revertEthicalWallAudit0047ForUpgradeTest(
   migratorUrl: string,
 ): Promise<void> {
+  // The 0048 share-arm validator rewrite is newest — it unwinds first, same
+  // newest-to-oldest rule the rest of the chain follows.
+  await revertChatShareAudit0048ForUpgradeTest(migratorUrl);
   const client = new Client({ connectionString: migratorUrl });
   try {
     await client.connect();

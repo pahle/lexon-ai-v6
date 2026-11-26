@@ -523,6 +523,18 @@ const projectDenyLifted = z.strictObject({
     setByUserId: UuidSchema,
   }),
 });
+const chatShared = z.strictObject({
+  ...projectAudit,
+  type: z.literal('chat.shared.v1'),
+  subjectUserId: UuidSchema,
+  metadata: z.strictObject({ chatId: UuidSchema }),
+});
+const chatShareRevoked = z.strictObject({
+  ...projectAudit,
+  type: z.literal('chat.share_revoked.v1'),
+  subjectUserId: UuidSchema,
+  metadata: z.strictObject({ chatId: UuidSchema }),
+});
 export const AuditEventSchema = z.union([
   failed,
   success,
@@ -565,6 +577,8 @@ export const AuditEventSchema = z.union([
   projectMemberRemoved,
   projectDenyAdded,
   projectDenyLifted,
+  chatShared,
+  chatShareRevoked,
 ]);
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 export type OrgAuditEvent = AuditEvent & { orgId: string };
