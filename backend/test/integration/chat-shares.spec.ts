@@ -130,13 +130,15 @@ test('share add lists recipients, grants reader access, revokes into identical 4
   const pools = createPlatformPools(services);
   const opened: Response[] = [];
   try {
-    const [owner, recipient, outsider] = await Promise.all(
-      ['Share Owner', 'Share Recipient', 'Share Outsider'].map((name) =>
-        proof.signIn({
-          body: { name, email: `${randomUUID()}@example.test`, password },
-        }),
-      ),
-    );
+    const signIn = (name: string) =>
+      proof.signIn({
+        body: { name, email: `${randomUUID()}@example.test`, password },
+      });
+    const [owner, recipient, outsider] = await Promise.all([
+      signIn('Share Owner'),
+      signIn('Share Recipient'),
+      signIn('Share Outsider'),
+    ]);
     const team = await organizations.seedTeam([owner.userId, recipient.userId]);
     for (const user of [owner, recipient]) await activate(proof, user, team.id);
     const { chatId } = await seedSharedChat(pools, {
@@ -258,13 +260,15 @@ test('sharing refuses project chats and non-org targets, and access ends when th
   const organizations = createOrganizationInspector(services);
   const pools = createPlatformPools(services);
   try {
-    const [owner, recipient, outsider] = await Promise.all(
-      ['Refuse Owner', 'Refuse Recipient', 'Refuse Outsider'].map((name) =>
-        proof.signIn({
-          body: { name, email: `${randomUUID()}@example.test`, password },
-        }),
-      ),
-    );
+    const signIn = (name: string) =>
+      proof.signIn({
+        body: { name, email: `${randomUUID()}@example.test`, password },
+      });
+    const [owner, recipient, outsider] = await Promise.all([
+      signIn('Refuse Owner'),
+      signIn('Refuse Recipient'),
+      signIn('Refuse Outsider'),
+    ]);
     const team = await organizations.seedTeam([owner.userId, recipient.userId]);
     for (const user of [owner, recipient]) await activate(proof, user, team.id);
     const projectId = randomUUID();
@@ -357,13 +361,14 @@ test('an open run stream closes within the revalidation window when the share is
   const organizations = createOrganizationInspector(services);
   const pools = createPlatformPools(services);
   try {
-    const [owner, recipient] = await Promise.all(
-      ['Stream Owner', 'Stream Recipient'].map((name) =>
-        proof.signIn({
-          body: { name, email: `${randomUUID()}@example.test`, password },
-        }),
-      ),
-    );
+    const signIn = (name: string) =>
+      proof.signIn({
+        body: { name, email: `${randomUUID()}@example.test`, password },
+      });
+    const [owner, recipient] = await Promise.all([
+      signIn('Stream Owner'),
+      signIn('Stream Recipient'),
+    ]);
     const team = await organizations.seedTeam([owner.userId, recipient.userId]);
     for (const user of [owner, recipient]) await activate(proof, user, team.id);
     const { chatId, runId } = await seedSharedChat(pools, {

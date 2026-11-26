@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import { test } from '../setup/file-services.js';
+import type { FileServices } from '../setup/provided-context.js';
 import { createAuthFixture } from '../../src/infrastructure/db/testing/auth-fixture.js';
 import { createOrganizationInspector } from '../../src/infrastructure/db/testing/organization-fixture.js';
 import { createPlatformPools } from '../../src/infrastructure/db/testing/platform-console-fixture.js';
@@ -28,7 +29,7 @@ const jsonHeaders = (cookieHeaders: Headers) => {
   return headers;
 };
 
-async function boot(services: Parameters<typeof createAuthFixture>[0]) {
+async function boot(services: FileServices) {
   const env = createAuthEnvironment(services, '/tmp/lexon-projects.json');
   const app = await createTestApi(loadRuntimeConfig('api', env));
   await app.listen(0, '127.0.0.1');
@@ -60,13 +61,16 @@ test('project create, list, detail, settings and instructions honor the access m
   const organizations = createOrganizationInspector(services);
   const pools = createPlatformPools(services);
   try {
-    const [owner, editor, member, outsider] = await Promise.all(
-      ['Owner', 'Editor', 'Member', 'Outsider'].map((name) =>
-        proof.signIn({
-          body: { name, email: `${randomUUID()}@example.test`, password },
-        }),
-      ),
-    );
+    const signIn = (name: string) =>
+      proof.signIn({
+        body: { name, email: `${randomUUID()}@example.test`, password },
+      });
+    const [owner, editor, member, outsider] = await Promise.all([
+      signIn('Owner'),
+      signIn('Editor'),
+      signIn('Member'),
+      signIn('Outsider'),
+    ]);
     const team = await organizations.seedTeam([
       owner.userId,
       editor.userId,
@@ -198,13 +202,14 @@ test('denied members get the identical 404 on every project read route', async (
   const organizations = createOrganizationInspector(services);
   const pools = createPlatformPools(services);
   try {
-    const [owner, member] = await Promise.all(
-      ['Owner', 'Member'].map((name) =>
-        proof.signIn({
-          body: { name, email: `${randomUUID()}@example.test`, password },
-        }),
-      ),
-    );
+    const signIn = (name: string) =>
+      proof.signIn({
+        body: { name, email: `${randomUUID()}@example.test`, password },
+      });
+    const [owner, member] = await Promise.all([
+      signIn('Owner'),
+      signIn('Member'),
+    ]);
     const team = await organizations.seedTeam([owner.userId, member.userId]);
     for (const user of [owner, member]) await activate(proof, user, team.id);
     const create = await fetch(`${origin}/api/projects`, {

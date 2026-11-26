@@ -62,13 +62,16 @@ test('member add, role change and remove enforce owner-only writes and emit acce
   const pools = createPlatformPools(services);
   const opened: Response[] = [];
   try {
-    const [owner, editor, member, outsider] = await Promise.all(
-      ['Owner', 'Editor', 'Member', 'Outsider'].map((name) =>
-        proof.signIn({
-          body: { name, email: `${randomUUID()}@example.test`, password },
-        }),
-      ),
-    );
+    const signIn = (name: string) =>
+      proof.signIn({
+        body: { name, email: `${randomUUID()}@example.test`, password },
+      });
+    const [owner, editor, member, outsider] = await Promise.all([
+      signIn('Owner'),
+      signIn('Editor'),
+      signIn('Member'),
+      signIn('Outsider'),
+    ]);
     const team = await organizations.seedTeam([
       owner.userId,
       editor.userId,
@@ -223,13 +226,14 @@ test('org member search returns picker rows for the member-add target', async ({
   });
   const organizations = createOrganizationInspector(services);
   try {
-    const [owner, member] = await Promise.all(
-      ['Matter Owner', 'Matter Member'].map((name) =>
-        proof.signIn({
-          body: { name, email: `${randomUUID()}@example.test`, password },
-        }),
-      ),
-    );
+    const signIn = (name: string) =>
+      proof.signIn({
+        body: { name, email: `${randomUUID()}@example.test`, password },
+      });
+    const [owner, member] = await Promise.all([
+      signIn('Matter Owner'),
+      signIn('Matter Member'),
+    ]);
     const team = await organizations.seedTeam([owner.userId, member.userId]);
     for (const user of [owner, member]) await activate(proof, user, team.id);
     const response = await fetch(`${origin}/api/org/members/search?q=Matter`, {

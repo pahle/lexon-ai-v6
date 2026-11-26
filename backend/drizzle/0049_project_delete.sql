@@ -252,7 +252,8 @@ BEGIN
   context_user:=NULLIF(current_setting('app.user_id',true),'')::uuid;
   IF context_org IS NULL OR context_user IS NULL OR input_project_id IS NULL
     OR context_org IS DISTINCT FROM input_org_id OR context_user IS DISTINCT FROM input_user_id
-    OR input_grace_ms IS NULL OR input_grace_ms < 1 THEN
+    OR input_grace_ms IS NULL OR input_grace_ms < 1
+    OR NOT ops.lexon_org_member(input_org_id,input_user_id) THEN
     RETURN NULL;
   END IF;
   PERFORM pg_advisory_xact_lock(hashtextextended('lexon.ai_step_claim:' || context_org::text,0));

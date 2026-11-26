@@ -6,6 +6,7 @@ import {
   chatShare,
   createProjectScenario,
   projectDeny,
+  projectMemberRemove,
 } from '../../src/infrastructure/db/testing/project-fixture.js';
 import { TenantDatabase } from '../../src/infrastructure/db/index.js';
 import {
@@ -291,6 +292,135 @@ test('access-change notifications deliver a chatless refresh to exactly the list
     ]);
     expect(collected.get(scenario.users.owner)!.events).toEqual([]);
     expect(collected.get(scenario.users.editor)!.events).toEqual([]);
+  } finally {
+    await signals.close();
+    await pools.close();
+    await database.close();
+  }
+});
+
+test('a denied project-chat owner, a removed member and an org-removed standalone owner receive no event', async ({
+  services,
+}) => {
+  // F6 batch-2 review: the audience is resolved through
+  // ops.lexon_project_access_for — a denied chat owner and a member
+  // removed from the project are no longer candidates, and the owner arm
+  // only admits standalone chats whose owner is still an org member.
+  const pools = createPlatformPools(services);
+  const scenario = await createProjectScenario({
+    app: pools.app,
+    migrator: pools.migrator,
+  });
+  const database = new TenantDatabase({
+    appUrl: services.appUrl,
+    poolMax: 4,
+    statementTimeoutMs: 10000,
+  });
+  const signals = new CancelSignals({
+    url: services.valkey.queueUrl,
+    prefix: `test-audience-${randomUUID().slice(0, 8)}`,
+    databaseUrl: services.appUrl,
+    database,
+    runs: new AiRunRepository(),
+  });
+  const collected = new Map<string, Collected>();
+  try {
+    for (const userId of [
+      scenario.users.owner,
+      scenario.users.editor,
+      scenario.users.viewer,
+    ]) {
+      const bucket: Collected = { events: [], unavailable: 0 };
+      collected.set(userId, bucket);
+      await signals.subscribeChatTitleInvalidations(
+        { orgId: scenario.orgId, userId },
+        (notification) => bucket.events.push(notification),
+        () => bucket.unavailable++,
+      );
+    }
+
+    // The viewer owns viewerChatId — denying them at the project must
+    // exclude them even though they own the chat.
+    await projectDeny(pools.migrator, {
+      orgId: scenario.orgId,
+      projectId: scenario.projectId,
+      userId: scenario.users.viewer,
+      setByUserId: scenario.users.owner,
+    });
+    await pools.migrator.query("SELECT pg_notify('lexon_chat_title', $1)", [
+      JSON.stringify({
+        orgId: scenario.orgId,
+        chatId: scenario.viewerChatId,
+      }),
+    ]);
+    await waitFor(
+      () =>
+        collected.get(scenario.users.owner)!.events.length >= 1 &&
+        collected.get(scenario.users.editor)!.events.length >= 1,
+      'remaining project-chat audience received the invalidation',
+    );
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(collected.get(scenario.users.viewer)!.events).toEqual([]);
+
+    // Removing the editor's member row removes them from the candidate
+    // set — no event for their own chat either.
+    await projectMemberRemove(pools.migrator, {
+      orgId: scenario.orgId,
+      projectId: scenario.projectId,
+      userId: scenario.users.editor,
+    });
+    await pools.migrator.query("SELECT pg_notify('lexon_chat_title', $1)", [
+      JSON.stringify({
+        orgId: scenario.orgId,
+        chatId: scenario.editorChatId,
+      }),
+    ]);
+    await waitFor(
+      () => collected.get(scenario.users.owner)!.events.length >= 2,
+      'project owner received the member-chat invalidation',
+    );
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(collected.get(scenario.users.editor)!.events).toHaveLength(1);
+
+    // The owner arm only admits standalone chats whose owner is still an
+    // org member. A plain member (never an org owner — the auth trigger
+    // forbids removing those) owns a standalone chat: it receives the
+    // invalidation while a member, then nothing after org removal.
+    const memberStandaloneId = randomUUID();
+    await pools.migrator.query(
+      `INSERT INTO app.chats(id,org_id,owner_user_id,title,project_id)
+       VALUES ($1,$2,$3,'member standalone',NULL)`,
+      [memberStandaloneId, scenario.orgId, scenario.users.member],
+    );
+    const memberBucket: Collected = { events: [], unavailable: 0 };
+    collected.set(scenario.users.member, memberBucket);
+    await signals.subscribeChatTitleInvalidations(
+      { orgId: scenario.orgId, userId: scenario.users.member },
+      (notification) => memberBucket.events.push(notification),
+      () => memberBucket.unavailable++,
+    );
+    await pools.migrator.query("SELECT pg_notify('lexon_chat_title', $1)", [
+      JSON.stringify({
+        orgId: scenario.orgId,
+        chatId: memberStandaloneId,
+      }),
+    ]);
+    await waitFor(
+      () => memberBucket.events.length >= 1,
+      'org-member standalone owner received the invalidation',
+    );
+    await pools.migrator.query(
+      'DELETE FROM auth.member WHERE organization_id=$1 AND user_id=$2',
+      [scenario.orgId, scenario.users.member],
+    );
+    await pools.migrator.query("SELECT pg_notify('lexon_chat_title', $1)", [
+      JSON.stringify({
+        orgId: scenario.orgId,
+        chatId: memberStandaloneId,
+      }),
+    ]);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(memberBucket.events).toHaveLength(1);
   } finally {
     await signals.close();
     await pools.close();

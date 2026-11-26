@@ -155,9 +155,61 @@ async function replayMigrationFunctions(
   }
 }
 
+export async function revertChatAudienceAccess0050ForUpgradeTest(
+  migratorUrl: string,
+): Promise<void> {
+  const client = new Client({ connectionString: migratorUrl });
+  try {
+    await client.connect();
+    const role = await client.query<{ current_user: string }>(
+      'SELECT current_user',
+    );
+    if (role.rows[0]?.current_user !== 'lexon_migrator')
+      throw new Error('Wrong migration test role');
+    const journal = JSON.parse(
+      await readFile(
+        new URL('../../../../drizzle/meta/_journal.json', import.meta.url),
+        'utf8',
+      ),
+    ) as { entries: Array<{ tag: string; when: number }> };
+    const migration = journal.entries.find(
+      (entry) => entry.tag === '0050_chat_audience_access',
+    );
+    if (!migration) throw new Error('Migration 0050 journal entry missing');
+    await client.query('BEGIN');
+    // Reverses 0050_chat_audience_access: the service-claims access oracle
+    // drops and the audience function regains its 0045 body so
+    // migrateDatabase replays 0050 cleanly.
+    await client.query(
+      'DROP FUNCTION ops.lexon_project_access_for(uuid,uuid,uuid);',
+    );
+    await client.query(
+      'DROP FUNCTION ops.lexon_chat_notification_audience(uuid,uuid);',
+    );
+    await replayMigrationFunctions(client, '0045_fix_batch.sql', [
+      'ops.lexon_chat_notification_audience',
+    ]);
+    const removed = await client.query(
+      'DELETE FROM drizzle.__drizzle_migrations WHERE created_at=$1::bigint',
+      [migration.when],
+    );
+    if (removed.rowCount !== 1)
+      throw new Error('Expected to remove the 0050 migration journal row');
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
 export async function revertProjectDelete0049ForUpgradeTest(
   migratorUrl: string,
 ): Promise<void> {
+  // The 0050 audience-access rewrite is newest — it unwinds first, same
+  // newest-to-oldest rule the rest of the chain follows.
+  await revertChatAudienceAccess0050ForUpgradeTest(migratorUrl);
   const client = new Client({ connectionString: migratorUrl });
   try {
     await client.connect();

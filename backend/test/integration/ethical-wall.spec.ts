@@ -96,13 +96,15 @@ test('org metadata list, deny add removes the member atomically, and denied call
   const organizations = createOrganizationInspector(services);
   const pools = createPlatformPools(services);
   try {
-    const [adminA, adminB, member] = await Promise.all(
-      ['AdminA', 'AdminB', 'Member'].map((name) =>
-        proof.signIn({
-          body: { name, email: `${randomUUID()}@example.test`, password },
-        }),
-      ),
-    );
+    const signIn = (name: string) =>
+      proof.signIn({
+        body: { name, email: `${randomUUID()}@example.test`, password },
+      });
+    const [adminA, adminB, member] = await Promise.all([
+      signIn('AdminA'),
+      signIn('AdminB'),
+      signIn('Member'),
+    ]);
     const team = await organizations.seedTeam([
       adminA.userId,
       adminB.userId,
@@ -167,13 +169,14 @@ test('org metadata list, deny add removes the member atomically, and denied call
     expect(audits.rows).toHaveLength(2);
 
     // Denied member → byte-identical 404 on every project path.
-    const [real, ghost] = await Promise.all(
-      [project.id, randomUUID()].map((id) =>
-        fetch(`${origin}/api/projects/${id}`, {
-          headers: member.cookieHeaders,
-        }).then(normalized404),
-      ),
-    );
+    const fetch404 = (id: string) =>
+      fetch(`${origin}/api/projects/${id}`, {
+        headers: member.cookieHeaders,
+      }).then(normalized404);
+    const [real, ghost] = await Promise.all([
+      fetch404(project.id),
+      fetch404(randomUUID()),
+    ]);
     expect(real).toEqual(ghost);
     const chats = await fetch(`${origin}/api/projects/${project.id}/chats`, {
       headers: member.cookieHeaders,
@@ -328,13 +331,15 @@ test('self-deny is allowed, self-lift refused, a second admin lifts, and concurr
   const organizations = createOrganizationInspector(services);
   const pools = createPlatformPools(services);
   try {
-    const [adminA, adminB, member] = await Promise.all(
-      ['AdminA', 'AdminB', 'Member'].map((name) =>
-        proof.signIn({
-          body: { name, email: `${randomUUID()}@example.test`, password },
-        }),
-      ),
-    );
+    const signIn = (name: string) =>
+      proof.signIn({
+        body: { name, email: `${randomUUID()}@example.test`, password },
+      });
+    const [adminA, adminB, member] = await Promise.all([
+      signIn('AdminA'),
+      signIn('AdminB'),
+      signIn('Member'),
+    ]);
     const team = await organizations.seedTeam([
       adminA.userId,
       adminB.userId,

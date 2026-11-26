@@ -351,6 +351,13 @@
       "when": 1793404800049,
       "tag": "0049_project_delete",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1793404800050,
+      "tag": "0050_chat_audience_access",
+      "breakpoints": true
     }
   ]
 }

@@ -499,8 +499,10 @@ export class ChatRepository {
   /** Audience for one chat-scoped notification, resolved once per
    * notification by the fan-out dispatcher. Runs under org-scoped service
    * claims ({orgId} only — the definer refuses user-bound claims):
-   * standalone chats return owner + share recipients, project chats return
-   * owner + current members minus denies, org members only. */
+   * standalone chats return the org-member owner + share recipients;
+   * project chats return every candidate (project owner and members)
+   * that the ops.lexon_project_access_for oracle resolves to a real
+   * level — deny, member removal and org removal all exclude. */
   async notificationAudience(
     tx: TenantSession,
     chatId: string,

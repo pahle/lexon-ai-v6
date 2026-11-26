@@ -108,13 +108,16 @@ test('owner-only delete with the chatCount confirmation tombstones every project
   const organizations = createOrganizationInspector(services);
   const pools = createPlatformPools(services);
   try {
-    const [owner, editor, viewer, outsider] = await Promise.all(
-      ['Del Owner', 'Del Editor', 'Del Viewer', 'Del Outsider'].map((name) =>
-        proof.signIn({
-          body: { name, email: `${randomUUID()}@example.test`, password },
-        }),
-      ),
-    );
+    const signIn = (name: string) =>
+      proof.signIn({
+        body: { name, email: `${randomUUID()}@example.test`, password },
+      });
+    const [owner, editor, viewer, outsider] = await Promise.all([
+      signIn('Del Owner'),
+      signIn('Del Editor'),
+      signIn('Del Viewer'),
+      signIn('Del Outsider'),
+    ]);
     const team = await organizations.seedTeam([
       owner.userId,
       editor.userId,
@@ -305,13 +308,14 @@ test('a member chat with an active run is fenced to cancelling and the member st
   const organizations = createOrganizationInspector(services);
   const pools = createPlatformPools(services);
   try {
-    const [owner, member] = await Promise.all(
-      ['Run Owner', 'Run Member'].map((name) =>
-        proof.signIn({
-          body: { name, email: `${randomUUID()}@example.test`, password },
-        }),
-      ),
-    );
+    const signIn = (name: string) =>
+      proof.signIn({
+        body: { name, email: `${randomUUID()}@example.test`, password },
+      });
+    const [owner, member] = await Promise.all([
+      signIn('Run Owner'),
+      signIn('Run Member'),
+    ]);
     const team = await organizations.seedTeam([owner.userId, member.userId]);
     for (const user of [owner, member]) await activate(proof, user, team.id);
     const create = await fetch(`${origin}/api/projects`, {

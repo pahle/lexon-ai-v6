@@ -340,3 +340,19 @@ migration `0045` (reserved for task 8's `project_delete`); per the
 plan's foreign-migration rule, task 8 takes the next free number.
 Hardening follow-ups: observations 1–3 above; retry/deadline
 tolerance on `#publishCommittedLifecycle` per-chunk authority checks.
+
+## Batch-2 structure deviation (accepted)
+
+Tasks 5–8 ship on a single PR (#100, `f6-t5-projects → f6-projects`)
+instead of one PR per task — accepted deviation from the plan's
+per-task PR protocol. Batch-2 review fixes landed on the same branch:
+the spec-suite typecheck pass (test-included `tsc --noEmit`), the
+`ops.lexon_chat_notification_audience` rewrite (migration `0050` —
+project-chat candidates filtered through the new
+`ops.lexon_project_access_for` service-claims oracle instead of a
+re-implemented deny check; the chat-owner arm admits only standalone
+chats whose owner is still an org member), and the `ops.project_delete`
+org-membership gate. Note for future migrations: PostgreSQL 17 requires
+EXECUTE on the existing function for `CREATE OR REPLACE` — `0050`
+grants EXECUTE to `lexon_migrator` around the replace and restores the
+`0045` acl afterwards.

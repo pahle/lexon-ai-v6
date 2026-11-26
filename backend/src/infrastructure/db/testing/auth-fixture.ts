@@ -36,7 +36,7 @@ export async function createAuthFixture(
     mailTransport?: import('../../email/index.js').MailTransport;
     // Share the secret with an API under test so sessions minted by this
     // fixture authenticate against it (auth cookies are secret-signed).
-    secret?: string;
+    secret?: string | undefined;
   } = {},
 ) {
   const origin = 'http://localhost:3000';
