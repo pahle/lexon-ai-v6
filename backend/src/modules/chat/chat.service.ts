@@ -26,6 +26,7 @@ import {
   ChatRepository,
   ChatDeletionRepository,
   ChatSearchRepository,
+  ProjectRepository,
   isPgUniqueViolation,
   isRetryableAuthError,
   readTreeValidator,
@@ -40,6 +41,7 @@ import type {
 import { requireSession } from '../../infrastructure/db/index.js';
 import type { RunStreams } from '../../infrastructure/queue/index.js';
 import type { RunActor } from '../identity-access/index.js';
+import { IdentityError } from '../identity-access/index.js';
 import { RunAuthorizationService } from '../identity-access/index.js';
 import { AuditService } from '../audit/index.js';
 import { RunService } from './run.service.js';
@@ -112,6 +114,7 @@ export class ChatService {
   private readonly audit = new AuditService();
   private readonly deletions = new ChatDeletionRepository();
   private readonly searchRepository = new ChatSearchRepository();
+  private readonly projects = new ProjectRepository();
 
   constructor(
     private readonly database: TenantDatabase,
@@ -134,6 +137,16 @@ export class ChatService {
           (await this.deletions.wasDeleted(tx, 'message', input.userMessageId))
         )
           throw new ChatApiError('CHAT_NOT_FOUND');
+        // F6 §4.3/§6: the binding is checked through the access definer so a
+        // denied or absent project answers the identical 404, while an org
+        // member who merely lacks owner/editor standing gets 403. The
+        // create-request INSERT policy stays the backstop.
+        if (input.projectId !== undefined) {
+          const access = await this.projects.access(tx, input.projectId);
+          if (access === 'none') throw new IdentityError('NOT_FOUND', 404);
+          if (access !== 'owner' && access !== 'editor')
+            throw new IdentityError('ORG_FORBIDDEN', 403);
+        }
         const retry = await this.mutations.findCreateRequest(
           tx,
           input.requestId,
@@ -145,7 +158,8 @@ export class ChatService {
             retry.chatId !== input.chatId ||
             retry.userMessageId !== input.userMessageId ||
             retry.text !== input.text ||
-            retry.effort !== input.effort
+            retry.effort !== input.effort ||
+            retry.projectId !== (input.projectId ?? null)
           )
             throw new ChatApiError('CHAT_CONFLICT');
           return this.mutations.toMutationResult(retry);
@@ -154,7 +168,12 @@ export class ChatService {
         if (await this.chats.lockLive(tx, input.chatId))
           throw new ChatApiError('CHAT_CONFLICT');
         try {
-          await this.chats.insert(tx, input.chatId, titleExcerpt(input.text));
+          await this.chats.insert(
+            tx,
+            input.chatId,
+            titleExcerpt(input.text),
+            input.projectId,
+          );
           await this.messages.insertUser(tx, {
             chatId: input.chatId,
             messageId: input.userMessageId,
@@ -163,7 +182,10 @@ export class ChatService {
             effort: input.effort,
           });
           const { runId } = await this.runService.startWithin(tx, actor, {
-            profileId: 'chat',
+            // F6 §9: project-bound chats run the project-chat profile so the
+            // project context provider is selected. The chat row is already
+            // bound, so the capability gate resolves project standing from it.
+            profileId: input.projectId ? 'project-chat' : 'chat',
             prompt: input.text,
             effort: input.effort,
             resourceIds: [input.chatId],

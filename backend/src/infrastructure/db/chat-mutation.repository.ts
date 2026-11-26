@@ -11,6 +11,7 @@ export interface ChatCreateRequestRecord {
   readonly assistantMessageId: string;
   readonly text: string | null;
   readonly effort: 'high' | 'max' | null;
+  readonly projectId: string | null;
 }
 
 export interface ExistingChatMessageMutation {
@@ -42,9 +43,10 @@ export class ChatMutationRepository {
       assistant_message_id: string;
       user_text: string | null;
       effort: 'high' | 'max' | null;
+      project_id: string | null;
     }>(
       `SELECT request.chat_id,request.user_message_id,request.assistant_message_id,
-        message.user_text,message.effort
+        message.user_text,message.effort,request.project_id
        FROM app.chat_create_requests request
        LEFT JOIN app.chat_messages message ON message.org_id=request.org_id
          AND message.chat_id=request.chat_id AND message.id=request.user_message_id
@@ -59,6 +61,7 @@ export class ChatMutationRepository {
           assistantMessageId: row.assistant_message_id,
           text: row.user_text,
           effort: row.effort,
+          projectId: row.project_id,
         }
       : null;
   }
