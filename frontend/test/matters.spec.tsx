@@ -11,7 +11,7 @@ import type { MattersApi, ProjectDetail } from '../src/lib/matters-api';
 import { ChatClientError } from '../src/lib/chat-errors';
 import { MattersPage } from '../src/components/matters/matters-page';
 import { MatterPage } from '../src/components/matters/matter-page';
-import { render, settle } from './render';
+import { render, settle, settleUntil } from './render';
 
 const nav = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn(), search: '' }));
 vi.mock('next/navigation', () => ({
@@ -176,7 +176,9 @@ it('Matter page: owner sees the composer and editor controls; instructions rende
   const view = await render(
     tree(<MatterPage client={client} scope={scope} projectId={owned.id} />),
   );
-  await settle();
+  await settleUntil(() =>
+    view.container.textContent!.includes('Draft SPA review'),
+  );
   const text = view.container.textContent!;
   expect(text).toContain('Prasetyo acquisition');
   expect(text).toContain('M-2026-014');
@@ -228,9 +230,13 @@ it('Matter page: members dialog lists members with role controls and a restricte
   const view = await render(
     tree(<MatterPage client={client} scope={scope} projectId={owned.id} />),
   );
-  await settle();
+  await settleUntil(() => button(view.container, 'Members') !== undefined);
   await act(async () => button(view.container, 'Members')!.click());
-  await settle();
+  await settleUntil(() =>
+    document.body
+      .querySelector('[role="dialog"]')!
+      .textContent!.includes('Amara Wijaya'),
+  );
   const dialog = document.body.querySelector('[role="dialog"]')!;
   expect(dialog.textContent).toContain('Amara Wijaya');
   expect(dialog.textContent).toContain('Budi Santoso');
@@ -245,10 +251,14 @@ it('Matter page: delete confirm names the chat count', async () => {
   const view = await render(
     tree(<MatterPage client={api({})} scope={scope} projectId={owned.id} />),
   );
-  await settle();
+  await settleUntil(
+    () =>
+      view.container.querySelector('button[aria-label="Matter actions"]') !==
+      null,
+  );
   await act(async () =>
-    [...view.container.querySelectorAll('button')]
-      .find((b) => b.getAttribute('aria-label') === 'Matter actions')!
+    view.container
+      .querySelector<HTMLButtonElement>('button[aria-label="Matter actions"]')!
       .click(),
   );
   await settle();
