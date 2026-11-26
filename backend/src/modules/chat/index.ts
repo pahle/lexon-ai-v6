@@ -31,6 +31,7 @@ export { OperationExpirySweep } from './expiry-sweep.js';
 export { ChatModule } from './chat.module.js';
 export { RunEventsService } from './run-events.service.js';
 export { RunEventsController } from './run-events.controller.js';
+export type { DeletionSignalPublisher } from './chat-deletion.service.js';
 export { ChatHistoryContextProvider } from './chat-history-context.js';
 export type {
   ContextPiece,

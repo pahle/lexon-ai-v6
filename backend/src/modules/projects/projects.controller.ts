@@ -56,6 +56,16 @@ export class ProjectsController {
     );
   }
 
+  @Delete(':projectId')
+  @HttpCode(204)
+  remove(@Param('projectId') projectId: string, @Body() input: unknown) {
+    return this.projects.remove(
+      currentTenantContext(),
+      UuidSchema.parse(projectId),
+      input,
+    );
+  }
+
   @Patch(':projectId') settings(
     @Param('projectId') projectId: string,
     @Body() input: unknown,

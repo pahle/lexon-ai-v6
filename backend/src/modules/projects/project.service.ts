@@ -26,6 +26,8 @@ import {
 } from '@lexon/contracts';
 import {
   ChatRepository,
+  chatCleanupJobId,
+  OutboxRepository,
   pgFailure,
   ProjectRepository,
   TenantDatabase,
@@ -34,6 +36,7 @@ import {
   type TenantSession,
 } from '../../infrastructure/db/index.js';
 import { AuditService } from '../audit/index.js';
+import type { DeletionSignalPublisher } from '../chat/index.js';
 import {
   IdentityError,
   OrganizationAuthPort,
@@ -119,12 +122,18 @@ export class ProjectService {
   private readonly projects = new ProjectRepository();
   private readonly chats = new ChatRepository();
   private readonly audit = new AuditService();
+  private readonly outbox = new OutboxRepository();
 
   constructor(
     private readonly database: TenantDatabase,
     private readonly port: OrganizationAuthPort,
     private readonly config: {
       pagination: { defaultLimit: number; maxLimit: number };
+      deleteGraceMs?: number;
+    },
+    private readonly deletionSignals?: DeletionSignalPublisher,
+    private readonly deletionEvents?: {
+      closeRun(runId: string): Promise<void>;
     },
   ) {}
 
@@ -723,5 +732,72 @@ export class ProjectService {
         }),
       );
     return OrgMemberSearchResultSchema.parse({ items });
+  }
+
+  /** Project deletion (F6 §8): the 0049 definer tombstones every project
+   * chat with its deletion-work row and per-run notifies, fences live runs
+   * and cascades the projects row away — the owner claim is checked inside
+   * the function, so a non-owner can never drive it. The confirmation
+   * contract is the live `chatCount`; a mismatch is a 422, never a partial
+   * delete. Post-commit signals mirror F4 single-chat delete: one
+   * chat.cleanup.v1 outbox per chat plus the run fan-out the sweep needs. */
+  async remove(
+    ctx: TenantRequestContext,
+    projectId: string,
+    input: unknown,
+  ): Promise<void> {
+    const graceMs = this.config.deleteGraceMs;
+    if (!graceMs || !Number.isSafeInteger(graceMs) || graceMs < 1)
+      throw new IdentityError('INTERNAL_ERROR', 500);
+    const work = await this.database.withTenant(
+      { orgId: ctx.orgId, userId: ctx.userId },
+      async (tx) => {
+        const view = await this.requireView(tx, projectId);
+        if (view.access !== 'owner') throw forbidden();
+        const body = z
+          .strictObject({ chatCount: z.number().int().nonnegative().safe() })
+          .parse(input ?? {});
+        if (body.chatCount !== view.chatCount) throw invalid();
+        const deleted = await this.projects.projectDelete(
+          tx,
+          projectId,
+          graceMs,
+        );
+        if (!deleted) throw forbidden();
+        for (const chat of deleted.chats)
+          await this.outbox.append(
+            tx,
+            {
+              type: 'chat.cleanup.v1',
+              ctx: { orgId: ctx.orgId, userId: ctx.userId },
+              payload: { chatId: chat.chatId, phase: 'grace' },
+            },
+            { id: chatCleanupJobId(chat.chatId, 'grace') },
+          );
+        await this.audit.append(tx, {
+          version: 1,
+          eventId: randomUUID(),
+          occurredAt: new Date().toISOString(),
+          type: 'project.deleted.v1',
+          outcome: 'success',
+          orgId: ctx.orgId,
+          actorUserId: ctx.userId,
+          metadata: { projectId, chatCount: deleted.chatCount },
+        });
+        return deleted;
+      },
+    );
+    const runIds = work.chats.flatMap((chat) => chat.runIds);
+    await Promise.all(
+      runIds.map((runId) => this.deletionEvents?.closeRun(runId)),
+    );
+    await Promise.all(
+      runIds.map(async (runId) => {
+        await this.deletionSignals
+          ?.publishDeletion?.(runId)
+          .catch(() => undefined);
+        await this.deletionSignals?.publish(runId).catch(() => undefined);
+      }),
+    );
   }
 }

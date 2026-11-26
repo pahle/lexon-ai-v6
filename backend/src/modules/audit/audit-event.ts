@@ -523,6 +523,14 @@ const projectDenyLifted = z.strictObject({
     setByUserId: UuidSchema,
   }),
 });
+const projectDeleted = z.strictObject({
+  ...projectAudit,
+  type: z.literal('project.deleted.v1'),
+  metadata: z.strictObject({
+    projectId: UuidSchema,
+    chatCount: z.number().int().nonnegative().safe(),
+  }),
+});
 const chatShared = z.strictObject({
   ...projectAudit,
   type: z.literal('chat.shared.v1'),
@@ -577,6 +585,7 @@ export const AuditEventSchema = z.union([
   projectMemberRemoved,
   projectDenyAdded,
   projectDenyLifted,
+  projectDeleted,
   chatShared,
   chatShareRevoked,
 ]);

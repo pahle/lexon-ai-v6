@@ -436,4 +436,29 @@ export class ProjectRepository {
     );
     return result.rows[0]?.lifted ?? false;
   }
+
+  /** The 0049 definer owns the whole tombstone transaction (claims-bound,
+   * project-owner-gated): every project chat is marked deleted with its
+   * chat_deletion_work row, live runs fenced, per-run deletion notifies
+   * emitted, then the projects row cascades away. NULL = not the owner. */
+  async projectDelete(
+    tx: TenantSession,
+    projectId: string,
+    graceMs: number,
+  ): Promise<{
+    chatCount: number;
+    chats: { chatId: string; ownerUserId: string; runIds: string[] }[];
+  } | null> {
+    const { client, ctx } = requireSession(tx);
+    const result = await client.query<{ deleted: unknown }>(
+      `SELECT ops.project_delete($1,$2,$3,$4) AS deleted`,
+      [ctx.orgId, ctx.userId, projectId, graceMs],
+    );
+    const deleted = result.rows[0]?.deleted;
+    if (typeof deleted !== 'object' || deleted === null) return null;
+    return deleted as {
+      chatCount: number;
+      chats: { chatId: string; ownerUserId: string; runIds: string[] }[];
+    };
+  }
 }
