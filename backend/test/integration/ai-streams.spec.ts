@@ -53,9 +53,9 @@ function claimAuthority(
         (tx) => steps.advanceTerminalStreamGeneration(tx, claim, observed),
         { timeoutMs: 500 },
       ),
-    authorizeCommitted: (claim, event) =>
+    authorizeCommitted: (claim, events) =>
       database.withTenant({ orgId: claim.orgId, userId: claim.userId }, (tx) =>
-        steps.streamCommittedProof(tx, claim, event),
+        steps.streamCommittedProof(tx, claim, events),
       ),
     reconcile: (
       entries: readonly { runId: string; orgId: string; userId: string }[],
@@ -297,6 +297,98 @@ test('terminal finish uses fresh committed run version after a pause notificatio
       { version: 1, runId: run.id, type: 'status', status: 'cancelled' },
       { version: 1, runId: run.id, type: 'finish' },
     ]);
+  } finally {
+    redis.disconnect();
+    await streams.close();
+    await ai.close();
+  }
+});
+
+test('a committed publication authorizes once for the whole event batch', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const steps = new AiStepRepository();
+  const runs = new AiRunRepository();
+  let authorizeCalls = 0;
+  const base = claimAuthority(ai.database as TenantDatabase, steps);
+  const streams = new RunStreams({
+    url: services.valkey.streamsUrl,
+    prefix: services.queuePrefix,
+    authority: {
+      ...base,
+      authorizeCommitted: (claim, events) => {
+        authorizeCalls += 1;
+        return base.authorizeCommitted!(claim, events);
+      },
+    },
+  });
+  const redis = new Redis(services.valkey.streamsUrl);
+  try {
+    const run = await ai.start(0);
+    await ai.seedPendingStep(0, run.id);
+    const claim = await ai.claim(0, run.id, 1, 1, 30_000);
+    if (!claim) throw new Error('Stream test claim unavailable');
+    await streams.recover(claim, {
+      version: 1,
+      runId: run.id,
+      type: 'reset',
+      sequence: claim.sequence,
+    });
+    await ai.withTenant(0, async (tx) => {
+      expect(await steps.lockClaim(tx, claim)).toBe(true);
+      expect(
+        await runs.markRunningForClaim(tx, {
+          runId: claim.runId,
+          stepId: claim.stepId,
+          expectedVersion: claim.expectedVersion,
+          sequence: claim.sequence,
+          fence: claim.fence,
+        }),
+      ).toBe(true);
+      expect(
+        await steps.commit(tx, claim, {
+          state: 'awaiting_approval',
+          text: 'paused output',
+          data: {},
+        }),
+      ).toBe(true);
+      expect(
+        await runs.transition(tx, {
+          runId: run.id,
+          expectedVersion: claim.expectedVersion,
+          from: 'running',
+          to: 'awaiting_approval',
+          nextSequence: claim.sequence + 1,
+          outputAppend: 'paused output',
+        }),
+      ).toBe(true);
+    });
+    const committed = {
+      runId: claim.runId,
+      orgId: claim.orgId,
+      userId: claim.userId,
+      stepId: claim.stepId,
+      sequence: claim.sequence,
+      expectedVersion: claim.expectedVersion,
+      fence: claim.fence,
+      committedRunVersion: 2,
+      committedStatus: 'awaiting_approval' as const,
+    };
+    const batch = Array.from({ length: 12 }, () => ({
+      version: 1 as const,
+      runId: run.id,
+      type: 'status' as const,
+      status: 'awaiting_approval' as const,
+    }));
+    expect(await streams.publishCommitted(committed, batch)).toBe('written');
+    expect(authorizeCalls).toBe(1);
+    const events = await redis.xrange(
+      `${services.queuePrefix}:{run-streams}:${run.id}:events`,
+      '-',
+      '+',
+    );
+    expect(events).toHaveLength(13);
   } finally {
     redis.disconnect();
     await streams.close();

@@ -153,10 +153,10 @@ export function chatApiProviders(
                   steps.advanceTerminalStreamGeneration(tx, claim, observed),
                 { timeoutMs: 500 },
               ),
-            authorizeCommitted: (claim, event) =>
+            authorizeCommitted: (claim, events) =>
               database.withTenant(
                 { orgId: claim.orgId, userId: claim.userId },
-                (tx) => steps.streamCommittedProof(tx, claim, event),
+                (tx) => steps.streamCommittedProof(tx, claim, events),
               ),
             reconcile: (entries) =>
               Promise.all(

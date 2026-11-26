@@ -2139,10 +2139,10 @@ test('new approval requirement stages the pending operation without an effect', 
           { orgId: claim.orgId, userId: claim.userId },
           (tx) => steps.streamTerminalProof(tx, claim),
         ),
-      authorizeCommitted: (claim, event) =>
+      authorizeCommitted: (claim, events) =>
         ai.database.withTenant(
           { orgId: claim.orgId, userId: claim.userId },
-          (tx) => steps.streamCommittedProof(tx, claim, event),
+          (tx) => steps.streamCommittedProof(tx, claim, events),
         ),
       reconcile: async (entries) =>
         Promise.all(
@@ -2765,10 +2765,10 @@ test('approval-required transactional operations remain staged and produce no ef
         { orgId: claim.orgId, userId: claim.userId },
         (tx) => steps.streamTerminalProof(tx, claim),
       ),
-    authorizeCommitted: (claim, event) =>
+    authorizeCommitted: (claim, events) =>
       ai.database.withTenant(
         { orgId: claim.orgId, userId: claim.userId },
-        (tx) => steps.streamCommittedProof(tx, claim, event),
+        (tx) => steps.streamCommittedProof(tx, claim, events),
       ),
     reconcile: async (entries) =>
       entries.map((entry) => ({
@@ -3030,10 +3030,10 @@ test('proposal limits preserve every accepted approval event and refuse excess b
           { orgId: claim.orgId, userId: claim.userId },
           (tx) => steps.streamTerminalProof(tx, claim),
         ),
-      authorizeCommitted: (claim, event) =>
+      authorizeCommitted: (claim, events) =>
         ai.database.withTenant(
           { orgId: claim.orgId, userId: claim.userId },
-          (tx) => steps.streamCommittedProof(tx, claim, event),
+          (tx) => steps.streamCommittedProof(tx, claim, events),
         ),
       reconcile: async (entries) =>
         entries.map(({ runId }) => ({ runId, state: 'active' as const })),
@@ -3208,10 +3208,10 @@ test('a missing 31-event approval batch resets from all 15 durable operation sta
         { orgId: claim.orgId, userId: claim.userId },
         (tx) => steps.streamTerminalProof(tx, claim),
       ),
-    authorizeCommitted: (claim, event) =>
+    authorizeCommitted: (claim, events) =>
       ai.database.withTenant(
         { orgId: claim.orgId, userId: claim.userId },
-        (tx) => steps.streamCommittedProof(tx, claim, event),
+        (tx) => steps.streamCommittedProof(tx, claim, events),
       ),
     reconcile: async (entries) =>
       entries.map(({ runId }) => ({ runId, state: 'active' as const })),
@@ -5695,10 +5695,10 @@ test('a checkpoint after unavailable XADD persists text without a resumable curs
         { orgId: claim.orgId, userId: claim.userId },
         (tx) => steps.streamTerminalProof(tx, claim),
       ),
-    authorizeCommitted: (claim, event) =>
+    authorizeCommitted: (claim, events) =>
       ai.database.withTenant(
         { orgId: claim.orgId, userId: claim.userId },
-        (tx) => steps.streamCommittedProof(tx, claim, event),
+        (tx) => steps.streamCommittedProof(tx, claim, events),
       ),
     reconcile: async (entries) =>
       entries.map(({ runId }) => ({ runId, state: 'active' as const })),
@@ -7495,10 +7495,10 @@ test('terminal reset recovers committed text across an unconfirmed next-step rec
         { orgId: claim.orgId, userId: claim.userId },
         (tx) => steps.streamTerminalProof(tx, claim),
       ),
-    authorizeCommitted: (claim, event) =>
+    authorizeCommitted: (claim, events) =>
       ai.database.withTenant(
         { orgId: claim.orgId, userId: claim.userId },
-        (tx) => steps.streamCommittedProof(tx, claim, event),
+        (tx) => steps.streamCommittedProof(tx, claim, events),
       ),
     reconcile: async (
       entries: readonly { runId: string; orgId: string; userId: string }[],
