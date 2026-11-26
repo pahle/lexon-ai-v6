@@ -180,6 +180,79 @@ describe('selectPendingCapture', () => {
     assert.equal(picked.staleReviewDrift, true);
   });
 
+  it('accepts a baseline-identical capture when the checked-in copy drifted', (t) => {
+    const root = mkdtempSync(join(tmpdir(), 'pend-sel-'));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    // Claimed == baseline while the checked-in review bytes differ proves the
+    // file is a real capture: a stale copy would ship the checked-in bytes,
+    // not the baseline bytes. (settings-members-load-failed-mobile-light,
+    // run 45863433280 — the load-failed state renders no nav to diff.)
+    const reviewPath = join(root, 'review.png');
+    writeFileSync(reviewPath, STALE_REVIEW);
+    shardDir(root, 'shard-1', [], { 'a-desktop-light': STALE_REVIEW });
+    shardDir(root, 'shard-3', ['a-desktop-light'], {
+      'a-desktop-light': BASELINE,
+    });
+    const picked = selectPendingCapture({
+      captureRoot: root,
+      id: 'a-desktop-light',
+      baselinePath: baselineFile(root),
+      reviewPath,
+    });
+    assert.equal(
+      picked.path,
+      join(root, 'shard-3', 'review', 'a-desktop-light.png'),
+    );
+    assert.equal(picked.identicalToBaseline, true);
+    assert.equal(picked.identicalToCheckedIn, false);
+    assert.equal(picked.staleReviewDrift, true);
+  });
+
+  it('fails when a non-claimer holds a file that is not the checked-in copy', (t) => {
+    const root = mkdtempSync(join(tmpdir(), 'pend-sel-'));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    // Claimed == baseline while a non-claimer holds neither baseline nor the
+    // checked-in bytes: a real capture is hiding in a shard pending.txt does
+    // not claim — the baseline pick cannot be trusted.
+    const reviewPath = join(root, 'review.png');
+    writeFileSync(reviewPath, STALE_REVIEW);
+    shardDir(root, 'shard-1', ['a-desktop-light'], {
+      'a-desktop-light': BASELINE,
+    });
+    shardDir(root, 'shard-2', [], { 'a-desktop-light': REAL_A });
+    assert.throws(
+      () =>
+        selectPendingCapture({
+          captureRoot: root,
+          id: 'a-desktop-light',
+          baselinePath: baselineFile(root),
+          reviewPath,
+        }),
+      /baseline bytes.*shard-1.*shard-2/i,
+    );
+  });
+
+  it('fails on two different non-baseline files (hidden second capture)', (t) => {
+    const root = mkdtempSync(join(tmpdir(), 'pend-sel-'));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    const reviewPath = join(root, 'review.png');
+    writeFileSync(reviewPath, STALE_REVIEW);
+    shardDir(root, 'shard-1', ['a-desktop-light'], {
+      'a-desktop-light': REAL_A,
+    });
+    shardDir(root, 'shard-2', [], { 'a-desktop-light': REAL_B });
+    assert.throws(
+      () =>
+        selectPendingCapture({
+          captureRoot: root,
+          id: 'a-desktop-light',
+          baselinePath: baselineFile(root),
+          reviewPath,
+        }),
+      /different|neither|conflicting/i,
+    );
+  });
+
   it('accepts a first-time capture with no baseline and no checked-in file', (t) => {
     const root = mkdtempSync(join(tmpdir(), 'pend-sel-'));
     t.after(() => rmSync(root, { recursive: true, force: true }));

@@ -16,6 +16,11 @@
 //
 //   node scripts/visual-compare-sidebar-delta.mjs \
 //     [--set F4.1-visual] [--capture-root <dir>] [--out-dir <dir>] [--ids a,b]
+//     [--run <id>] [--mode sidebar|bbox]
+//
+// `--mode bbox` reports the diff bounding box per id without a region verdict
+// (insideSidebarRegion = null); use it for non-sidebar review packets where the
+// expected-change zones differ per view category.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { chromium } from 'playwright-core';
@@ -28,7 +33,13 @@ const PANEL_HEIGHT = 520;
 const SIDEBAR_REGION_X = { desktop: 260, mobile: 304 };
 
 function parseArgs(argv) {
-  const args = { captureRoot: null, outDir: null, ids: null };
+  const args = {
+    captureRoot: null,
+    outDir: null,
+    ids: null,
+    run: '45807656646',
+    mode: 'sidebar',
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const flag = argv[i];
     const next = () => argv[++i];
@@ -36,7 +47,12 @@ function parseArgs(argv) {
     else if (flag === '--capture-root') args.captureRoot = next();
     else if (flag === '--out-dir') args.outDir = next();
     else if (flag === '--ids') args.ids = next().split(',');
-    else throw new Error(`Unknown flag: ${flag}`);
+    else if (flag === '--run') args.run = next();
+    else if (flag === '--mode') {
+      args.mode = next();
+      if (args.mode !== 'sidebar' && args.mode !== 'bbox')
+        throw new Error(`Invalid --mode: ${args.mode}`);
+    } else throw new Error(`Unknown flag: ${flag}`);
   }
   return args;
 }
@@ -257,10 +273,12 @@ async function main() {
   const selectionMeta = new Map();
   for (const id of pending) {
     const baselinePath = resolve(baselineDir, `${id}.png`);
+    const reviewPath = resolve(dir, `review`, `${id}.png`);
     const picked = selectPendingCapture({
       captureRoot,
       id,
       baselinePath: existsSync(baselinePath) ? baselinePath : null,
+      reviewPath: existsSync(reviewPath) ? reviewPath : null,
     });
     captureFor.set(id, picked.path);
     selectionMeta.set(id, picked);
@@ -315,7 +333,7 @@ async function main() {
         height: size.height,
         labels: {
           title: `${id} — ${view.state ?? ''}`,
-          note: `approved golden vs pending capture (run 45807656646) — ${masks.length} masked rect(s)`,
+          note: `approved golden vs pending capture (run ${args.run}) — ${masks.length} masked rect(s)`,
           panelH: PANEL_HEIGHT,
         },
       });
@@ -324,8 +342,13 @@ async function main() {
         Buffer.from(out.sheetB64, 'base64'),
       );
       const regionX = SIDEBAR_REGION_X[view.viewport];
-      const inside = out.bbox === null || out.bbox.x1 < regionX;
-      (inside ? verdict.insideRegion : verdict.outsideRegion).push(id);
+      const inside =
+        args.mode === 'bbox'
+          ? null
+          : out.bbox === null || out.bbox.x1 < regionX;
+      (inside === false ? verdict.outsideRegion : verdict.insideRegion).push(
+        id,
+      );
       const meta = selectionMeta.get(id) ?? {};
       results.push({
         id,
@@ -367,7 +390,7 @@ async function main() {
         const b64 = await page.evaluate(contactInPage, {
           tiles: slice.map((r) => ({
             id: r.id,
-            regionOk: r.insideSidebarRegion,
+            regionOk: r.insideSidebarRegion !== false,
             differing: r.differing,
             percent: r.percent,
             bbox: r.bbox,
