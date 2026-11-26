@@ -118,6 +118,32 @@ export class ChatRepository {
     return result.rows[0] ? mapChat(result.rows[0]) : null;
   }
 
+  /**
+   * Lock every live chat bound to a run, in id order. Decide paths must take
+   * this before locking ai_operations: the operation UPDATE fires the 0026
+   * write-fence trigger which locks the bound chat, so deciding ops-then-chat
+   * inverts the send path's chats-then-ops order (the 40P01 cycle).
+   */
+  async lockLiveForRun(tx: TenantSession, runId: string): Promise<void> {
+    if (!uuid.safeParse(runId).success) return;
+    const { client, ctx } = requireSession(tx);
+    if (!ctx.userId) return;
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      excludeDeleted: true,
+    });
+    await client.query(
+      `SELECT c.id FROM app.chat_runs cr
+       JOIN app.chats c ON c.org_id=cr.org_id AND c.id=cr.chat_id
+       WHERE cr.org_id=$1 AND cr.run_id=$2
+         AND ${scope.where('c', '$1', '$3')}
+       ORDER BY c.id FOR UPDATE OF c`,
+      [scope.orgId, runId, scope.userId],
+    );
+  }
+
   async readLive(
     tx: TenantSession,
     chatId: string,
