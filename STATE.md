@@ -377,3 +377,12 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
      - every action button carries an icon;
      - the floating action bar is always fixed at the bottom of the screen.
   5. **Re-check the ruleset;** merges slipped through three times.
+
+## 2026-11-26 — F6 batch 3 checkpoint (reconciled from a second reviewer session)
+
+- #102 task 9 merged into f6-projects as 0accec6c (CI green on f58ea27d). Post-merge run 45807656646 (unit-integration, ai-execution publishedApprovalIds empty) and 45807647830 (SSE S2 peak 456/500) green on attempt 2.
+- Task 9 fixed real bugs: project chats were created under profile 'chat' instead of 'project-chat'; viewer create was 500, now 403; denied/absent 404; matter 404 -> not-found page.
+- Owner decision: additive ownerName on ChatDetail (readers) and shared-scope ChatPage items; implementer also added restrictedCount on OrgProjectSummary (admin metadata) without asking.
+- index.json now has 190 pending ids (all app-shell states, sidebar Matters group). Those views have NO golden protection until the owner approves the CI sheets (run 45805110278). Linux UI round 1 of 2 used.
+- Open: ai-execution flake uses the same 250 ms publication-deadline mechanism as the batch-1 stream truncation; demand evidence. SSE peak dropped 490 -> 456; re-check in task 11. b8904025 was pushed straight to f6-projects (no PR).
+- Implementer is mid task 10 (reader gating, share dialog, settings Matters, shared tab).
