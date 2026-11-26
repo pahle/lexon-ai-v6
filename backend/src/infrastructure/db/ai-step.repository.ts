@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import { RunErrorCodeSchema, type RunStreamEvent } from '@lexon/contracts';
 import { buildAuthorizationPredicate } from './authorization-predicate.js';
-import { requireSession, type TenantSession } from './tenant-session.js';
+import {
+  applyClaimLaneLockTimeout,
+  isLockWaitTimeout,
+  requireSession,
+  type TenantSession,
+} from './tenant-session.js';
 import { AiChatResourceRepository } from './ai-chat-resource.repository.js';
 import type {
   StepClaim,
@@ -157,6 +162,9 @@ export class AiStepRepository {
   } | null> {
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId || !uuid.safeParse(input.runId).success) return null;
+    // The definer takes the org claim lane; bound its wait like every other
+    // claim-lane call in this transaction.
+    await applyClaimLaneLockTimeout(client);
     const result = await client.query<{
       run_status: string;
       run_version: number;
@@ -228,6 +236,7 @@ export class AiStepRepository {
       claim.fence < 0
     )
       return { changed: false, runVersion: null };
+    await applyClaimLaneLockTimeout(client);
     const result = await client.query<{
       changed: boolean;
       run_version: number | null;
@@ -830,33 +839,41 @@ export class AiStepRepository {
     )
       return null;
     const scope = buildAuthorizationPredicate(ctx);
-    await this.lockTenantClaimGuard(tx);
-    if (!(await this.chatResources.lockLiveForRun(tx, input.runId)))
-      return null;
-    const run = await client.query(
-      `SELECT 1 FROM app.ai_runs WHERE org_id=$1 AND id=$2 AND run_version=$3
-       AND next_sequence=$4 AND status IN ('queued','running','awaiting_approval','cancelling') FOR UPDATE`,
-      [scope.orgId, input.runId, input.expectedVersion, input.sequence],
-    );
-    if (run.rowCount !== 1) return null;
-    const selected = await client.query<StepRow & { lease_live: boolean }>(
-      `SELECT s.*,(s.lease_until IS NOT NULL AND s.lease_until>clock_timestamp()) AS lease_live
-       FROM app.ai_steps s
-       WHERE s.org_id=$1 AND s.run_id=$2 AND s.sequence=$3 AND s.expected_version=$4
-       FOR UPDATE`,
-      [scope.orgId, input.runId, input.sequence, input.expectedVersion],
-    );
-    const current = selected.rows[0];
-    if (!current || !['pending', 'claimed'].includes(current.state))
-      return null;
-    if (current.state === 'claimed' && current.lease_live) return null;
-
-    const liveClaims = await client.query<{ count: string }>(
-      `SELECT count(*)::text AS count FROM app.ai_steps
-       WHERE org_id=$1 AND state='claimed' AND lease_until>clock_timestamp()`,
-      [scope.orgId],
-    );
-    if (Number(liveClaims.rows[0]?.count ?? 0) >= 2) return null;
+    let current: (StepRow & { lease_live: boolean }) | undefined;
+    try {
+      // Lock-acquisition section only: once writes begin a 55P03 must
+      // propagate so the transaction rolls back instead of reporting a
+      // "no claim" while partial settlement has already committed.
+      await this.lockTenantClaimGuard(tx);
+      if (!(await this.chatResources.lockLiveForRun(tx, input.runId)))
+        return null;
+      const run = await client.query(
+        `SELECT 1 FROM app.ai_runs WHERE org_id=$1 AND id=$2 AND run_version=$3
+         AND next_sequence=$4 AND status IN ('queued','running','awaiting_approval','cancelling') FOR UPDATE`,
+        [scope.orgId, input.runId, input.expectedVersion, input.sequence],
+      );
+      if (run.rowCount !== 1) return null;
+      const selected = await client.query<StepRow & { lease_live: boolean }>(
+        `SELECT s.*,(s.lease_until IS NOT NULL AND s.lease_until>clock_timestamp()) AS lease_live
+         FROM app.ai_steps s
+         WHERE s.org_id=$1 AND s.run_id=$2 AND s.sequence=$3 AND s.expected_version=$4
+         FOR UPDATE`,
+        [scope.orgId, input.runId, input.sequence, input.expectedVersion],
+      );
+      current = selected.rows[0];
+      if (!current || !['pending', 'claimed'].includes(current.state))
+        return null;
+      if (current.state === 'claimed' && current.lease_live) return null;
+      const liveClaims = await client.query<{ count: string }>(
+        `SELECT count(*)::text AS count FROM app.ai_steps
+         WHERE org_id=$1 AND state='claimed' AND lease_until>clock_timestamp()`,
+        [scope.orgId],
+      );
+      if (Number(liveClaims.rows[0]?.count ?? 0) >= 2) return null;
+    } catch (error) {
+      if (isLockWaitTimeout(error)) return null;
+      throw error;
+    }
 
     const unknownAttemptIds: string[] = [];
     if (current.state === 'claimed') {
@@ -901,6 +918,10 @@ export class AiStepRepository {
     client: ReturnType<typeof requireSession>['client'],
     orgId: string,
   ): Promise<void> {
+    // Bound every lock wait in this transaction: the org claim lane serializes
+    // claim mutations, and a stalled writer must never hang its followers past
+    // CLAIM_LANE_LOCK_TIMEOUT_MS (readers translate 55P03 into "unavailable").
+    await applyClaimLaneLockTimeout(client);
     await client.query(
       `SELECT pg_advisory_xact_lock(
         hashtextextended('lexon.ai_step_claim:' || $1::text, 0)

@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { requireSession, type TenantSession } from './tenant-session.js';
+import {
+  applyClaimLaneLockTimeout,
+  requireSession,
+  type TenantSession,
+} from './tenant-session.js';
 
 const uuid = z.uuid();
 
@@ -450,6 +454,7 @@ export class ProjectRepository {
     chats: { chatId: string; ownerUserId: string; runIds: string[] }[];
   } | null> {
     const { client, ctx } = requireSession(tx);
+    await applyClaimLaneLockTimeout(client);
     const result = await client.query<{ deleted: unknown }>(
       `SELECT ops.project_delete($1,$2,$3,$4) AS deleted`,
       [ctx.orgId, ctx.userId, projectId, graceMs],

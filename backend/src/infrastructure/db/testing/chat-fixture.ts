@@ -6,7 +6,12 @@ import { AiStepRepository } from '../ai-step.repository.js';
 import { ChatRepository } from '../chat.repository.js';
 import { ChatMessageRepository } from '../chat-message.repository.js';
 import { ChatDeletionRepository } from '../chat-deletion.repository.js';
-import { requireSession, type TenantSession } from '../tenant-session.js';
+import {
+  applyClaimLaneLockTimeout,
+  CLAIM_LANE_LOCK_TIMEOUT_MS,
+  requireSession,
+  type TenantSession,
+} from '../tenant-session.js';
 import type { ModelEvent, ModelGateway } from '../../ai/index.js';
 import { createAiFixture } from './ai-fixture.js';
 import type { StepClaim } from '../ai-records.js';
@@ -132,6 +137,7 @@ export async function createChatFixture(services: Services) {
     const releaseSignal = deferred();
     const done = ai.database.withTenant(ctx, async (tx) => {
       const { client } = requireSession(tx);
+      await applyClaimLaneLockTimeout(client);
       await client.query(
         `SELECT pg_advisory_xact_lock(hashtextextended('lexon.ai_step_claim:' || $1::text,0))`,
         [ctx.orgId],
@@ -171,6 +177,10 @@ export async function createChatFixture(services: Services) {
     const client = appClient();
     await client.connect();
     try {
+      // Autocommit statements keep their own implicit transactions; a
+      // session-level lock_timeout is what bounds the definer's claim-lane
+      // advisory wait here.
+      await client.query(`SET lock_timeout=${CLAIM_LANE_LOCK_TIMEOUT_MS}`);
       return await client.query<{ deleted: boolean }>(
         'SELECT ops.ai_mark_chat_deleted($1,$2,$3) AS deleted',
         [orgId, userId, chatId],

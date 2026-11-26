@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { buildAuthorizationPredicate } from './authorization-predicate.js';
-import { requireSession, type TenantSession } from './tenant-session.js';
+import {
+  applyClaimLaneLockTimeout,
+  requireSession,
+  type TenantSession,
+} from './tenant-session.js';
 
 const uuid = z.uuid();
 
@@ -9,6 +13,7 @@ export class AiChatResourceRepository {
   async lockLiveForRun(tx: TenantSession, runId: string): Promise<boolean> {
     if (!uuid.safeParse(runId).success) return false;
     const { client, ctx } = requireSession(tx);
+    await applyClaimLaneLockTimeout(client);
     const runResult = await client.query<{
       owner_user_id: string;
       resource_ids: unknown;

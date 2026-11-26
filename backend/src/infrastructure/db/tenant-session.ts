@@ -1,6 +1,29 @@
 import type { Pool, PoolClient } from 'pg';
 import type { TenantContext } from './authorization-predicate.js';
 
+/**
+ * Bound for every lock wait on the per-organization claim lane
+ * (`lexon.ai_step_claim` advisory and the row locks taken behind it). The lane
+ * serializes claim mutations; without a bound a stalled writer hangs every
+ * same-org claimant past any test or request deadline. Writers that lose the
+ * wait read SQLSTATE 55P03 and report their existing "unavailable" result.
+ */
+export const CLAIM_LANE_LOCK_TIMEOUT_MS = 5000;
+
+export async function applyClaimLaneLockTimeout(
+  client: PoolClient,
+): Promise<void> {
+  await client.query(`SET LOCAL lock_timeout=${CLAIM_LANE_LOCK_TIMEOUT_MS}`);
+}
+
+export function isLockWaitTimeout(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { code?: string }).code === '55P03'
+  );
+}
+
 declare const sessionBrand: unique symbol;
 export interface TenantSession {
   readonly [sessionBrand]: true;

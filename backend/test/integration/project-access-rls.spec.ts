@@ -574,3 +574,98 @@ test('the deny definers refuse owner targets and self-lift; ungranted roles are 
     await pools.close();
   }
 });
+
+test('the access oracle answers only under service claims; a repeated deny is a reported no-op', async ({
+  services,
+}) => {
+  const pools = createPlatformPools(services);
+  try {
+    const scenario = await createProjectScenario(pools);
+    // User-bound claims get 'none' from the oracle even for a user with
+    // real access — the claims-bound lexon_project_access is the only
+    // user-facing evaluator.
+    const oracle = await withAppTenant(
+      pools.app,
+      { orgId: scenario.orgId, userId: scenario.users.editor },
+      async (client) => {
+        const forOwner = (
+          await client.query<{ level: string }>(
+            'SELECT ops.lexon_project_access_for($1,$2,$3) AS level',
+            [scenario.orgId, scenario.projectId, scenario.users.owner],
+          )
+        ).rows[0]!.level;
+        const selfAccess = (
+          await client.query<{ level: string }>(
+            'SELECT ops.lexon_project_access($1,$2,$3) AS level',
+            [scenario.orgId, scenario.projectId, scenario.users.editor],
+          )
+        ).rows[0]!.level;
+        const otherAccess = (
+          await client.query<{ level: string }>(
+            'SELECT ops.lexon_project_access($1,$2,$3) AS level',
+            [scenario.orgId, scenario.projectId, scenario.users.owner],
+          )
+        ).rows[0]!.level;
+        return { forOwner, selfAccess, otherAccess };
+      },
+    );
+    expect(oracle).toEqual({
+      forOwner: 'none',
+      selfAccess: 'editor',
+      otherAccess: 'none',
+    });
+    // Org-scoped service claims (no user bound) resolve real levels.
+    const service = await pools.app.connect();
+    try {
+      await service.query('BEGIN');
+      await service.query("SELECT set_config('app.org_id',$1,true)", [
+        scenario.orgId,
+      ]);
+      const levels = (
+        await service.query<{ user_id: string; level: string }>(
+          `SELECT u.user_id,ops.lexon_project_access_for($1,$2,u.user_id) AS level
+             FROM (VALUES ($3::uuid),($4::uuid),($5::uuid)) u(user_id)`,
+          [
+            scenario.orgId,
+            scenario.projectId,
+            scenario.users.owner,
+            scenario.users.editor,
+            scenario.users.member,
+          ],
+        )
+      ).rows;
+      await service.query('COMMIT');
+      expect(levels).toEqual([
+        { user_id: scenario.users.owner, level: 'owner' },
+        { user_id: scenario.users.editor, level: 'editor' },
+        { user_id: scenario.users.member, level: 'none' },
+      ]);
+    } finally {
+      service.release();
+    }
+    // Repeat deny: the first inserts the row and removes the member; the
+    // second is a no-op the caller can see as such.
+    const denies = await withAppTenant(
+      pools.app,
+      { orgId: scenario.orgId, userId: scenario.users.admin },
+      async (client) => {
+        const call = () =>
+          client.query<{
+            added: { denied: boolean; removedMember: boolean };
+          }>('SELECT ops.lexon_project_deny_add($1,$2,$3,$4) AS added', [
+            scenario.orgId,
+            scenario.projectId,
+            scenario.users.admin,
+            scenario.users.viewer,
+          ]);
+        const first = (await call()).rows[0]!.added;
+        const second = (await call()).rows[0]!.added;
+        return { first, second };
+      },
+    );
+    expect(denies.first).toEqual({ denied: true, removedMember: true });
+    expect(denies.second).toEqual({ denied: false, removedMember: false });
+  } finally {
+    await pools.close();
+  }
+});

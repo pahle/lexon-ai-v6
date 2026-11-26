@@ -11,6 +11,7 @@ export {
 } from './authorization-predicate.js';
 export type { TenantSession } from './tenant-session.js';
 export { assertTenantSession, requireSession } from './tenant-session.js';
+export { CLAIM_LANE_LOCK_TIMEOUT_MS } from './tenant-session.js';
 export { AuditRepository } from './audit.repository.js';
 export type { AuditWriteRecord } from './audit-write-record.js';
 export type { AuthCommandSession } from './auth/auth-types.js';

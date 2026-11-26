@@ -61,6 +61,9 @@ function useRunRow(
   query: ReturnType<typeof setup>['query'],
   run: ReturnType<typeof runRow> | undefined,
 ) {
+  // lockLiveForRun bounds its lock waits first — the SET LOCAL consumes the
+  // leading mock slot before the run SELECT.
+  query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
   query.mockResolvedValueOnce({
     rows: run ? [run] : [],
     rowCount: run ? 1 : 0,
@@ -100,7 +103,7 @@ it('returns false when the run is missing or belongs to another user', async () 
   await expect(
     repository.lockLiveForRun(wrongOwner.session, runId),
   ).resolves.toBe(false);
-  expect(wrongOwner.query).toHaveBeenCalledTimes(1);
+  expect(wrongOwner.query).toHaveBeenCalledTimes(2);
 });
 
 it('allows a resource-free legacy run only when no chat is mapped', async () => {
@@ -109,14 +112,14 @@ it('allows a resource-free legacy run only when no chat is mapped', async () => 
   await expect(repository.lockLiveForRun(legacy.session, runId)).resolves.toBe(
     true,
   );
-  expect(legacy.query).toHaveBeenCalledTimes(1);
+  expect(legacy.query).toHaveBeenCalledTimes(2);
 
   const mappedWithoutResources = setup();
   useRunRow(mappedWithoutResources.query, runRow({ resource_ids: [] }));
   await expect(
     repository.lockLiveForRun(mappedWithoutResources.session, runId),
   ).resolves.toBe(false);
-  expect(mappedWithoutResources.query).toHaveBeenCalledTimes(1);
+  expect(mappedWithoutResources.query).toHaveBeenCalledTimes(2);
 });
 
 it.each<[string, unknown]>([
@@ -133,7 +136,7 @@ it.each<[string, unknown]>([
       false,
     );
 
-    expect(query).toHaveBeenCalledTimes(1);
+    expect(query).toHaveBeenCalledTimes(2);
   },
 );
 
@@ -156,7 +159,7 @@ it.each<[string, unknown, string | null]>([
       false,
     );
 
-    expect(query).toHaveBeenCalledTimes(1);
+    expect(query).toHaveBeenCalledTimes(2);
   },
 );
 
@@ -171,11 +174,11 @@ it('accepts one matching resource case-insensitively only when the live owned ch
 
   await expect(repository.lockLiveForRun(session, runId)).resolves.toBe(true);
 
-  expect(query).toHaveBeenCalledTimes(2);
-  expect(query.mock.calls[0]?.[1]).toEqual([orgId, runId]);
-  expect(query.mock.calls[1]?.[1]).toEqual([orgId, chatId, ownerId]);
-  expect(query.mock.calls[1]?.[0]).toMatch(/deleted_at\s+IS\s+NULL/i);
-  expect(query.mock.calls[1]?.[0]).toMatch(/FOR\s+UPDATE/i);
+  expect(query).toHaveBeenCalledTimes(3);
+  expect(query.mock.calls[1]?.[1]).toEqual([orgId, runId]);
+  expect(query.mock.calls[2]?.[1]).toEqual([orgId, chatId, ownerId]);
+  expect(query.mock.calls[2]?.[0]).toMatch(/deleted_at\s+IS\s+NULL/i);
+  expect(query.mock.calls[2]?.[0]).toMatch(/FOR\s+UPDATE/i);
 });
 
 it.each<[string, number | null]>([
