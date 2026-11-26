@@ -192,6 +192,10 @@ test('raced decide + send never deadlocks (stress)', async ({ services }) => {
     }
     expect(failures).toEqual([]);
   } finally {
+    // fixture.close() ends the migrator inspector before the template DB
+    // drops — otherwise its orphaned 'error' events surface as unhandled
+    // test exceptions in CI.
+    await fixture.close();
     await app.close();
   }
 }, 600_000);
