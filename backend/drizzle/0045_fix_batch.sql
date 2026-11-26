@@ -653,3 +653,84 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION ops.lexon_chat_notification_audience(uuid,uuid) FROM PUBLIC,lexon_auth,lexon_migrator;
 GRANT EXECUTE ON FUNCTION ops.lexon_chat_notification_audience(uuid,uuid) TO lexon_app;
+--> statement-breakpoint
+-- F6 fix-batch issue 1: access-change notification emitters. Deny add/lift
+-- notify the affected user (chatId null = refresh-only, nothing leaks);
+-- dispatch resolves the audience once via lexon_chat_notification_audience.
+CREATE OR REPLACE FUNCTION ops.lexon_project_deny_add(input_org_id uuid, input_project_id uuid, input_actor uuid, input_target uuid)
+RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog,app,auth,pg_temp AS $$
+DECLARE context_org uuid; context_user uuid; owner_id uuid;
+BEGIN
+  context_org:=NULLIF(current_setting('app.org_id',true),'')::uuid;
+  context_user:=NULLIF(current_setting('app.user_id',true),'')::uuid;
+  IF context_org IS NULL OR context_user IS NULL
+    OR input_org_id IS DISTINCT FROM context_org
+    OR input_actor IS DISTINCT FROM context_user
+    OR input_project_id IS NULL OR input_target IS NULL THEN
+    RAISE EXCEPTION 'Project deny unavailable' USING ERRCODE='42501';
+  END IF;
+  SELECT p.owner_user_id INTO owner_id FROM app.projects p
+    WHERE p.org_id=input_org_id AND p.id=input_project_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Project deny unavailable' USING ERRCODE='42501';
+  END IF;
+  IF NOT ops.lexon_org_owner_admin(input_org_id,input_actor) THEN
+    RAISE EXCEPTION 'Project deny requires an organization owner or admin'
+      USING ERRCODE='42501';
+  END IF;
+  IF input_target=owner_id THEN
+    RAISE EXCEPTION 'The project owner cannot be denied'
+      USING ERRCODE='42501', CONSTRAINT='project_owner_deny';
+  END IF;
+  INSERT INTO app.project_denies(org_id,project_id,user_id,set_by_user_id)
+    VALUES(input_org_id,input_project_id,input_target,input_actor)
+    ON CONFLICT (org_id,project_id,user_id)
+    DO UPDATE SET set_by_user_id=EXCLUDED.set_by_user_id,
+      created_at=clock_timestamp();
+  DELETE FROM app.project_members
+    WHERE org_id=input_org_id AND project_id=input_project_id
+      AND user_id=input_target;
+  PERFORM pg_notify('lexon_chat_title',
+    jsonb_build_object('orgId',input_org_id,'chatId',NULL,'userIds',
+      jsonb_build_array(input_target))::text);
+  RETURN true;
+END $$;
+REVOKE ALL ON FUNCTION ops.lexon_project_deny_add(uuid,uuid,uuid,uuid) FROM PUBLIC,lexon_auth;
+GRANT EXECUTE ON FUNCTION ops.lexon_project_deny_add(uuid,uuid,uuid,uuid) TO lexon_app;
+--> statement-breakpoint
+CREATE OR REPLACE FUNCTION ops.lexon_project_deny_lift(input_org_id uuid, input_project_id uuid, input_actor uuid, input_target uuid)
+RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog,app,auth,pg_temp AS $$
+DECLARE context_org uuid; context_user uuid;
+BEGIN
+  context_org:=NULLIF(current_setting('app.org_id',true),'')::uuid;
+  context_user:=NULLIF(current_setting('app.user_id',true),'')::uuid;
+  IF context_org IS NULL OR context_user IS NULL
+    OR input_org_id IS DISTINCT FROM context_org
+    OR input_actor IS DISTINCT FROM context_user
+    OR input_project_id IS NULL OR input_target IS NULL THEN
+    RAISE EXCEPTION 'Project deny lift unavailable' USING ERRCODE='42501';
+  END IF;
+  IF NOT ops.lexon_org_owner_admin(input_org_id,input_actor) THEN
+    RAISE EXCEPTION 'Project deny lift requires an organization owner or admin'
+      USING ERRCODE='42501';
+  END IF;
+  IF input_actor=input_target THEN
+    RAISE EXCEPTION 'An organization admin cannot lift their own deny'
+      USING ERRCODE='42501', CONSTRAINT='project_deny_self_lift';
+  END IF;
+  DELETE FROM app.project_denies
+    WHERE org_id=input_org_id AND project_id=input_project_id
+      AND user_id=input_target;
+  IF FOUND THEN
+    PERFORM pg_notify('lexon_chat_title',
+      jsonb_build_object('orgId',input_org_id,'chatId',NULL,'userIds',
+        jsonb_build_array(input_target))::text);
+  END IF;
+  RETURN FOUND;
+END $$;
+REVOKE ALL ON FUNCTION ops.lexon_project_deny_lift(uuid,uuid,uuid,uuid) FROM PUBLIC,lexon_auth;
+GRANT EXECUTE ON FUNCTION ops.lexon_project_deny_lift(uuid,uuid,uuid,uuid) TO lexon_app;

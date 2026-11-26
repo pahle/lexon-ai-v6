@@ -1,6 +1,7 @@
 import { Redis } from 'ioredis';
 import { z } from 'zod';
 import {
+  ChatRepository,
   PgNotificationListener,
   type AiRunRepository,
   type ChatTitleNotification,
@@ -31,11 +32,15 @@ export class CancelSignals {
   #deletionSubscriber: Redis | undefined;
   readonly #deletionListeners = new Map<string, Set<() => void>>();
   readonly #chatTitleInvalidationListeners = new Set<{
+    readonly orgId: string;
+    readonly userId: string;
     readonly onNotification: (notification: ChatTitleNotification) => void;
     readonly onUnavailable: () => void;
   }>();
   #databaseDeletionListener: PgNotificationListener | undefined;
   #deletionOperations: Promise<void> = Promise.resolve();
+  readonly #chats = new ChatRepository();
+  #notificationDispatch: Promise<void> = Promise.resolve();
 
   constructor(options: CancelSignalsOptions) {
     if (!/^[a-zA-Z0-9:_-]{1,80}$/.test(options.prefix))
@@ -151,10 +156,21 @@ export class CancelSignals {
   }
 
   async subscribeChatTitleInvalidations(
+    scope: { readonly orgId: string; readonly userId: string },
     onNotification: (notification: ChatTitleNotification) => void,
     onUnavailable: () => void,
   ): Promise<() => Promise<void>> {
-    const listener = { onNotification, onUnavailable };
+    if (
+      !runIdSchema.safeParse(scope.orgId).success ||
+      !runIdSchema.safeParse(scope.userId).success
+    )
+      throw new Error('Invalid chat invalidation scope');
+    const listener = {
+      orgId: scope.orgId,
+      userId: scope.userId,
+      onNotification,
+      onUnavailable,
+    };
     this.#chatTitleInvalidationListeners.add(listener);
     try {
       await this.#serializeDeletion(() => this.#getDatabaseDeletionListener());
@@ -298,8 +314,9 @@ export class CancelSignals {
             onDeleted();
         },
         onChatTitleNotification: (notification) => {
-          for (const subscriber of this.#chatTitleInvalidationListeners)
-            subscriber.onNotification(notification);
+          this.#notificationDispatch = this.#notificationDispatch
+            .then(() => this.#dispatchChatTitleNotification(notification))
+            .catch(() => undefined);
         },
         onUnavailable: () => {
           if (this.#databaseDeletionListener !== listener) return;
@@ -338,6 +355,47 @@ export class CancelSignals {
       }
     }
     return this.#databaseDeletionListener;
+  }
+
+  /** F6 fix-batch: resolves the audience once per chat-scoped notification
+   * under org-scoped service claims (ops.lexon_chat_notification_audience
+   * evaluates the live read predicate — standalone owner + shares, project
+   * owner + members minus denies, org members only), then delivers to the
+   * matching connections only. A denied, removed or non-member connection
+   * never learns the chatId. Access-change payloads (chatId null + userIds)
+   * deliver a refresh to exactly the listed users; an audience lookup
+   * outage drops the event like any delivery failure — never closes streams. */
+  async #dispatchChatTitleNotification(
+    notification: ChatTitleNotification,
+  ): Promise<void> {
+    let audience: ReadonlySet<string> | undefined;
+    if (notification.chatId !== null) {
+      try {
+        audience = await this.#database.withTenant(
+          { orgId: notification.orgId },
+          (tx) => this.#chats.notificationAudience(tx, notification.chatId!),
+        );
+      } catch {
+        return;
+      }
+    }
+    for (const subscriber of this.#chatTitleInvalidationListeners) {
+      if (subscriber.orgId !== notification.orgId) continue;
+      if (
+        notification.userIds &&
+        !notification.userIds.includes(subscriber.userId)
+      )
+        continue;
+      if (audience && !audience.has(subscriber.userId)) continue;
+      try {
+        subscriber.onNotification({
+          orgId: notification.orgId,
+          chatId: notification.chatId,
+        });
+      } catch {
+        // A broken listener must not starve the remaining audience.
+      }
+    }
   }
 
   #invalidateDeletionSubscriber(subscriber: Redis): void {

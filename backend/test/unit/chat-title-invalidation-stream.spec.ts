@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, vi } from 'vitest';
 import {
-  ChatRepository,
   type ChatTitleNotification,
   type TenantSession,
 } from '../../src/infrastructure/db/index.js';
@@ -15,7 +14,6 @@ function setup(
   options: {
     limit?: number;
     blockDrain?: boolean;
-    unreadable?: boolean;
   } = {},
 ) {
   const userId = randomUUID();
@@ -69,7 +67,11 @@ function setup(
   };
   const signals = {
     subscribeChatTitleInvalidations: vi.fn(
-      async (next: typeof callback, onUnavailable: typeof unavailable) => {
+      async (
+        _scope: { orgId: string; userId: string },
+        next: typeof callback,
+        onUnavailable: typeof unavailable,
+      ) => {
         callback = next;
         unavailable = onUnavailable;
         return unsubscribes;
@@ -89,12 +91,9 @@ function setup(
       close(reason?: string): Promise<void>;
     };
   }> = [];
-  // The drain-side access check calls database.withTenant(...readLive). The
-  // repository prototype is stubbed so the session placeholder never reaches
-  // a real client; `unreadable` simulates a denied/foreign chat.
-  vi.spyOn(ChatRepository.prototype, 'readLive').mockImplementation(async () =>
-    options.unreadable ? null : ({} as never),
-  );
+  // The audience check moved to dispatch (CancelSignals resolves
+  // ops.lexon_chat_notification_audience once per notification); the drain
+  // path no longer queries the database for access.
   const database = {
     withTenant: vi.fn(
       async (
@@ -220,27 +219,17 @@ test('notification-listener loss closes a live title stream and cleans up its su
   expect(context.registry.release).toHaveBeenCalledOnce();
 });
 
-test('a notification for a chat the connected user cannot read is never delivered', async () => {
-  // F6 §5 row 12: the content-free {orgId,chatId} payload fans out per
-  // connected user; the drain-side read check keeps the chatId from leaking
-  // to a member without access (denied project member, non-member, outsider).
-  const context = setup({ unreadable: true });
+test('a chatId:null notification coalesces to one refresh event without a database read', async () => {
+  // F6 fix-batch: access filtering happens once at dispatch; a chatId:null
+  // payload (access-change refresh or overflow coalescing) carries no id to
+  // leak, so the connection writes the refresh directly.
+  const context = setup();
   const subscription = await context.connect();
   expect(context.sinks[0]!.writes).toEqual([': connected']);
-  context.callback()(notification(context.actor.orgId));
-  await vi.waitFor(() =>
-    expect(context.database.withTenant).toHaveBeenCalled(),
-  );
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  expect(
-    context.sinks[0]!.writes.some((frame) =>
-      frame.includes('chat.invalidated'),
-    ),
-  ).toBe(false);
-  // The overflow path coalesces to the org-wide chatId:null event, which
-  // bypasses the per-chat access check (no chatId to leak).
-  for (let index = 0; index < 70; index++)
-    context.callback()(notification(context.actor.orgId));
+  context.callback()({
+    orgId: context.actor.orgId,
+    chatId: null,
+  });
   await vi.waitFor(() =>
     expect(
       context.sinks[0]!.writes.some((frame) => frame.includes('"chatId":null')),

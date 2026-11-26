@@ -41,7 +41,10 @@ function setup(
   let notify: ((n: unknown) => void) | undefined;
   const signals = {
     subscribeChatTitleInvalidations: vi.fn(
-      async (next: (n: unknown) => void) => {
+      async (
+        _scope: { orgId: string; userId: string },
+        next: (n: unknown) => void,
+      ) => {
         notify = next;
         return async () => undefined;
       },

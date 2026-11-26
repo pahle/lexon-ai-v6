@@ -496,6 +496,46 @@ export class ChatRepository {
     return true;
   }
 
+  /** Audience for one chat-scoped notification, resolved once per
+   * notification by the fan-out dispatcher. Runs under org-scoped service
+   * claims ({orgId} only — the definer refuses user-bound claims):
+   * standalone chats return owner + share recipients, project chats return
+   * owner + current members minus denies, org members only. */
+  async notificationAudience(
+    tx: TenantSession,
+    chatId: string,
+  ): Promise<ReadonlySet<string>> {
+    const { client, ctx } = requireSession(tx);
+    if (!uuid.safeParse(chatId).success) return new Set();
+    const result = await client.query<{ user_id: string }>(
+      'SELECT user_id FROM ops.lexon_chat_notification_audience($1,$2)',
+      [ctx.orgId, chatId],
+    );
+    return new Set(result.rows.map((row) => row.user_id));
+  }
+
+  /** Emits an access-change notification inside the caller's transaction so
+   * the invalidation commits atomically with the mutation that caused it.
+   * `chatId: null` asks the listed connections to refresh without naming a
+   * chat (deny/member-removal must not leak the id to a user who just lost
+   * it); a chatId scopes the refresh to that chat. */
+  async notifyAccessChanged(
+    tx: TenantSession,
+    input: { chatId: string | null; userIds: readonly string[] },
+  ): Promise<void> {
+    const { client, ctx } = requireSession(tx);
+    if (input.chatId !== null && !uuid.safeParse(input.chatId).success) return;
+    const userIds = input.userIds.filter((id) => uuid.safeParse(id).success);
+    if (userIds.length === 0) return;
+    await client.query("SELECT pg_notify('lexon_chat_title', $1)", [
+      JSON.stringify({
+        orgId: ctx.orgId,
+        chatId: input.chatId,
+        userIds,
+      }),
+    ]);
+  }
+
   async selectLeaf(
     tx: TenantSession,
     chatId: string,

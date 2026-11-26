@@ -246,25 +246,10 @@ export class RunEventsService {
             }
           }
           if (closed) return;
-          // F6 §5 row 12: the content-free {orgId,chatId} payload fans out to
-          // every connected user, but a chat-scoped event is delivered only
-          // when this user still passes the read predicate — a denied,
-          // removed or non-member must never learn the chatId. A check
-          // outage drops the event like any delivery failure but never
-          // closes the stream; the chatId:null refresh carries no id, so it
-          // bypasses the check.
-          if (chatId !== null) {
-            try {
-              if (
-                !(await this.database.withTenant({ orgId, userId }, (tx) =>
-                  this.chats.readLive(tx, chatId),
-                ))
-              )
-                continue;
-            } catch {
-              continue;
-            }
-          }
+          // F6 §5 row 12: the audience was already resolved once at dispatch
+          // (CancelSignals → ops.lexon_chat_notification_audience under
+          // service claims) — this connection only receives chatIds it may
+          // read, so no per-connection read predicate runs here.
           const event = ChatInvalidationEventSchema.parse({
             version: 1,
             type: 'chat.invalidated',
@@ -291,7 +276,10 @@ export class RunEventsService {
     };
     const enqueueInvalidation = (notification: ChatTitleNotification) => {
       if (closed || notification.orgId !== orgId) return;
-      if (!invalidateAll) {
+      if (notification.chatId === null) {
+        invalidateAll = true;
+        pendingChatIds.clear();
+      } else if (!invalidateAll) {
         pendingChatIds.add(notification.chatId);
         if (pendingChatIds.size > MAX_PENDING_TITLE_INVALIDATIONS) {
           pendingChatIds.clear();
@@ -303,6 +291,7 @@ export class RunEventsService {
 
     try {
       unsubscribe = await this.signals.subscribeChatTitleInvalidations(
+        { orgId, userId },
         notificationScope.bind(enqueueInvalidation),
         notificationScope.bind(() => void close('revoked')),
       );

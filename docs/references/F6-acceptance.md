@@ -101,6 +101,7 @@ and reports, `batch-1-report.md`, `progress.md` flake ledger).
   `pnpm --filter @lexon/frontend typecheck` → exit 0.
 - `pnpm exec prettier --check <changed files>` → exit 0 (one spec file
   reformatted by `prettier --write` first).
+
 ## Task 1 — shared contracts (merged `5dceea14`, PR #94)
 
 - `shared/src/projects.ts`: `ProjectSchema`, `ProjectRoleSchema`,
@@ -133,7 +134,7 @@ and reports, `batch-1-report.md`, `progress.md` flake ledger).
 - Policy split: `tenant_boundary` (permissive, org_id only) stays;
   `*_access_select` read arms gain the RLS-filtered `chat_runs` link;
   `*_owner_run` RESTRICTIVE write arms keep `resourceIds='[]' OR
-  initiating_user_id=caller` on `ai_runs`/`ai_steps`/`ai_checkpoints`/
+initiating_user_id=caller` on `ai_runs`/`ai_steps`/`ai_checkpoints`/
   `ai_operations`/`chat_runs`/`chat_messages`/`chats`; `ai_attempts`
   deliberately unsplit.
 - `chats_access_select`: standalone = owner OR `chat_shares`; project =
@@ -154,7 +155,7 @@ and reports, `batch-1-report.md`, `progress.md` flake ledger).
 - `backend/src/infrastructure/db/authorization-predicate.ts`:
   `buildAuthorizationPredicate` produces scope-validated frozen bags;
   `ownedChatWhere` = owner AND (`project_id IS NULL OR
-  lexon_project_access<>'none'`); `chatReadWhere` mirrors
+lexon_project_access<>'none'`); `chatReadWhere` mirrors
   `chats_access_select` (owner / project member-or-editor / share
   recipient, deny-wins via the definer).
 - Every app-level read path funnels through the predicate: `readLive`
@@ -261,7 +262,7 @@ bad-object push artifact, organizations axe-scan (unrelated e2e).
 ## Fix batch — `f6-fix-batch1`
 
 Three review findings fixed on one branch (commits `6fc42b64`,
-`1204ffb2`), plus minors 4–5:
+`1204ffb2`, `876f7abe`, `ed5fb825`), plus minors 4–5:
 
 1. **O(connections) invalidation fan-out** — every chat-scoped
    notification ran a `withTenant` `readLive` per connected user. Fix:
@@ -270,8 +271,16 @@ Three review findings fixed on one branch (commits `6fc42b64`,
    dispatch delivers to matching connections only (audience-once
    dispatch + `notifyAccessChanged` wiring on this same mechanism — a
    deviation from the task-4 plan location, recorded here per review).
+   The payload schema gains `userIds[]` + nullable `chatId`; deny
+   add/lift emit `{orgId, chatId:null, userIds:[target]}` inside the
+   definer transaction, and `ChatRepository.notifyAccessChanged` covers
+   the member/share emitters when those mutation paths land (batch 2).
+   Tests (`chat-notification-audience.spec.ts`): 6 listeners, one event,
+   `withTenant` called exactly once; denied/removed/non-member
+   connections receive nothing; access-change refresh reaches exactly
+   the listed user.
 2. **Stream truncation regression** — root cause: `authorizeCommitted`
-   ran once per stream *part* (each a full tenant tx) inside a 250 ms
+   ran once per stream _part_ (each a full tenant tx) inside a 250 ms
    `publicationDeadlineMs`; a 15-event batch serialized 15+ tenant
    transactions and the deadline-bound part broke the lifecycle
    publish loop. Fixed: `authorizeCommitted` takes the event batch once
@@ -288,13 +297,13 @@ Three review findings fixed on one branch (commits `6fc42b64`,
 **Per-statement latencies** — EXPLAIN (ANALYZE, BUFFERS) as `lexon_app`
 on a seeded migrated template (postgres:17.11, warm cache, plan+exec):
 
-| Path | Pre-0043 | Post-0044 |
-|---|---|---|
-| `streamCommittedProof` owner/standalone | ~3.6 ms | ~3.2 ms |
-| `streamCommittedProof` member/project | n/a | ~10.5 ms (7.2 plan) |
-| `chats` readLive member/project | ~0.09 ms | ~0.44 ms |
-| step-commit UPDATE `ai_steps` | ~2.4 ms | ~5.2 ms |
-| decide UPDATE `ai_operations` | ~1.8 ms | ~5.3 ms |
+| Path                                    | Pre-0043 | Post-0044           |
+| --------------------------------------- | -------- | ------------------- |
+| `streamCommittedProof` owner/standalone | ~3.6 ms  | ~3.2 ms             |
+| `streamCommittedProof` member/project   | n/a      | ~10.5 ms (7.2 plan) |
+| `chats` readLive member/project         | ~0.09 ms | ~0.44 ms            |
+| step-commit UPDATE `ai_steps`           | ~2.4 ms  | ~5.2 ms             |
+| decide UPDATE `ai_operations`           | ~1.8 ms  | ~5.3 ms             |
 
 Post-0043 predicates (chat-read EXISTS arms, `lexon_org_member`/
 `lexon_project_access` definers, RESTRICTIVE access_read policies) add
@@ -313,13 +322,21 @@ the initiator's org membership gone (org-removal mid-run still settles;
 integration tests: healthy-run refusal and org-removal settle, both in
 `project-access-loss.spec.ts`). `lexon_project_chat_activity` rewrites
 `projects.last_activity_at` only when it is older than 60 s, removing
-the per-message hot row.
+the per-message hot row. `provision.ts` upgrade-test revert chain covers
+0045 (replays pre-0045 bodies from the 0043/0044 files; verified
+unwind-to-041 + replay-through-045 on a live database).
 
 ## Batch-2 remaining work
 
-Tasks 5–10 per plan: access-change notification fan-out
-(`notifyAccessChanged`), Matters/project repositories + sidebar,
-member management endpoints, frontend reader view (panel hiding,
-"Waiting for <owner>"), project deletion definer, acceptance matrix.
-Hardening follow-ups: observations 1–3 above; retry/deadline tolerance
-on `#publishCommittedLifecycle` per-chunk authority checks.
+Tasks 5–8 per plan (corrected from 5–10): task 5 projects module
+(CRUD, instructions, members, TenantGuard, audit events), task 6
+ethical wall (org metadata list, deny add/lift, API deny matrix),
+task 7 chat sharing (shares endpoints, shared-with-me, recipient
+data), task 8 project deletion (`ops.project_delete` + endpoint).
+The access-change fan-out (`notifyAccessChanged`) shipped early on
+the fix branch; member/share emitters wire onto it when those
+mutation paths land. **Renumber required:** the fix batch consumed
+migration `0045` (reserved for task 8's `project_delete`); per the
+plan's foreign-migration rule, task 8 takes the next free number.
+Hardening follow-ups: observations 1–3 above; retry/deadline
+tolerance on `#publishCommittedLifecycle` per-chunk authority checks.
