@@ -392,3 +392,10 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - Each shard's visual-pending review/ folder holds a file for every id; only the shard that ran the spec has the real capture, the others carry baseline bytes. The packet took the wrong shard for 96 ids, so its "96 pixel-identical" are baseline copies (verified: chat-approval-desktop-light real capture in shard 1 shows Matters; shards 2/3 = baseline md5). The 6 no-baseline ids also show no Matters, so they are suspect too.
 - The 88 sidebar-only diffs looked correct by eye (Matters row, Recent shifted, content untouched), but approval waits for a rebuilt packet.
 - #104 head b1a7f8ce: unit-integration red on ai-execution "proposal limits preserve every accepted approval event" (3rd occurrence, docs-only PR). The report did not mention it.
+
+## 2026-11-26 — PR #104 rebuilt packet (c9a5893c): reviewer recommends approval
+
+- Shard selection verified against my own md5 check (chat-approval shard-1, settings-general shard-3). 176 sidebar-only deltas, all inside x<=250 desktop / 293 mobile; 8 identical are non-shell pages (not-found, onboarding*); 6 no-baseline ids are svg-snapshot/engine-test views and must get no pixel golden.
+- Eye check: Matters row present on every app-shell capture, content untouched.
+- c9a5893c unit-integration red on eslint (unused readdirSync); the gate was not run before the push again.
+- #103 added 12 more pending ids for task-10 content changes; they need their own task-10 review packet.
