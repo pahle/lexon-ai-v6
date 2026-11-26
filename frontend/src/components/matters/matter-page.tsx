@@ -22,6 +22,8 @@ import {
 } from '../data-views';
 import { ListFailure } from '../states/list-failure';
 import { LoadingState } from '../states/page-states';
+import { WorkspaceNotFound } from '../states/workspace-not-found';
+import { ChatClientError } from '@/lib/chat-errors';
 import { Button } from '../ui/button';
 import {
   DropdownMenu,
@@ -88,8 +90,13 @@ export function MatterPage({
   });
 
   if (project.isPending) return <LoadingState message="Loading this matter…" />;
+  // A 404 (denied, removed, or absent matter) is the same not-found state as a
+  // missing route — a retry can never succeed. Other failures can.
   if (project.isError)
-    return (
+    return project.error instanceof ChatClientError &&
+      project.error.status === 404 ? (
+      <WorkspaceNotFound />
+    ) : (
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-6 py-7">
         <ListFailure
           thing="this matter"

@@ -8,6 +8,7 @@ import type {
   ProjectSummary,
 } from '@lexon/contracts';
 import type { MattersApi, ProjectDetail } from '../src/lib/matters-api';
+import { ChatClientError } from '../src/lib/chat-errors';
 import { MattersPage } from '../src/components/matters/matters-page';
 import { MatterPage } from '../src/components/matters/matter-page';
 import { render, settle } from './render';
@@ -185,6 +186,22 @@ it('Matter page: owner sees the composer and editor controls; instructions rende
   expect(text).toContain('Prefer Indonesian law.');
   expect(view.container.querySelector('textarea')).not.toBeNull();
   expect(button(view.container, 'Members')).toBeDefined();
+  await view.unmount();
+});
+
+it('Matter page: a 404 detail renders the not-found state, not a retry', async () => {
+  const client = api({
+    detail: vi.fn(async () => {
+      throw new ChatClientError('CHAT_NOT_FOUND', 404);
+    }),
+  });
+  const view = await render(
+    tree(<MatterPage client={client} scope={scope} projectId={owned.id} />),
+  );
+  await settle();
+  const text = view.container.textContent!;
+  expect(text).toContain('does not exist');
+  expect(view.container.querySelector('button')).toBeNull();
   await view.unmount();
 });
 
