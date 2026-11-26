@@ -319,8 +319,9 @@ jobs:
           path: pending-shards
       - name: Every pending view was captured by some shard
         if: steps.pending.outputs.count != '0'
-        run: |
-          node -e 'const { existsSync, readFileSync, readdirSync } = require("node:fs"); const pending = JSON.parse(readFileSync("docs/references/F4.1-visual/index.json", "utf8")).pending; const got = new Set(); if (existsSync("pending-shards")) for (const dir of readdirSync("pending-shards")) { const file = "pending-shards/" + dir + "/pending.txt"; if (existsSync(file)) for (const l of readFileSync(file, "utf8").split("\n")) got.add(l.trim()); } const missing = pending.filter((id) => !got.has(id)); if (missing.length > 0) { console.error("No shard captured pending views: " + missing.join(", ")); process.exit(1); }'
+        # Coverage plus file existence: pending.txt is appended before the
+        # screenshot, so a claimed id without its review file is not a capture.
+        run: node scripts/test/verify-pending-captures.mjs --shards-dir pending-shards
       - name: Upload merged Playwright report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
