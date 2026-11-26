@@ -386,3 +386,9 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - index.json now has 190 pending ids (all app-shell states, sidebar Matters group). Those views have NO golden protection until the owner approves the CI sheets (run 45805110278). Linux UI round 1 of 2 used.
 - Open: ai-execution flake uses the same 250 ms publication-deadline mechanism as the batch-1 stream truncation; demand evidence. SSE peak dropped 490 -> 456; re-check in task 11. b8904025 was pushed straight to f6-projects (no PR).
 - Implementer is mid task 10 (reader gating, share dialog, settings Matters, shared tab).
+
+## 2026-11-26 — PR #104 (sidebar re-baseline packet) review: REJECTED as built
+
+- Each shard's visual-pending review/ folder holds a file for every id; only the shard that ran the spec has the real capture, the others carry baseline bytes. The packet took the wrong shard for 96 ids, so its "96 pixel-identical" are baseline copies (verified: chat-approval-desktop-light real capture in shard 1 shows Matters; shards 2/3 = baseline md5). The 6 no-baseline ids also show no Matters, so they are suspect too.
+- The 88 sidebar-only diffs looked correct by eye (Matters row, Recent shifted, content untouched), but approval waits for a rebuilt packet.
+- #104 head b1a7f8ce: unit-integration red on ai-execution "proposal limits preserve every accepted approval event" (3rd occurrence, docs-only PR). The report did not mention it.
