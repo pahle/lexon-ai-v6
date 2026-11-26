@@ -84,18 +84,23 @@ export class ChatRepository {
     tx: TenantSession,
     chatId: string,
     excerpt = '',
+    projectId?: string,
   ): Promise<ChatRecord> {
     if (
       !uuid.safeParse(chatId).success ||
-      Buffer.byteLength(excerpt, 'utf8') > 1024
+      Buffer.byteLength(excerpt, 'utf8') > 1024 ||
+      (projectId !== undefined && !uuid.safeParse(projectId).success)
     )
       throw new Error('Invalid chat');
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) throw new Error('Invalid chat owner');
+    // F6 §4.3: a project chat is born bound — lexon_app has no UPDATE grant on
+    // project_id, so the INSERT policy's owner/editor arm is the only
+    // application-role binding path besides the create-request trigger.
     const result = await client.query<ChatRow>(
-      `INSERT INTO app.chats(id,org_id,owner_user_id,title,title_source)
-       VALUES($1,$2,$3,$4,'excerpt') RETURNING *`,
-      [chatId, ctx.orgId, ctx.userId, excerpt],
+      `INSERT INTO app.chats(id,org_id,owner_user_id,title,title_source,project_id)
+       VALUES($1,$2,$3,$4,'excerpt',$5) RETURNING *`,
+      [chatId, ctx.orgId, ctx.userId, excerpt, projectId ?? null],
     );
     return mapChat(result.rows[0]!);
   }

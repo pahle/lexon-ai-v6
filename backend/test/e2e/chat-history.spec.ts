@@ -634,6 +634,11 @@ test('workspace navigation order and keyboard access survive collapsed sidebar s
   });
   const newChat = primary.getByRole('link', { name: 'New chat', exact: true });
   const chats = primary.getByRole('link', { name: 'Chats', exact: true });
+  const matters = primary.getByRole('link', { name: 'Matters', exact: true });
+  const mattersToggle = primary.getByRole('button', {
+    name: 'Toggle Matters navigation',
+    exact: true,
+  });
   const recentGroup = workspaceSidebar.getByRole('group', {
     name: 'Recent chats',
   });
@@ -652,8 +657,14 @@ test('workspace navigation order and keyboard access survive collapsed sidebar s
     .evaluateAll((links) =>
       links.map((link) => (link as HTMLAnchorElement).getAttribute('href')),
     );
-  // Tools → Assistant (links to New chat), then its sub-items New chat and Chats.
-  expect(primaryHrefs).toEqual(['/workspace', '/workspace', '/chats']);
+  // Assistant (links to New chat), its sub-items New chat and Chats, then the
+  // Matters group (no matters yet → its trigger links to "All matters").
+  expect(primaryHrefs).toEqual([
+    '/workspace',
+    '/workspace',
+    '/chats',
+    '/matters',
+  ]);
   const recentFollowsPrimary = await primary.evaluate((nav) => {
     const recent = document.querySelector(
       '[role="group"][aria-label="Recent chats"]',
@@ -688,6 +699,12 @@ test('workspace navigation order and keyboard access survive collapsed sidebar s
   await expect(chats).toHaveAttribute('aria-current', 'page');
   await chats.focus();
   await page.keyboard.press('Tab');
+  // The Matters group sits between Assistant and Recent chats.
+  await expect(matters).toBeFocused();
+  await expect(matters).toHaveAttribute('href', '/matters');
+  await page.keyboard.press('Tab');
+  await expect(mattersToggle).toBeFocused();
+  await page.keyboard.press('Tab');
   await expect(recentLink).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(`${stack.publicUrl}/chats/${chatId}`);
@@ -697,10 +714,15 @@ test('workspace navigation order and keyboard access survive collapsed sidebar s
 
   await page.getByRole('button', { name: 'Collapse sidebar' }).click();
   await expect(recentGroup).toHaveCount(0);
-  // Collapsed (F4.1 prototype screen 32): one Assistant icon. It opens a menu
-  // with the same two destinations, so both stay reachable by keyboard.
+  // Collapsed (F4.1 prototype screen 32): one Assistant icon plus the Matters
+  // icon. Each opens a menu with its destinations, so they stay reachable by
+  // keyboard without expanding the sidebar.
   const assistantMenu = primary.getByRole('button', {
     name: 'Assistant navigation',
+    exact: true,
+  });
+  const mattersMenu = primary.getByRole('button', {
+    name: 'Matters navigation',
     exact: true,
   });
   const menuNewChat = page.getByRole('menuitem', {
@@ -727,10 +749,26 @@ test('workspace navigation order and keyboard access survive collapsed sidebar s
   await expect(page).toHaveURL(`${stack.publicUrl}/chats`);
   await expect(recentGroup).toHaveCount(0);
 
+  await expect(mattersMenu).toBeVisible();
+  await mattersMenu.focus();
+  await page.keyboard.press('Enter');
+  const menuAllMatters = page.getByRole('menuitem', {
+    name: 'All matters',
+    exact: true,
+  });
+  await expect(menuAllMatters).toBeVisible();
+  await expect(menuAllMatters).toHaveAttribute('href', '/matters');
+  await page.keyboard.press('Escape');
+  await expect(recentGroup).toHaveCount(0);
+
   await page.getByRole('button', { name: 'Expand sidebar' }).click();
   await expect(recentGroup).toBeVisible();
   await expect(recentLink).toHaveAttribute('href', `/chats/${chatId}`);
   await chats.focus();
+  await page.keyboard.press('Tab');
+  await expect(matters).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(mattersToggle).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(recentLink).toBeFocused();
   await page.keyboard.press('Enter');

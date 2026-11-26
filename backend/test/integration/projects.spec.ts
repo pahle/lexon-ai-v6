@@ -279,3 +279,119 @@ test('denied members get the identical 404 on every project read route', async (
     await app.close();
   }
 });
+
+// POST /chats with projectId binds the materialized chat to the project
+// (F6 §4.3: the create-request INSERT gate admits owner/editor only).
+test('a chat created with projectId binds to the project; a viewer cannot bind', async ({
+  services,
+}) => {
+  const { app, origin, env } = await boot(services);
+  const proof = await createAuthFixture(services, {
+    secret: env.AUTH_SECRET,
+  });
+  const organizations = createOrganizationInspector(services);
+  const pools = createPlatformPools(services);
+  try {
+    const signIn = (name: string) =>
+      proof.signIn({
+        body: { name, email: `${randomUUID()}@example.test`, password },
+      });
+    const [owner, viewer] = await Promise.all([
+      signIn('Owner'),
+      signIn('Viewer'),
+    ]);
+    const team = await organizations.seedTeam([owner.userId, viewer.userId]);
+    for (const user of [owner, viewer]) await activate(proof, user, team.id);
+    const create = await fetch(`${origin}/api/projects`, {
+      method: 'POST',
+      headers: jsonHeaders(owner.cookieHeaders),
+      body: JSON.stringify({ name: 'Bound chats' }),
+    });
+    expect(create.status).toBe(201);
+    const project = (await create.json()) as { id: string };
+    const add = await fetch(`${origin}/api/projects/${project.id}/members`, {
+      method: 'POST',
+      headers: jsonHeaders(owner.cookieHeaders),
+      body: JSON.stringify({ userId: viewer.userId, role: 'viewer' }),
+    });
+    expect(add.status).toBe(201);
+
+    const ownedChatId = randomUUID();
+    const owned = await fetch(`${origin}/api/chats`, {
+      method: 'POST',
+      headers: jsonHeaders(owner.cookieHeaders),
+      body: JSON.stringify({
+        chatId: ownedChatId,
+        userMessageId: randomUUID(),
+        requestId: randomUUID(),
+        text: 'bound chat',
+        effort: 'high',
+        projectId: project.id,
+      }),
+    });
+    expect(owned.status).toBe(201);
+    const mutation = (await owned.json()) as { runId: string };
+    // The first run of a project-bound chat runs the project-chat profile so
+    // the project context provider is selected (F6 §9).
+    const runProfile = await pools.migrator.query<{
+      profile_id: string;
+    }>('SELECT profile_id FROM app.ai_runs WHERE id=$1', [mutation.runId]);
+    expect(runProfile.rows[0]?.profile_id).toBe('project-chat');
+    const chats = await fetch(`${origin}/api/projects/${project.id}/chats`, {
+      headers: owner.cookieHeaders,
+    });
+    expect(chats.status).toBe(200);
+    const bound = ((await chats.json()) as { items: { id: string }[] }).items;
+    expect(bound.map((chat) => chat.id)).toContain(ownedChatId);
+
+    // A member who lacks owner/editor standing is refused with 403.
+    const foreignChatId = randomUUID();
+    const refused = await fetch(`${origin}/api/chats`, {
+      method: 'POST',
+      headers: jsonHeaders(viewer.cookieHeaders),
+      body: JSON.stringify({
+        chatId: foreignChatId,
+        userMessageId: randomUUID(),
+        requestId: randomUUID(),
+        text: 'viewers cannot bind',
+        effort: 'high',
+        projectId: project.id,
+      }),
+    });
+    expect(refused.status).toBe(403);
+    const after = await fetch(`${origin}/api/projects/${project.id}/chats`, {
+      headers: owner.cookieHeaders,
+    });
+    const boundAfter = ((await after.json()) as { items: { id: string }[] })
+      .items;
+    expect(boundAfter.map((chat) => chat.id)).not.toContain(foreignChatId);
+
+    // A denied member and an absent project get the identical 404.
+    await projectDeny(pools.migrator, {
+      orgId: team.id,
+      projectId: project.id,
+      userId: viewer.userId,
+      setByUserId: owner.userId,
+    });
+    for (const target of [project.id, randomUUID()]) {
+      const denied = await fetch(`${origin}/api/chats`, {
+        method: 'POST',
+        headers: jsonHeaders(viewer.cookieHeaders),
+        body: JSON.stringify({
+          chatId: randomUUID(),
+          userMessageId: randomUUID(),
+          requestId: randomUUID(),
+          text: 'denied or absent project',
+          effort: 'high',
+          projectId: target,
+        }),
+      });
+      expect(denied.status).toBe(404);
+    }
+  } finally {
+    await pools.close();
+    await proof.close();
+    await organizations.close();
+    await app.close();
+  }
+});
