@@ -90,13 +90,11 @@ as current.
   a `tint` pill with a dot after the assistant's text, a dot on the chat in
   Recent, and the same pill on the chat's row in Chats.
 
-## Revision 18 (F6 Matters and the ethical wall): awaiting owner approval
+## Revision 18 (F6 Matters and the ethical wall): approved by the owner on 2026-11-25
 
 Sixteen new states for [F6](../../briefs/F6-projects-ethical-wall.md), drawn
-from the brief on top of revision 17, awaiting owner approval. Their 64
-views are listed in `docs/references/F4.1-visual/index.json` `planned`; the
-lead line above and `PROTOTYPE_REVISION` in
-`scripts/visual-compare-prototype.mjs` stay at revision 17 until approval.
+from the brief on top of revision 17. Their 64 views are listed in
+`docs/references/F4.1-visual/index.json` `planned`.
 
 - **Matters in the sidebar** (all F6 states): a Matters group (briefcase
   icon) between the Assistant and Platform groups and Recent, listing the
@@ -117,7 +115,8 @@ lead line above and `PROTOTYPE_REVISION` in
   instructions stack above the chats, collapsed to three lines.
 - **Members and restriction** (`matter-members`, `settings-matters`,
   `settings-matters-restrict`): the members dialog with an add row, role
-  selects, and a greyed row for a member restricted by the organization;
+  selects, and a row for a member restricted by the organization (muted
+  name plus "Access restricted by your organization", see revision 18.1);
   the organization settings Matters section listing every matter with its
   restricted count; and the restrict-access dialog that warns that only
   owners and admins can lift a restriction.
@@ -130,6 +129,22 @@ lead line above and `PROTOTYPE_REVISION` in
   me filter on the Chats page.
 - **Delete** (`matter-delete`): the alert dialog naming the matter and how
   many chats are deleted with it.
+
+## Revision 18.1 (2026-11-27): owner rulings from the F6 implementation review
+
+Two owner decisions made while comparing the F6 captures with revision 18.
+No state was added or renamed.
+
+- **Restricted member row** (`matter-members`): the row is no longer dimmed
+  as a whole. Dimming the whole row put the name, the secondary line and the
+  avatar below the 4.5:1 contrast minimum. The name now uses the muted text
+  color, and the secondary line "Access restricted by your organization"
+  carries the meaning.
+- **Last activity dates** (`matters-list`, the matter page states,
+  `matter-delete`, `matter-new`): the matter tables use the same absolute
+  format as the Chats page and Recent: the time for today, "Yesterday", then
+  the date ("Nov 12"). Relative times ("2 hours ago") are no longer used in
+  these tables.
 
 ## Fixtures shown
 
