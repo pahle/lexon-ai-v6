@@ -87,6 +87,58 @@ function mapView(row: ProjectViewRow): ProjectView {
  * Member writes lean on the owner-with-check policies; an RLS refusal (42501)
  * reaches the service as a pg error, which it maps to a validation failure.
  */
+/** §14 gate surfaces: the repository and the benchmark share these builders so
+ * EXPLAIN evidence always covers the production text. */
+export function projectListSql(input: {
+  filter: 'all' | 'owned' | 'shared';
+  sort: 'name' | 'activity';
+  hasCursor: boolean;
+}): string {
+  const filter =
+    input.filter === 'owned'
+      ? `AND p.owner_user_id=$2`
+      : input.filter === 'shared'
+        ? `AND p.owner_user_id<>$2`
+        : '';
+  const order =
+    input.sort === 'name' ? 'p.name,p.id' : 'p.last_activity_at DESC,p.id';
+  const cursorClause = input.hasCursor
+    ? input.sort === 'name'
+      ? `AND (p.name,p.id)>($4,$5)`
+      : `AND (p.last_activity_at,p.id)<($4::timestamptz,$5)`
+    : '';
+  return `SELECT p.*,ops.lexon_project_access(p.org_id,p.id,$2) AS access,
+     NULL::text AS instructions
+   FROM app.projects p
+   WHERE p.org_id=$1
+     AND ops.lexon_project_access(p.org_id,p.id,$2)<>'none'
+     ${filter} ${cursorClause}
+   ORDER BY ${order}
+   LIMIT $3`;
+}
+
+export function projectOrgListSql(input: {
+  hasQ: boolean;
+  hasCursor: boolean;
+}): string {
+  const paramsStart = 2;
+  const qClause = input.hasQ ? `AND p.name ILIKE $${paramsStart + 1}` : '';
+  const keyIndex = paramsStart + (input.hasQ ? 1 : 0) + 1;
+  const idIndex = keyIndex + 1;
+  const cursorClause = input.hasCursor
+    ? `AND (p.name,p.id)>($${keyIndex},$${idIndex})`
+    : '';
+  return `SELECT p.*,
+     (SELECT count(*)::int FROM app.project_denies d
+       WHERE d.org_id=p.org_id AND d.project_id=p.id
+     ) AS restricted_count
+   FROM app.projects p
+   WHERE p.org_id=$1
+     ${qClause} ${cursorClause}
+   ORDER BY p.name,p.id
+   LIMIT $2`;
+}
+
 export class ProjectRepository {
   async insert(
     tx: TenantSession,
@@ -169,30 +221,14 @@ export class ProjectRepository {
   ): Promise<ProjectView[]> {
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) return [];
-    const filter =
-      input.filter === 'owned'
-        ? `AND p.owner_user_id=$2`
-        : input.filter === 'shared'
-          ? `AND p.owner_user_id<>$2`
-          : '';
-    const order =
-      input.sort === 'name' ? 'p.name,p.id' : 'p.last_activity_at DESC,p.id';
-    const cursorClause = input.cursor
-      ? input.sort === 'name'
-        ? `AND (p.name,p.id)>($4,$5)`
-        : `AND (p.last_activity_at,p.id)<($4::timestamptz,$5)`
-      : '';
     const params: unknown[] = [ctx.orgId, ctx.userId, input.limit];
     if (input.cursor) params.push(input.cursor.key, input.cursor.id);
     const result = await client.query<ProjectViewRow>(
-      `SELECT p.*,ops.lexon_project_access(p.org_id,p.id,$2) AS access,
-         NULL::text AS instructions
-       FROM app.projects p
-       WHERE p.org_id=$1
-         AND ops.lexon_project_access(p.org_id,p.id,$2)<>'none'
-         ${filter} ${cursorClause}
-       ORDER BY ${order}
-       LIMIT $3`,
+      projectListSql({
+        filter: input.filter,
+        sort: input.sort,
+        hasCursor: input.cursor !== null,
+      }),
       params,
     );
     return result.rows.map(mapView);
@@ -372,20 +408,13 @@ export class ProjectRepository {
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) return [];
     const params: unknown[] = [ctx.orgId, input.limit];
-    const qIndex = input.q !== undefined ? params.push(`%${input.q}%`) : 0;
-    const keyIndex = input.cursor ? params.push(input.cursor.key) : 0;
-    const idIndex = input.cursor ? params.push(input.cursor.id) : 0;
+    if (input.q !== undefined) params.push(`%${input.q}%`);
+    if (input.cursor) params.push(input.cursor.key, input.cursor.id);
     const result = await client.query<ProjectRow>(
-      `SELECT p.*,
-         (SELECT count(*)::int FROM app.project_denies d
-           WHERE d.org_id=p.org_id AND d.project_id=p.id
-         ) AS restricted_count
-       FROM app.projects p
-       WHERE p.org_id=$1
-         ${input.q !== undefined ? `AND p.name ILIKE $${qIndex}` : ''}
-         ${input.cursor ? `AND (p.name,p.id)>($${keyIndex},$${idIndex})` : ''}
-       ORDER BY p.name,p.id
-       LIMIT $2`,
+      projectOrgListSql({
+        hasQ: input.q !== undefined,
+        hasCursor: input.cursor !== null,
+      }),
       params,
     );
     return result.rows.map(mapProject);
