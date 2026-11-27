@@ -417,3 +417,9 @@ runs post-fix (previously: 1 CI occurrence) — tracked below.
 Flake ledger update: `ai-execution` proposal-limits approval-drop —
 **resolved** (this fix). `ai-worker-crash` shutdown bound — load-sensitive,
 under observation (1/37 loaded reproductions post-fix).
+
+**Hardening follow-up (owner-directed, not this batch):** a
+`publishCommitted` `unavailable` result on an operation-bearing batch
+stays silent until the affected client reloads (see "Dropped-event
+visibility" above). The follow-up is to emit a chat refresh notification
+on that path so live clients resync without a manual reload.
