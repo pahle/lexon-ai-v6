@@ -18,7 +18,9 @@ in `scripts/test/visual-pending-selection.spec.mjs`.
 Machine check (`--mode bbox`): the diff bounding box must be explainable by
 the task-10 change — the settings-nav Matters item, the chats DataTabs row
 plus the list reflow it causes, or the chat floating-menu Share item.
-Nothing is approved or re-golden'd in this packet.
+Nothing is approved or re-golden'd in this packet: the approved goldens
+are promoted on `f6-t10-sharing` — the branch that renders the task-10
+UI — since a branch without the code cannot satisfy the new baselines.
 
 ## What task 10 changes on screen
 
