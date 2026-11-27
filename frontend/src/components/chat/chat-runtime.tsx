@@ -915,7 +915,7 @@ function importCanonicalTerminalRepository(
   );
 }
 
-function reconcileCanonicalTerminalMessages(
+export function reconcileCanonicalTerminalMessages(
   repository: ExportedMessageRepository,
   tree: ChatTree,
   preferredHeadId?: string | null,
@@ -988,10 +988,22 @@ function reconcileCanonicalTerminalMessages(
     canonicalMessages.has(preferredHeadId)
       ? preferredHeadId
       : repository.headId;
+  // The stream side can parent a message to a stale leaf (a regenerated
+  // sibling appended after the previous answer instead of beside it). The
+  // canonical tree is authoritative — repair the parentage here, but only
+  // when the canonical parent is part of the final repository so an entry
+  // is never orphaned.
+  const reconciledMessages = messages.map((entry) => {
+    const canonical = canonicalMessages.get(entry.message.id);
+    if (!canonical) return entry;
+    const parentId = canonical.parentId;
+    if (parentId !== null && !currentMessageIds.has(parentId)) return entry;
+    return parentId === entry.parentId ? entry : { ...entry, parentId };
+  });
   return {
     ...repository,
     ...(headId !== undefined ? { headId } : {}),
-    messages,
+    messages: reconciledMessages,
   };
 }
 
