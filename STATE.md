@@ -1,8 +1,10 @@
 # Project state
 
-Last updated: 2026-11-25 by the brief generator.
+Last updated: 2026-11-27 by the brief generator.
 
 ## Next action
+
+**READ FIRST (2026-11-27, owner switching devices): `handoff/2026-11-27-f6-device-switch.md`.** It has the verified F6 state, open PRs (#92, #110, #111, #112, #113), the ordered list of unfinished work, all owner rulings for task 12, the UNSENT round-5 implementer prompt, and new-device setup. Visual review helpers: `tools/visual-review/`. The dated sections at the end of this file are the detailed log.
 
 **2026-11-26 (F6 minors closed):** implementer logged all three batch-review notes in spec §23 "Deviation log" (b8904025, docs-only, verified). Invariant argument sound: ops persist only inside step-coordinator.commit()'s tx (step leaves 'claimed' in the same tx), so `s.sequence < input_sequence` is complete; decide/expire settle the whole run anyway (`o.id <> op_row.id`). Share-survives-owner-departure recorded as intended. DISTINCT dedupe accepted-not-applied. No code changes. Still open: #92 head red on compose-e2e 2/3 (chat-thread anchor-selection-after-reload) — batch 3 waits on triage.
 
@@ -209,8 +211,11 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 | F4 Chat | **Done** — merged (PR #29) | Prototype `docs/design/f4-prototype/` |
 | F4.1 Brand refresh | **Done** — merged (PR #33, 960d6ab) | Prototype rev 14.9, DS v3.1, 272 Linux goldens |
 | F4.2 Hardening | Done (PR #46, 2026-11-21) | Audit 1 findings + G1-G7 + cleanup |
-| F4.3 Platform admin console | **In execution** (brief #48, prototype rev 16 #50, spec+plan #49; branch `f4.3-console`) | Accounts + invitations, Organizations, data views kit |
-| F5–F20 | Not started | — |
+| F4.3 Platform admin console | **Done** (PR #55) | Accounts + invitations, Organizations, data views kit |
+| F4.4 / F4.5 Hardening + flakes | **Done** (#66, #72) | |
+| F5 Tools & approvals | **Done** (PR #76, b333477f) | Review: `reviews/F5-review.md` |
+| F6 Projects & ethical wall | **In execution**: tasks 0-11 merged into `f6-projects`; task 12 visual fidelity round 5 pending; integration PR #92 | See `handoff/2026-11-27-f6-device-switch.md` |
+| F7–F20 | Not started | — |
 
 ## Follow-ups carried into future briefs
 
