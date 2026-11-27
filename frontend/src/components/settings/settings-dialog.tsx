@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useWorkspace } from '../shell/workspace-provider';
@@ -27,6 +27,8 @@ import { AccountSecurity } from '../auth/account-security';
 import { Members } from '../organizations/members';
 import { Invitations } from '../organizations/invitations';
 import { OrganizationSettings } from '../organizations/organization-settings';
+import { SettingsMatters } from './settings-matters';
+import { createMattersClient } from '@/lib/matters-api';
 
 /** The dialog has one fixed size whatever the section (LEX-DS-001 §5.5). */
 export const settingsDialogClass =
@@ -38,6 +40,7 @@ const sectionNames: Record<string, string> = {
   security: 'Security',
   members: 'Members',
   invitations: 'Invitations',
+  matters: 'Matters',
   general: 'General',
 };
 
@@ -86,6 +89,10 @@ export function SettingsDialog(): React.ReactElement | null {
   const canShowSection =
     status === 'ready' && !!identity && identity.user.onboardingCompleted;
   const team = identity?.organization.kind === 'team';
+  const mattersClient = useMemo(
+    () => createMattersClient({ baseUrl: '/api' }),
+    [],
+  );
   const allowed =
     section === 'invalid'
       ? false
@@ -98,7 +105,7 @@ export function SettingsDialog(): React.ReactElement | null {
               (section === 'members' ||
                 ((identity.organization.role === 'owner' ||
                   identity.organization.role === 'admin') &&
-                  section === 'invitations') ||
+                  (section === 'invitations' || section === 'matters')) ||
                 (identity.organization.role === 'owner' &&
                   section === 'general'))));
 
@@ -116,6 +123,7 @@ export function SettingsDialog(): React.ReactElement | null {
     const isOrganizationSection =
       section === 'members' ||
       section === 'invitations' ||
+      section === 'matters' ||
       section === 'general';
     if (!isOrganizationSection || allowed || !identity?.organization) return;
     const queryKey = ['tenant', identity.organization.id];
@@ -229,6 +237,15 @@ export function SettingsDialog(): React.ReactElement | null {
               <Invitations
                 key={identity.organization.id}
                 organization={identity.organization}
+              />
+            ) : section === 'matters' && identity ? (
+              <SettingsMatters
+                key={identity.organization.id}
+                client={mattersClient}
+                scope={{
+                  orgId: identity.organization.id,
+                  userId: identity.user.id,
+                }}
               />
             ) : section === 'general' && identity ? (
               <OrganizationSettings

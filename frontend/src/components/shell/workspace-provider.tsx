@@ -27,8 +27,19 @@ type WorkspaceStatus = WorkspaceBootstrap['status'] | 'loading';
 type WorkspaceContextValue = {
   identity: IdentitySummary | null;
   chatTitleRefreshVersion: number;
-  chatTitle: { chatId: string; actorScope: string; title: string } | null;
-  setChatTitle: (chatId: string, actorScope: string, title: string) => void;
+  chatTitle: {
+    chatId: string;
+    actorScope: string;
+    title: string;
+    access?: 'owner' | 'reader';
+    projectBound?: boolean;
+  } | null;
+  setChatTitle: (
+    chatId: string,
+    actorScope: string,
+    title: string,
+    meta?: { access?: 'owner' | 'reader'; projectBound?: boolean },
+  ) => void;
   status: WorkspaceStatus;
   transitioning: boolean;
   fallbackNotice: string | null;
@@ -120,11 +131,17 @@ export function WorkspaceProvider({
     chatId: string;
     actorScope: string;
     title: string;
+    access?: 'owner' | 'reader';
+    projectBound?: boolean;
   } | null>(null);
   const [chatTitleRefreshVersion, setChatTitleRefreshVersion] = useState(0);
   const setChatTitle = useCallback(
-    (chatId: string, actorScope: string, title: string) =>
-      setChatTitleState({ chatId, actorScope, title }),
+    (
+      chatId: string,
+      actorScope: string,
+      title: string,
+      meta?: { access?: 'owner' | 'reader'; projectBound?: boolean },
+    ) => setChatTitleState({ chatId, actorScope, title, ...meta }),
     [],
   );
 

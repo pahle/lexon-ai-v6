@@ -1,5 +1,11 @@
 export type SettingsSection =
-  'profile' | 'appearance' | 'security' | 'members' | 'invitations' | 'general';
+  | 'profile'
+  | 'appearance'
+  | 'security'
+  | 'members'
+  | 'invitations'
+  | 'matters'
+  | 'general';
 
 const sections = new Set<SettingsSection>([
   'profile',
@@ -7,6 +13,7 @@ const sections = new Set<SettingsSection>([
   'security',
   'members',
   'invitations',
+  'matters',
   'general',
 ]);
 

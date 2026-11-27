@@ -1599,14 +1599,14 @@
     },
     "settings-profile-desktop-light": {
       "path": "review/settings-profile-desktop-light.png",
-      "sha256": "dd0c05439d31ce31b9e91c87068557036627511c60ba84c20573fcf1f722ef88",
+      "sha256": "dd31b3a91343980539e3e13c308edc7c9f4d9ec1da28fc57c99bdc294fe755f9",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-profile-desktop-dark": {
       "path": "review/settings-profile-desktop-dark.png",
-      "sha256": "d9dce3e49f5748a3d280f49adfeff1cea1b30ef0c5095b3523c75892722da2c8",
+      "sha256": "5945e1c2d0032a494220988f3af157affc7e53fcc8259b9bdff6edccf7386559",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -1627,14 +1627,14 @@
     },
     "settings-appearance-desktop-light": {
       "path": "review/settings-appearance-desktop-light.png",
-      "sha256": "b5b1555f9e17f179a03487207bb5469fd84112ad05f8965770c37d894ae0ae7c",
+      "sha256": "94cabb6c853cbaa89301bb4fd4ee438aa778830ba6295c3232eded513ab0afa4",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-appearance-desktop-dark": {
       "path": "review/settings-appearance-desktop-dark.png",
-      "sha256": "91905627e3c623e4d52629f209a285fae32d2cd7295622291e250db0a665b8cf",
+      "sha256": "50c7d3a50729535435dae02d2de2401fef109ae87a6ecce4c1af331ffef44b7a",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -1655,14 +1655,14 @@
     },
     "settings-security-desktop-light": {
       "path": "review/settings-security-desktop-light.png",
-      "sha256": "c1a4587c525e4b927934b719cda65e8fa427cd00b668067ca43fd36a75dc5083",
+      "sha256": "3d25f779f67a1f52840b21a60b34139ab9b03d2c59bd941841a4ec1ad5a8f87d",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-security-desktop-dark": {
       "path": "review/settings-security-desktop-dark.png",
-      "sha256": "d03e066dcda0ac9ac9604c08635f2ca2cb31064294103b3e7357e0d7a5cfa02c",
+      "sha256": "33844c2ea32dd535992b72e0ec2ce079fd0bc7daa702b8088bde9e088cd88188",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -1683,14 +1683,14 @@
     },
     "settings-members-desktop-light": {
       "path": "review/settings-members-desktop-light.png",
-      "sha256": "9a454450933b764525a2347141338a1e1ccfea39fd8056cb386c4d47c0ae0030",
+      "sha256": "69a9576f61209905f7c1713b36cadedc5f35f6207acae20b6e4ea41f6e4ce43d",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-members-desktop-dark": {
       "path": "review/settings-members-desktop-dark.png",
-      "sha256": "5ccb36f3f5640155c2f53bb4d960e1d76144dae55e22fe6fbda983e1e34736c9",
+      "sha256": "98ac5caa1e91e88368bcabe1014c4ff38b5ced751ed188f151df74737f52b78b",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -1711,14 +1711,14 @@
     },
     "settings-invitations-desktop-light": {
       "path": "review/settings-invitations-desktop-light.png",
-      "sha256": "aeacb23699975dd625a8701b20fd4f83b3a069159a4c2c575946c0a095c4fa01",
+      "sha256": "a6eab9a7041d87e9ddb7c28680c4262579a7c5a2b897355105dcc18dbb75ba88",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-invitations-desktop-dark": {
       "path": "review/settings-invitations-desktop-dark.png",
-      "sha256": "653a6715491dcef543df6b9287c4bd4d9457937f530ee2e5687fe62e4c5def6f",
+      "sha256": "35cd64f705098e83cf2ea72b909dcf30beadb35b9b08c491f0a17368a53f7a4c",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -1739,14 +1739,14 @@
     },
     "settings-general-desktop-light": {
       "path": "review/settings-general-desktop-light.png",
-      "sha256": "d7dfe4a3dd08d307bae8103a6383a1019890eb6690ffdecb688fde2f3854538a",
+      "sha256": "3f5efff4d1fef9557415a687effdc0cb84770c124800e5a32cef342caacce1cb",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-general-desktop-dark": {
       "path": "review/settings-general-desktop-dark.png",
-      "sha256": "e39e1132cbbc9ff865fe7f306225138f4fb02f99a5ecb64b495227bb1cde1ee9",
+      "sha256": "92693889847257544c34a6f3e08f5cfeeffa15f34847249402974017bd857c29",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -1907,56 +1907,56 @@
     },
     "chats-empty-desktop-light": {
       "path": "review/chats-empty-desktop-light.png",
-      "sha256": "16beb6ce2e37089cdf5413858f52f320a9fdf9b364d954f7544df35624e9aba0",
+      "sha256": "59c6c11a159028e3895d58e39b8d17ff6eb826030de5759453612a5aabcca7b4",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-empty-desktop-dark": {
       "path": "review/chats-empty-desktop-dark.png",
-      "sha256": "044070d115cab622a3fde4103890f78989c9e251966f1092fade17d726c076ad",
+      "sha256": "6fd1feb974293c591a85342f34e501c1e513757a279051b50ece13071dd4209e",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-empty-mobile-light": {
       "path": "review/chats-empty-mobile-light.png",
-      "sha256": "4168289ffbdb766b82cd04f82c02c386c5405936de4da02d8804e0b21d5247c1",
+      "sha256": "46ef548789b85eeff515259235539bab4eb118cdcccf20587cb672263f70ce4e",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chats-empty-mobile-dark": {
       "path": "review/chats-empty-mobile-dark.png",
-      "sha256": "e8fbc1d72017e175998cffc7e34dc387d7aae6c5086b4857f134404bc4c3e2f8",
+      "sha256": "7a058f88db7cd7d33a4b57334d1230f47f8a737ba939d89c60c0ac0bf38160e6",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chats-loading-desktop-light": {
       "path": "review/chats-loading-desktop-light.png",
-      "sha256": "5ac3fd1a32c2a222d99aa985a51e2cddd57d85df6d507208d08194d269ed9f1d",
+      "sha256": "1e6d58cf7dc6c272162d5a3137d92b59df486fa55effa732a08edfacabef910b",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-loading-desktop-dark": {
       "path": "review/chats-loading-desktop-dark.png",
-      "sha256": "30b27ec5a3a8954647e4e37766bc9bd9992f5193072d09abe8b7047d36d95755",
+      "sha256": "ed6c0e7fbc428e173232ea65fba0d005e50ced89bec34671b8bfcfc7abe72ac3",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-loading-mobile-light": {
       "path": "review/chats-loading-mobile-light.png",
-      "sha256": "4c6af41e1d0512cdcd84639fb7b3520846d545f0c7352070be32a2b1f36ff161",
+      "sha256": "7242e3115fb312f4045a97b8c4a98245f78032e048716746e3a0f2b06628cd0c",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chats-loading-mobile-dark": {
       "path": "review/chats-loading-mobile-dark.png",
-      "sha256": "606f2aea03dc33098ea0f95327592c080fbc5a97bfdcdbb0576f9dea51989f97",
+      "sha256": "42dee718be0f827d418676d1cb45fcd762d0145b4d645e4f6e3a21cd38297af6",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -2383,28 +2383,28 @@
     },
     "chat-floating-menu-desktop-light": {
       "path": "review/chat-floating-menu-desktop-light.png",
-      "sha256": "c2e1a7a7ebad4387f45a35455e38953bd3898905eb45381b84e55b3aee271306",
+      "sha256": "cf22b781d75e2a6c378bd8ce64f168269652277b22b3b6e5fa5077b2da9a664d",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-floating-menu-desktop-dark": {
       "path": "review/chat-floating-menu-desktop-dark.png",
-      "sha256": "d375ff4511a21adc4ecc6b601bc9e26369b9b5fc4c6c18bb00720e35b6298494",
+      "sha256": "0209649d29037e58aeb4cb241bc33254f7ed8ac67efe1f888dec430305bf3338",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chat-floating-menu-mobile-light": {
       "path": "review/chat-floating-menu-mobile-light.png",
-      "sha256": "de72805e63fae8fb931ea976abe79f076ef99d47f53fff4e69d297892f0566c5",
+      "sha256": "94b761b7f1b0fd8d091b66d5acb4b6906cbd8199d1318fef743abeb4912139fe",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chat-floating-menu-mobile-dark": {
       "path": "review/chat-floating-menu-mobile-dark.png",
-      "sha256": "7d2492e0672ce73176aef5c958be5567575627372f6a6ba6018ecc978a63be54",
+      "sha256": "fb0ca0a4969fa17b6908f2012e92951783f34a1fbfcdea241ea34bcb01df1b2b",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -2467,28 +2467,28 @@
     },
     "chats-history-desktop-light": {
       "path": "review/chats-history-desktop-light.png",
-      "sha256": "807e279f8170af207d7b5b158b080e8bc3d2c6164d2fe9819799871990592319",
+      "sha256": "0543b863d4fb4c0de81c82c1de9830c3ea5150a6db774d01f2a1e67056a8d67f",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-history-desktop-dark": {
       "path": "review/chats-history-desktop-dark.png",
-      "sha256": "bf48b04474f6af5b5c05e0563da637c4546cef8ff44f346b0519af48193ef286",
+      "sha256": "44cdd9834a948ff22cb5c575e18298ba5858da0b89d3e4e66af44e4c749ec19c",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-history-mobile-light": {
       "path": "review/chats-history-mobile-light.png",
-      "sha256": "e9e07e9605dae541ca90a6d920d6f6198b4efc9e0f276fbf686de58335ce14e1",
+      "sha256": "a99fea3b58f3359a1f6c9a14407d8e9c01a1c61b7fd208f65690c62b8b4db4ae",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chats-history-mobile-dark": {
       "path": "review/chats-history-mobile-dark.png",
-      "sha256": "7b6966d081965f49c57bea5c30053a7d6f95f75a93f46a8f94b6d4e3deadba19",
+      "sha256": "c999384548796729784c99d62d308bc5dbab75ed34caa325382418da1a48a569",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -2691,42 +2691,42 @@
     },
     "chats-load-failed-desktop-light": {
       "path": "review/chats-load-failed-desktop-light.png",
-      "sha256": "dc4fa6da438f3090f0fac1d0cf2e7b67ce41bbfb735bd34b9fc1c76c7c8c5d6f",
+      "sha256": "a8925e8ffb955cf88874d4e56d30de7ac50d929e4c0e3aa754166024c695803e",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-load-failed-desktop-dark": {
       "path": "review/chats-load-failed-desktop-dark.png",
-      "sha256": "cf3f3af1f700efc92ea4d46c43fa2231574d039bbcbeb10e435d71af523d9c2a",
+      "sha256": "1695051be415ae2f29e6a2266530ab133235fc7c43a157e2638b9702d4f6ff17",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-load-failed-mobile-light": {
       "path": "review/chats-load-failed-mobile-light.png",
-      "sha256": "3d7c1877cc4bd32c7ea251f25093f3ad90a4a1589ab8f9d91a4109a4c15f93f0",
+      "sha256": "2c1c98e149ee2be6cc911bcd0cf1285a8baa672baea93937689b528b9874f8ce",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chats-load-failed-mobile-dark": {
       "path": "review/chats-load-failed-mobile-dark.png",
-      "sha256": "df37de62db956911cee2e041821591ad07ddbd9176b6d50898b02ebbfe595626",
+      "sha256": "02a8b223c653ab0cb1194c2bae51f35249c18e0823d60d3514c660c15d9a7246",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "settings-members-load-failed-desktop-light": {
       "path": "review/settings-members-load-failed-desktop-light.png",
-      "sha256": "81fbb1e40c244a737b47043f84d74388fe2dfea2efbd3cf96c9de25b2a4b2e8d",
+      "sha256": "edbcbbb96a14b43aa801f16ff6154b0aab46300dd4569c3b12fe6bf857b1abed",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-members-load-failed-desktop-dark": {
       "path": "review/settings-members-load-failed-desktop-dark.png",
-      "sha256": "3bbbbc56e1b2712ac76325115b7660e14cafd26e74e6de4e30096a926016a9fe",
+      "sha256": "be9519a06059b700b35fab971a8e7e927fdd6631a60e637aad19b97a359f4842",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -2747,14 +2747,14 @@
     },
     "settings-profile-save-failed-desktop-light": {
       "path": "review/settings-profile-save-failed-desktop-light.png",
-      "sha256": "f27af8350b04ea7652d1d8f1745e6465d4c0e55b2ffc1bc983ce53462e917aa1",
+      "sha256": "d78e001b794734071f7ee5a0996ba1ed6f2dda699895b1ffa45f8e89ff639772",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "settings-profile-save-failed-desktop-dark": {
       "path": "review/settings-profile-save-failed-desktop-dark.png",
-      "sha256": "7934630f3000e02d0fb998d5e7c8b087d289c3269f1a4c3248f6061e4286828e",
+      "sha256": "e387e6d247de80147cb539c5aaa4f84b5674445d1eaaf0a54191f0281b41a3fb",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
@@ -3671,28 +3671,28 @@
     },
     "chats-waiting-desktop-light": {
       "path": "review/chats-waiting-desktop-light.png",
-      "sha256": "86b43c1408ecf16dc29ebaa9dee65446df930a2e1af57a02591ec3647d79f455",
+      "sha256": "6e02fe2c99b24906f0f6babde3e34a7eb4d58bd3dbe86084e3db6159dde4a3e6",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-waiting-desktop-dark": {
       "path": "review/chats-waiting-desktop-dark.png",
-      "sha256": "35ea7271e11098f38b77d1f0692b681dc49b1624bfa04c51da3e0e41858227c0",
+      "sha256": "2cca9ee80d7409becc61a2fe33b15fa976604a2f20f2c2d5c2cca6fff3c9796c",
       "width": 1440,
       "height": 900,
       "deviceScaleFactor": 1
     },
     "chats-waiting-mobile-light": {
       "path": "review/chats-waiting-mobile-light.png",
-      "sha256": "a678b3bf5aed7da926fd46ce06a406ad6be7b00295e010d6bd7537d7118570f0",
+      "sha256": "37b8c55e48e3fc675bdf19380694233dcb75db89ea066cce6a3c40a940a316f7",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
     },
     "chats-waiting-mobile-dark": {
       "path": "review/chats-waiting-mobile-dark.png",
-      "sha256": "05da7c15a77ce44b2349df58719e76b413495f735d84015fdb4d83bf5adefc9f",
+      "sha256": "3270db4bc08255124a74b26d7780d37375f06833e001e2a2cd691ab044954834",
       "width": 390,
       "height": 844,
       "deviceScaleFactor": 1
@@ -3831,32 +3831,6 @@
         "ciRun": "44726618821"
       },
       "decision": "2026-11-20, noise-only re-approval (the view was owner-approved from CI run 44693062107; the Linux update run 44726618821 rendered 4 pixels differently, all within a channel delta of 15)"
-    },
-    {
-      "id": "chats-load-failed-mobile-dark",
-      "sha256": "df37de62db956911cee2e041821591ad07ddbd9176b6d50898b02ebbfe595626",
-      "previousSha256": "6443ccfe6033113d4ce48e7366c8aa2e42b61091d56ade6c7782b0cf7b171671",
-      "evidence": {
-        "pixels": 35,
-        "bbox": [360, 182, 374, 249],
-        "channelThreshold": 16,
-        "maxChannelDelta": 1,
-        "ciRun": "44726618821"
-      },
-      "decision": "2026-11-20, noise-only re-approval (the view was owner-approved from CI run 44693062107; the Linux update run 44726618821 rendered 35 pixels differently, all within a channel delta of 1)"
-    },
-    {
-      "id": "settings-members-load-failed-mobile-light",
-      "sha256": "74bd2a21bb707de626af4496db597f34d712dd5045a93f89e54ab57c377353cf",
-      "previousSha256": "cd76f4d95197b68280bdbe10e4f8b77a70e815a38943397a6b9efdb3b032f233",
-      "evidence": {
-        "pixels": 38,
-        "bbox": [16, 146, 374, 195],
-        "channelThreshold": 16,
-        "maxChannelDelta": 1,
-        "ciRun": "44726618821"
-      },
-      "decision": "2026-11-20, noise-only re-approval (the view was owner-approved from CI run 44693062107; the Linux update run 44726618821 rendered 38 pixels differently, all within a channel delta of 1)"
     }
   ],
   "amendments": [
@@ -4281,6 +4255,69 @@
         "user-menu-open-mobile-light",
         "workspace-error-desktop-dark",
         "workspace-error-desktop-light"
+      ]
+    },
+    {
+      "reference": "F6 task 10 UI re-baseline: owner + reviewer approval of the 56 task-10-affected views (settings Matters nav, chats DataTabs, floating-menu Share item) from CI run 45863433280 at head 24b46622, artifacts visual-pending-45863433280-shard-{1,3}, review packet PR #105",
+      "date": "2026-11-27",
+      "sourceSha": "24b46622160e3c322953a40d5642ea5eab05a7f0",
+      "viewIds": [
+        "chat-floating-menu-desktop-dark",
+        "chat-floating-menu-desktop-light",
+        "chat-floating-menu-mobile-dark",
+        "chat-floating-menu-mobile-light",
+        "chats-empty-desktop-dark",
+        "chats-empty-desktop-light",
+        "chats-empty-mobile-dark",
+        "chats-empty-mobile-light",
+        "chats-history-desktop-dark",
+        "chats-history-desktop-light",
+        "chats-history-mobile-dark",
+        "chats-history-mobile-light",
+        "chats-load-failed-desktop-dark",
+        "chats-load-failed-desktop-light",
+        "chats-load-failed-mobile-dark",
+        "chats-load-failed-mobile-light",
+        "chats-loading-desktop-dark",
+        "chats-loading-desktop-light",
+        "chats-loading-mobile-dark",
+        "chats-loading-mobile-light",
+        "chats-waiting-desktop-dark",
+        "chats-waiting-desktop-light",
+        "chats-waiting-mobile-dark",
+        "chats-waiting-mobile-light",
+        "settings-appearance-desktop-dark",
+        "settings-appearance-desktop-light",
+        "settings-appearance-mobile-dark",
+        "settings-appearance-mobile-light",
+        "settings-general-desktop-dark",
+        "settings-general-desktop-light",
+        "settings-general-mobile-dark",
+        "settings-general-mobile-light",
+        "settings-invitations-desktop-dark",
+        "settings-invitations-desktop-light",
+        "settings-invitations-mobile-dark",
+        "settings-invitations-mobile-light",
+        "settings-members-desktop-dark",
+        "settings-members-desktop-light",
+        "settings-members-load-failed-desktop-dark",
+        "settings-members-load-failed-desktop-light",
+        "settings-members-load-failed-mobile-dark",
+        "settings-members-load-failed-mobile-light",
+        "settings-members-mobile-dark",
+        "settings-members-mobile-light",
+        "settings-profile-desktop-dark",
+        "settings-profile-desktop-light",
+        "settings-profile-mobile-dark",
+        "settings-profile-mobile-light",
+        "settings-profile-save-failed-desktop-dark",
+        "settings-profile-save-failed-desktop-light",
+        "settings-profile-save-failed-mobile-dark",
+        "settings-profile-save-failed-mobile-light",
+        "settings-security-desktop-dark",
+        "settings-security-desktop-light",
+        "settings-security-mobile-dark",
+        "settings-security-mobile-light"
       ]
     }
   ]

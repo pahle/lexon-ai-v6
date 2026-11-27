@@ -137,9 +137,26 @@ function ChatViewSession({
     [chatId, client],
   );
   const updateCanonicalTree = useCallback((nextTree: ChatTree) => {
-    setTree((current) =>
-      current !== null && treesEqual(current, nextTree) ? current : nextTree,
-    );
+    setTree((current) => {
+      if (current !== null && treesEqual(current, nextTree)) return current;
+      // F6 §10: stream frames can carry a bare ChatTree — keep the reader
+      // fields the last full detail fetch published so access never flickers
+      // back to owner chrome mid-session.
+      const prev = current as Partial<{
+        access: 'owner' | 'reader';
+        ownerName: string;
+        projectName: string;
+      }> | null;
+      if (prev?.access === 'reader' && !('access' in nextTree)) {
+        return {
+          ...nextTree,
+          access: prev.access,
+          ownerName: prev.ownerName,
+          projectName: prev.projectName,
+        } as ChatTree;
+      }
+      return nextTree;
+    });
   }, []);
 
   useEffect(() => {
@@ -155,7 +172,10 @@ function ChatViewSession({
           setTree(result.tree);
           setTreeEtag(result.etag);
           if (requestVersion === titleRequestVersion.current)
-            setChatTitle(chatId, actorScope, result.tree.title);
+            setChatTitle(chatId, actorScope, result.tree.title, {
+              access: result.tree.access,
+              projectBound: result.tree.projectName !== undefined,
+            });
         }
       })
       .catch((error: unknown) => {
@@ -185,7 +205,10 @@ function ChatViewSession({
       .then((result) => {
         if (result.notModified) return;
         if (current && requestVersion === titleRequestVersion.current)
-          setChatTitle(chatId, actorScope, result.tree.title);
+          setChatTitle(chatId, actorScope, result.tree.title, {
+            access: result.tree.access,
+            projectBound: result.tree.projectName !== undefined,
+          });
       })
       .catch(() => undefined);
     return () => {

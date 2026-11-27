@@ -8,6 +8,7 @@ import { consumeRouteHeadingFocus } from '@/components/shell/navigation-focus';
 import { LoadingState } from '@/components/states/page-states';
 import { ChatHistory } from '@/components/chat/chat-history';
 import { ChatSearch } from '@/components/chat/chat-search';
+import { DataTabs } from '@/components/data-views/data-list-page';
 import { createChatClient } from '@/lib/chat-client';
 import { rememberChatSearchHighlight } from '@/lib/chat-search-highlight';
 import { navigateToSearchMatch } from '@/lib/chat-search-navigation';
@@ -22,6 +23,7 @@ export default function ChatsPage() {
   const queryClient = useQueryClient();
   const client = useMemo(() => createChatClient({ baseUrl: '/api' }), []);
   const [searching, setSearching] = useState(false);
+  const [tab, setTab] = useState<'own' | 'shared'>('own');
   const mounted = useRef(true);
   const heading = useRef<HTMLHeadingElement>(null);
   const pathname = usePathname();
@@ -86,7 +88,19 @@ export default function ChatsPage() {
         onActiveSearchChange={setSearching}
         onOpenMatch={openSearchMatch}
       />
-      {!searching ? <ChatHistory client={client} scope={scope} /> : null}
+      {!searching ? (
+        <>
+          <DataTabs
+            tabs={[
+              { value: 'own', label: 'All' },
+              { value: 'shared', label: 'Shared with me' },
+            ]}
+            value={tab}
+            onChange={(value) => setTab(value as 'own' | 'shared')}
+          />
+          <ChatHistory client={client} scope={scope} listScope={tab} />
+        </>
+      ) : null}
     </div>
   );
 }

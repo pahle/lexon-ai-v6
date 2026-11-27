@@ -12,7 +12,11 @@ import { createAuthEnvironment } from '../setup/auth-environment.js';
 import { securityHarness } from '../setup/security-harness.js';
 import { IdentitySessionService } from '../../src/modules/identity-access/identity-session.service.js';
 import { OrganizationSwitchService } from '../../src/modules/organizations/organization-switch.service.js';
-import { ProjectPageSchema, ProjectSummarySchema } from '@lexon/contracts';
+import {
+  ChatDetailSchema,
+  ProjectPageSchema,
+  ProjectSummarySchema,
+} from '@lexon/contracts';
 
 // F6 task 5: Matters CRUD + instructions over the 0043 access model —
 // owner/editor/viewer roles gate writes, and every read path returns the
@@ -343,6 +347,17 @@ test('a chat created with projectId binds to the project; a viewer cannot bind',
     expect(chats.status).toBe(200);
     const bound = ((await chats.json()) as { items: { id: string }[] }).items;
     expect(bound.map((chat) => chat.id)).toContain(ownedChatId);
+
+    // A project member reads the chat as a reader: the detail carries the
+    // owner's name and the project name for the read-only bar labels.
+    const viewerRead = await fetch(`${origin}/api/chats/${ownedChatId}`, {
+      headers: viewer.cookieHeaders,
+    });
+    expect(viewerRead.status).toBe(200);
+    const viewerTree = ChatDetailSchema.parse(await viewerRead.json());
+    expect(viewerTree.access).toBe('reader');
+    expect(viewerTree.ownerName).toBe('Owner');
+    expect(viewerTree.projectName).toBe('Bound chats');
 
     // A member who lacks owner/editor standing is refused with 403.
     const foreignChatId = randomUUID();

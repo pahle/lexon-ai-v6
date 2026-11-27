@@ -16,6 +16,7 @@ import {
 import type { OperationStatus } from '@lexon/contracts';
 import {
   isDecidedOperationStatus,
+  useChatAccess,
   useChatAwaiting,
 } from '@/components/chat/chat-runtime';
 import {
@@ -48,7 +49,7 @@ export interface ChatToolRowProps {
 }
 
 /** §5.3 "Waiting for you" pill — tint chip with a haloed red-text dot. */
-export function ChatWaitingPill() {
+export function ChatWaitingPill({ name }: { name?: string | undefined }) {
   return (
     <span
       role="status"
@@ -66,7 +67,7 @@ export function ChatWaitingPill() {
             '0 0 0 3px color-mix(in srgb, var(--lexon-red-text) 22%, transparent)',
         }}
       />
-      Waiting for you
+      {name ? `Waiting for ${name}` : 'Waiting for you'}
     </span>
   );
 }
@@ -362,6 +363,7 @@ function QuestionDecisionRecord({
  */
 export function ChatToolRow(props: ChatToolRowProps) {
   const awaiting = useChatAwaiting();
+  const access = useChatAccess();
   const operation = awaiting?.getOperation(props.toolCallId);
   const status = operation?.status;
   const decided = isDecidedOperationStatus(status);
@@ -380,7 +382,16 @@ export function ChatToolRow(props: ChatToolRowProps) {
     props.toolName === 'ask_user' || operation?.kind === 'question';
   const [expanded, setExpanded] = useState(false);
 
-  if (pending) return <ChatWaitingPill />;
+  if (pending)
+    return (
+      <ChatWaitingPill
+        name={
+          access.access === 'reader'
+            ? (access.ownerName ?? 'the owner')
+            : undefined
+        }
+      />
+    );
 
   if (isQuestion && (decided || props.isError)) {
     return (

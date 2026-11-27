@@ -181,6 +181,7 @@ describe('project summary contracts', () => {
       owner: { userId, name: 'Owner One' },
       memberCount: 3,
       chatCount: 7,
+      restrictedCount: 0,
       lastActivityAt: stamp,
       createdAt: stamp,
     };
@@ -356,5 +357,63 @@ describe('chat detail access contract', () => {
         pageInfo: { nextCursor: null },
       }).items[0],
     ).toEqual(without);
+  });
+
+  it('round-trips ownerName on shared-scope ChatPage items', () => {
+    const item = {
+      id: chatId,
+      title: 'Case notes',
+      updatedAt: stamp,
+      lastMessageAt: stamp,
+      awaitingUser: false,
+      ownerName: 'Andi Wijaya',
+    };
+    expect(
+      ChatPageSchema.parse({ items: [item], pageInfo: { nextCursor: null } })
+        .items[0],
+    ).toEqual(item);
+  });
+
+  it('round-trips optional ownerName/projectName on the chat detail', () => {
+    const reader = {
+      ...tree,
+      access: 'reader',
+      ownerName: 'Andi Wijaya',
+      projectName: 'Matter A',
+    };
+    expect(ChatDetailSchema.parse(reader)).toEqual(reader);
+    expect(
+      ChatDetailSchema.parse({ ...tree, access: 'reader' }).ownerName,
+    ).toBeUndefined();
+    for (const payload of [
+      { ...tree, access: 'reader', ownerName: '' },
+      { ...tree, access: 'reader', ownerName: 1 },
+      { ...tree, access: 'reader', projectName: '' },
+    ])
+      expect(ChatDetailSchema.safeParse(payload).success).toBe(false);
+  });
+
+  it('requires restrictedCount on the org project summary', () => {
+    const summary = {
+      version: 1,
+      id: projectId,
+      name: 'Matter A',
+      matterNumber: '2026/001',
+      practiceArea: 'Litigation',
+      owner: { userId, name: 'Owner One' },
+      memberCount: 3,
+      chatCount: 2,
+      restrictedCount: 1,
+      lastActivityAt: stamp,
+      createdAt: stamp,
+    };
+    expect(OrgProjectSummarySchema.parse(summary)).toEqual(summary);
+    const missing = { ...summary } as Record<string, unknown>;
+    delete missing.restrictedCount;
+    expect(OrgProjectSummarySchema.safeParse(missing).success).toBe(false);
+    expect(
+      OrgProjectSummarySchema.safeParse({ ...summary, restrictedCount: -1 })
+        .success,
+    ).toBe(false);
   });
 });

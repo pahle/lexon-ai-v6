@@ -23,8 +23,10 @@ import { ChatOperationPanel } from '@/components/chat/chat-operation-panel';
 import { ChatToolRow } from '@/components/chat/chat-tool-row';
 import {
   ChatComposerCancel,
+  useChatAccess,
   useChatActiveRun,
   useChatAwaiting,
+  type ChatAccessView,
 } from '@/components/chat/chat-runtime';
 import {
   BottomSentinel,
@@ -57,6 +59,7 @@ import {
   CircleAlertIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  Lock as LockIcon,
   PenIcon,
   RefreshCwIcon,
   ThumbsDownIcon,
@@ -151,6 +154,7 @@ export const Thread: FC<ThreadProps> = ({
   reconnecting = false,
 }) => {
   const isEmpty = useAuiState(isNewChatView);
+  const access = useChatAccess();
   const [editFocusTarget, setEditFocusTarget] = useState<{
     sourceId: string;
     parentId: string | null;
@@ -240,7 +244,11 @@ export const Thread: FC<ThreadProps> = ({
                 aria-hidden="true"
                 className="from-background pointer-events-none absolute inset-x-0 -top-10 h-10 bg-linear-to-t to-transparent"
               />
-              <Composer effort={effort} onEffortChange={onEffortChange} />
+              {access.access === 'reader' ? (
+                <ReadOnlyBar view={access} />
+              ) : (
+                <Composer effort={effort} onEffortChange={onEffortChange} />
+              )}
             </ThreadPrimitive.ViewportFooter>
           </div>
         </ThreadPrimitive.Viewport>
@@ -436,6 +444,8 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
         (message) => message.status?.type === 'running',
       ),
   );
+  const access = useChatAccess();
+  const reader = access.access === 'reader';
   if (editing)
     return <ThreadEditComposer messageId={messageId} parentId={parentId} />;
   // The answer under an open edit reads as dimmed through the muted text
@@ -500,11 +510,11 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
         </p>
       ) : null}
       {role === 'assistant' && metadata?.status === 'failed' ? (
-        <ResponseFailed disabled={serverActive} />
+        <ResponseFailed disabled={serverActive} hideReload={reader} />
       ) : null}
       <MessagePrimitive.Error>
         {metadata?.status === 'failed' ? null : (
-          <ResponseFailed disabled={serverActive} />
+          <ResponseFailed disabled={serverActive} hideReload={reader} />
         )}
       </MessagePrimitive.Error>
       {role === 'assistant' && announcement.active ? (
@@ -513,17 +523,21 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
         </p>
       ) : null}
       {role === 'assistant' ? (
-        <AssistantActions
-          messageId={messageId}
-          alwaysVisible={isLast || answerStatus === 'stopped'}
-          feedback={
-            metadata?.feedback === 'good' || metadata?.feedback === 'bad'
-              ? metadata.feedback
-              : null
-          }
-          onFeedback={onFeedback}
-        />
-      ) : answerBusy || reconnecting ? null : (
+        reader ? (
+          <CopyOnlyActions />
+        ) : (
+          <AssistantActions
+            messageId={messageId}
+            alwaysVisible={isLast || answerStatus === 'stopped'}
+            feedback={
+              metadata?.feedback === 'good' || metadata?.feedback === 'bad'
+                ? metadata.feedback
+                : null
+            }
+            onFeedback={onFeedback}
+          />
+        )
+      ) : answerBusy || reconnecting || reader ? null : (
         <div
           className={cn(
             '-mt-1 flex min-h-7 items-center gap-0.5 opacity-100 transition-opacity group-hover/turn:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100',
@@ -538,7 +552,10 @@ const ThreadMessage: FC<Pick<ThreadProps, 'onFeedback' | 'reconnecting'>> = ({
   );
 };
 
-const ResponseFailed: FC<{ disabled: boolean }> = ({ disabled }) => (
+const ResponseFailed: FC<{ disabled: boolean; hideReload?: boolean }> = ({
+  disabled,
+  hideReload = false,
+}) => (
   <div
     role="alert"
     className="bg-muted border-border flex items-center gap-3 rounded-xl border py-2.5 pr-2.5 pl-3.5 text-[15px] leading-[1.75]"
@@ -548,16 +565,40 @@ const ResponseFailed: FC<{ disabled: boolean }> = ({ disabled }) => (
       aria-hidden="true"
     />
     <span className="flex-1">The response could not be completed.</span>
-    <ActionBarPrimitive.Reload
-      aria-label="Try again"
-      disabled={disabled}
-      render={<Button variant="outline" className="shrink-0" />}
-    >
-      <RefreshCwIcon className="size-3.5" aria-hidden="true" />
-      Try again
-    </ActionBarPrimitive.Reload>
+    {hideReload ? null : (
+      <ActionBarPrimitive.Reload
+        aria-label="Try again"
+        disabled={disabled}
+        render={<Button variant="outline" className="shrink-0" />}
+      >
+        <RefreshCwIcon className="size-3.5" aria-hidden="true" />
+        Try again
+      </ActionBarPrimitive.Reload>
+    )}
   </div>
 );
+
+/**
+ * F6 §10 reader chrome: assistant answers keep only the copy affordance —
+ * branch, feedback, and reload are mutation-adjacent and stay owner-only.
+ */
+const CopyOnlyActions: FC = () => {
+  const aui = useAui();
+  return (
+    <div
+      data-slot="aui_message-actions"
+      className="text-muted-foreground -mt-1 -ml-2 flex items-center gap-0.5"
+    >
+      <CopyAction
+        first
+        label="answer"
+        getText={() => aui.message.getCopyText()}
+        className={ACTION_BUTTON}
+        copiedClassName={ACTION_ON}
+      />
+    </div>
+  );
+};
 
 const announcementSegmentLength = 160;
 const announcementSegmentIntervalMs = 500;
@@ -933,6 +974,30 @@ const ThreadEditComposer: FC<{
         />
       </div>
     </ComposerPrimitive.Root>
+  );
+};
+
+/**
+ * F6 §10 reader chrome: the read-only bar replaces the composer for shared /
+ * project-chat viewers — the same footprint as the composer wrapper so the
+ * viewport keeps its bottom padding.
+ */
+const ReadOnlyBar: FC<{ view: ChatAccessView }> = ({ view }) => {
+  const label = view.projectName
+    ? `${view.ownerName ?? 'The owner'}’s chat · read-only`
+    : view.ownerName
+      ? `Shared by ${view.ownerName} · read-only`
+      : 'Shared chat · read-only';
+  return (
+    <div className={composerClasses.wrapper}>
+      <div
+        data-slot="aui_readonly-bar"
+        className="bg-muted text-muted-foreground flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm"
+      >
+        <LockIcon className="size-4 shrink-0" aria-hidden="true" />
+        <span>{label}</span>
+      </div>
+    </div>
   );
 };
 

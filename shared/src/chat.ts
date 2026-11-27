@@ -5,6 +5,7 @@ import {
   RunErrorCodeSchema,
   RunStatusSchema,
 } from './ai-run.js';
+import type { ChatShareSummary, ShareAddInput } from './projects.js';
 // The operation summary schema lives beside the run stream events that carry
 // it (ai-run.ts); re-export so both import paths keep working.
 export { ChatOperationSnapshotSchema };
@@ -131,8 +132,26 @@ export type ChatAccess = z.infer<typeof ChatAccessSchema>;
 // GET /chats/:id payload — the tree plus the caller's access level. Kept out
 // of ChatTree itself: access is a per-request authorization fact, not part of
 // the tree's identity, and a ChatDetail stays assignable to ChatTree.
+// `ownerName`/`projectName` are emitted for readers only (F6 §10): the
+// read-only bar renders "Shared by <ownerName>" / "<ownerName>'s chat" and a
+// project-bound chat needs projectName to pick the label. A departed owner's
+// name no longer resolves — the field is absent and the UI falls back to the
+// generic label.
 export const ChatDetailSchema = z
-  .strictObject({ ...chatTreeShape, access: ChatAccessSchema })
+  .strictObject({
+    ...chatTreeShape,
+    access: ChatAccessSchema,
+    ownerName: z
+      .string()
+      .min(1)
+      .refine((value) => Array.from(value).length <= 120)
+      .optional(),
+    projectName: z
+      .string()
+      .min(1)
+      .refine((value) => Array.from(value).length <= 120)
+      .optional(),
+  })
   .refine(chatTreeLinksRefinement.check, chatTreeLinksRefinement.params);
 export type ChatDetail = z.infer<typeof ChatDetailSchema>;
 
@@ -153,6 +172,13 @@ export const ChatPageSchema = z.strictObject({
       // Secondary text on the caller's own project chats (F6); absent on
       // standalone chats.
       projectName: z
+        .string()
+        .min(1)
+        .refine((value) => Array.from(value).length <= 120)
+        .optional(),
+      // Secondary text on shared-scope rows: "Shared by <ownerName>" (F6 §10).
+      // Absent when the sharer's name no longer resolves (departed owner).
+      ownerName: z
         .string()
         .min(1)
         .refine((value) => Array.from(value).length <= 120)
@@ -540,4 +566,8 @@ export interface ChatApi {
     operationId: string,
     input: OperationDecisionInput,
   ): Promise<OperationDecisionResult>;
+  /** F6 §10 owner-only standalone-chat sharing (chat_shares arm). */
+  listShares(chatId: string): Promise<ChatShareSummary[]>;
+  addShares(chatId: string, input: ShareAddInput): Promise<ChatShareSummary[]>;
+  removeShare(chatId: string, userId: string): Promise<void>;
 }

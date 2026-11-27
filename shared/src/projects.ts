@@ -128,6 +128,8 @@ export const OrgProjectSummarySchema = z.strictObject({
   owner: projectOwner,
   memberCount: z.number().int().nonnegative().safe(),
   chatCount: z.number().int().nonnegative().safe(),
+  // The settings Restricted column — a count, never identities.
+  restrictedCount: z.number().int().nonnegative().safe(),
   lastActivityAt: timestamp,
   createdAt: timestamp,
 });

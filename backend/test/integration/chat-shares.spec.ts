@@ -183,19 +183,32 @@ test('share add lists recipients, grants reader access, revokes into identical 4
     ]);
 
     // Recipient reads the tree with reader access and sees it under
-    // scope=shared — never under their own list.
+    // scope=shared — never under their own list. The reader payload and the
+    // shared row both carry the owner's display name for the spec-pinned
+    // "Shared by <name>" label; the owner's own detail stays tight.
     const detail = await fetch(`${origin}/api/chats/${chatId}`, {
       headers: recipient.cookieHeaders,
     });
     expect(detail.status).toBe(200);
-    expect(ChatDetailSchema.parse(await detail.json()).access).toBe('reader');
+    const readerTree = ChatDetailSchema.parse(await detail.json());
+    expect(readerTree.access).toBe('reader');
+    expect(readerTree.ownerName).toBe('Share Owner');
     const shared = await fetch(`${origin}/api/chats?scope=shared`, {
       headers: recipient.cookieHeaders,
     });
     const sharedItems = (await shared.json()) as {
-      items: Array<{ id: string }>;
+      items: Array<{ id: string; ownerName?: string }>;
     };
     expect(sharedItems.items.map((item) => item.id)).toContain(chatId);
+    expect(
+      sharedItems.items.find((item) => item.id === chatId)?.ownerName,
+    ).toBe('Share Owner');
+    const ownerDetail = await fetch(`${origin}/api/chats/${chatId}`, {
+      headers: owner.cookieHeaders,
+    });
+    expect(
+      ChatDetailSchema.parse(await ownerDetail.json()).ownerName,
+    ).toBeUndefined();
     const own = await fetch(`${origin}/api/chats`, {
       headers: recipient.cookieHeaders,
     });

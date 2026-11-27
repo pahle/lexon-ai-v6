@@ -174,5 +174,19 @@ export function createChatClient(options: ChatClientOptions): ChatApi {
         'POST',
         contracts.OperationDecisionInputSchema.parse(input),
       ),
+    listShares: (chatId) =>
+      call(
+        `/chats/${id(chatId)}/shares`,
+        z.array(contracts.ChatShareSummarySchema),
+      ),
+    addShares: (chatId, input) =>
+      call(
+        `/chats/${id(chatId)}/shares`,
+        z.array(contracts.ChatShareSummarySchema),
+        'POST',
+        contracts.ShareAddInputSchema.parse(input),
+      ),
+    removeShare: (chatId, userId) =>
+      call(`/chats/${id(chatId)}/shares/${id(userId)}`, null, 'DELETE'),
   };
 }
