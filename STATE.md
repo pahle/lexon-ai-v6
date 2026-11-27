@@ -399,3 +399,10 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - Eye check: Matters row present on every app-shell capture, content untouched.
 - c9a5893c unit-integration red on eslint (unused readdirSync); the gate was not run before the push again.
 - #103 added 12 more pending ids for task-10 content changes; they need their own task-10 review packet.
+
+## 2026-11-26 — #104 merged (b5cedd98, pending 0, goldens = correct-shard captures); #105 + #106 reviewed
+
+- #106 (fix batch 3, 07ecdb22, CI green): authorizeCommitted per-event EXISTS arms -> one VALUES join with count(*) = arm count. Semantics verified (o.id unique per run, duplicates counted per arm). Measured 125 ms -> ~7 ms; 20/20 loaded runs. Approve. Follow-up: a dropped operation-bearing publication is still silent until reload; should trigger a chat refresh notify (record as F6 hardening follow-up). ai-worker-crash shutdown bound under observation (1/37).
+- #105 (task-10 delta packet, round 2/2 Linux UI, CI green): 56 ids; eye-checked settings nav Matters (matches prototype order), chats All/Shared tabs, floating menu Share. Approve. README counts disagree with results.json (identicalToCheckedIn 15 vs "0", drift 2 vs "17"): fix the text.
+- #103 head 24b46622: sbom red = syft download HTTP 504 (infra, rerun); compose-e2e pending.
+- Linux UI rounds for F6 are now used up (2/2); task 12 captures need owner approval for an extra round.
