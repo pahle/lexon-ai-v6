@@ -13,10 +13,11 @@ import {
   useExternalStoreRuntime,
   useAui,
 } from '@assistant-ui/react';
-import type { ChatTree } from '@lexon/contracts';
+import type { ChatMessage, ChatTree } from '@lexon/contracts';
 import {
   ChatRuntime,
   reconcileCanonicalTerminalMessages,
+  repairActiveRunParentage,
 } from '../src/components/chat/chat-runtime.js';
 import { Thread } from '../src/components/assistant-ui/elements/thread.aui.js';
 import {
@@ -2484,4 +2485,52 @@ it('repairs a streamed regenerate sibling parented to the previous answer', () =
     ({ message }) => message.id === answerB,
   );
   expect(entry?.parentId).toBe(userSiblingB);
+});
+
+it('reparents the streamed regenerate answer under the user turn while the run is still active', () => {
+  const userId = '22222222-2222-4222-8222-222222222222';
+  const answerA = '33333333-3333-4333-8333-333333333333';
+  const answerB = '44444444-4444-4444-8444-444444444444';
+  // The raced streamed repository: the regenerate landed as a child of the
+  // previous answer instead of a sibling under the user turn — the flat
+  // chain a live user sees until the terminal reconcile repaints.
+  const repository = ExportedMessageRepository.fromBranchableArray(
+    [
+      {
+        parentId: null,
+        message: { id: userId, role: 'user', content: 'Question' },
+      },
+      {
+        parentId: userId,
+        message: { id: answerA, role: 'assistant', content: 'Answer A' },
+      },
+      {
+        parentId: answerA,
+        message: { id: answerB, role: 'assistant', content: 'Answer B' },
+      },
+    ],
+    { headId: answerB },
+  );
+  const activeRun: Extract<ChatMessage, { role: 'assistant' }> = {
+    id: answerB,
+    role: 'assistant',
+    parentId: userId,
+    runId: '66666666-6666-4666-8666-666666666666',
+    text: '',
+    status: 'running',
+    reasoningSummary: null,
+    reasoningDurationMs: null,
+    feedback: null,
+    operations: [],
+    createdAt: '2026-11-11T00:00:02.000Z',
+  };
+
+  const repaired = repairActiveRunParentage(repository, activeRun);
+  const entry = repaired.messages.find(({ message }) => message.id === answerB);
+  expect(entry?.parentId).toBe(userId);
+  // Untouched entries keep their identity, and the head is preserved.
+  expect(repaired.headId).toBe(answerB);
+  expect(repaired.messages.find(({ message }) => message.id === answerA)).toBe(
+    repository.messages.find(({ message }) => message.id === answerA),
+  );
 });

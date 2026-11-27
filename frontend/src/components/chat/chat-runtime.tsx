@@ -372,6 +372,19 @@ function ChatRuntimeSession({
         setServerActiveRunId(freshRun.runId);
         setRunId(freshRun.runId);
         transport.syncActiveRun(freshRun.runId);
+        // A regenerate racing the leaf switch leaves the streamed answer
+        // parented to the previous one; the canonical tree is authoritative
+        // mid-run too, so the flat chain never reaches the user.
+        const runningThreadRuntime = threadRuntimeRef.current;
+        if (runningThreadRuntime) {
+          const runningRepository = runningThreadRuntime.export();
+          const repaired = repairActiveRunParentage(
+            runningRepository,
+            freshRun,
+          );
+          if (repaired !== runningRepository)
+            runningThreadRuntime.import(repaired);
+        }
       } else {
         const threadRuntime = threadRuntimeRef.current;
         const visibleMessagesBeforeStop = threadRuntime?.getState().messages;
@@ -913,6 +926,32 @@ function importCanonicalTerminalRepository(
   setMessages(
     path.flatMap((message) => getExternalStoreMessages<ChatUIMessage>(message)),
   );
+}
+
+/**
+ * Mid-run counterpart of the terminal reconcile's parentage repair: a
+ * regenerate racing the leaf switch can stream the new answer appended
+ * under the previous one — a flat `user→asst→asst` chain with no branch
+ * navigator for the whole run. The canonical tree carries the active
+ * run's node under the user turn, so reparent the streamed entry to it;
+ * only when the canonical parent is part of the repository is the entry
+ * never orphaned. Returns the input repository unchanged otherwise.
+ */
+export function repairActiveRunParentage(
+  repository: ExportedMessageRepository,
+  activeRun: Extract<ChatMessage, { role: 'assistant' }>,
+): ExportedMessageRepository {
+  const ids = new Set(repository.messages.map((entry) => entry.message.id));
+  let changed = false;
+  const messages = repository.messages.map((entry) => {
+    if (entry.message.id !== activeRun.id) return entry;
+    const parentId = activeRun.parentId;
+    if (parentId === entry.parentId) return entry;
+    if (parentId !== null && !ids.has(parentId)) return entry;
+    changed = true;
+    return { ...entry, parentId };
+  });
+  return changed ? { ...repository, messages } : repository;
 }
 
 export function reconcileCanonicalTerminalMessages(
