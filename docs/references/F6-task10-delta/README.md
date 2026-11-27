@@ -44,12 +44,18 @@ hidden in search state); `settings-matters-*` remain `planned` (task 12).
 
 ## Flags recorded in results.json
 
-- `staleReviewDrift`: 17 ids — the checked-in `review/` copy predates the
-  re-baseline (16 mobile settings ids whose views are identical, plus
-  `chats-load-failed-mobile-dark`). Selections compare against the approved
+- `identicalToCheckedIn`: 15 — `settings-*-mobile-*` recaptures that
+  reproduced the checked-in bytes exactly (legit identical vs stale claim
+  are indistinguishable post-hoc; flagged, and the sheets still diff
+  against the approved baseline).
+- `identicalToBaseline`: 16 — all `settings-*-mobile-*`, expected
+  unchanged (the extra id beyond the 15 is
+  `settings-members-load-failed-mobile-light`, a proven fresh capture —
+  see below).
+- `staleReviewDrift`: 2 — `chats-load-failed-mobile-dark` and
+  `settings-members-load-failed-mobile-light`; the checked-in `review/`
+  copy predates the re-baseline. Selections compare against the approved
   baseline, so the sheets still show the true delta.
-- `identicalToBaseline`: 16 — all `settings-*-mobile-*`, expected unchanged.
-- `identicalToCheckedIn`: 0.
 - Multi-claimer, missing claimed files, baseline-picked captures: none.
 
 ## Layout
