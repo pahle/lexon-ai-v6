@@ -77,6 +77,7 @@ test('brand visual selects the runtime proof overlay and the F4.1 snapshot path'
     'backend/test/e2e/brand-visual-platform.spec.ts',
     'backend/test/e2e/brand-visual-platform-accounts.spec.ts',
     'backend/test/e2e/brand-visual-platform-organizations.spec.ts',
+    'backend/test/e2e/brand-visual-matters.spec.ts',
     'backend/test/e2e/visual-comparison-regression.spec.ts',
   ]);
   assert.equal(
