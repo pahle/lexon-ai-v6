@@ -406,3 +406,9 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - #105 (task-10 delta packet, round 2/2 Linux UI, CI green): 56 ids; eye-checked settings nav Matters (matches prototype order), chats All/Shared tabs, floating menu Share. Approve. README counts disagree with results.json (identicalToCheckedIn 15 vs "0", drift 2 vs "17"): fix the text.
 - #103 head 24b46622: sbom red = syft download HTTP 504 (infra, rerun); compose-e2e pending.
 - Linux UI rounds for F6 are now used up (2/2); task 12 captures need owner approval for an extra round.
+
+## 2026-11-27 — #107 task 11 review: changes requested
+
+- #103, #105, #106 merged. #107 head d56a2d4a: list-gate pass, unit-integration + compose-e2e pending at review time.
+- Good: 6 list surfaces, EXPLAIN as lexon_app with RLS forced, no seq scan on wall tables, p95 10-16 ms (gate 300 warn / 1000 block), repo SQL shared with the gate, 63/63 injection evals with contextFixtures:1.
+- Gaps: (1) "project-delete-claim-lane" deletes EMPTY projects (chatCount 0) and times HTTP; my ask was 200 chats + live runs, lane hold time and concurrent same-org claims. (2) "sse-three-run-peak" = 3 connections' first-byte; my ask was chat-sse-load S2 ramp peak (490 -> 456 of 500) x3 on CI vs F5 baseline. Both mislabeled as done.
