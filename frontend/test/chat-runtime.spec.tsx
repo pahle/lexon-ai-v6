@@ -14,7 +14,10 @@ import {
   useAui,
 } from '@assistant-ui/react';
 import type { ChatTree } from '@lexon/contracts';
-import { ChatRuntime } from '../src/components/chat/chat-runtime.js';
+import {
+  ChatRuntime,
+  reconcileCanonicalTerminalMessages,
+} from '../src/components/chat/chat-runtime.js';
 import { Thread } from '../src/components/assistant-ui/elements/thread.aui.js';
 import {
   ProofMessage,
@@ -2397,4 +2400,88 @@ it('replaces an earlier PostgreSQL snapshot when a newer snapshot arrives on the
   ).toBe('Current reasoning');
   expect(message?.metadata).toMatchObject({ reasoningDurationMs: 17 });
   await act(async () => root.unmount());
+});
+
+it('repairs a streamed regenerate sibling parented to the previous answer', () => {
+  const userSiblingA = '11111111-1111-4111-8111-111111111111';
+  const userSiblingB = '22222222-2222-4222-8222-222222222222';
+  const answerA = '33333333-3333-4333-8333-333333333333';
+  const answerB = '44444444-4444-4444-8444-444444444444';
+  const tree: ChatTree = {
+    id: '55555555-5555-4555-8555-555555555555',
+    title: 'Runtime proof',
+    messages: [
+      {
+        id: userSiblingA,
+        role: 'user',
+        parentId: null,
+        text: 'Question',
+        effort: 'high',
+        createdAt: '2026-11-11T00:00:00.000Z',
+      },
+      {
+        id: userSiblingB,
+        role: 'user',
+        parentId: null,
+        text: 'Question v2',
+        effort: 'high',
+        createdAt: '2026-11-11T00:00:01.000Z',
+      },
+      {
+        id: answerA,
+        role: 'assistant',
+        parentId: userSiblingB,
+        runId: '66666666-6666-4666-8666-666666666666',
+        text: 'Answer A',
+        status: 'completed',
+        reasoningSummary: null,
+        reasoningDurationMs: null,
+        feedback: null,
+        operations: [],
+        createdAt: '2026-11-11T00:00:02.000Z',
+      },
+      {
+        id: answerB,
+        role: 'assistant',
+        parentId: userSiblingB,
+        runId: '77777777-7777-4777-8777-777777777777',
+        text: 'Answer B',
+        status: 'completed',
+        reasoningSummary: null,
+        reasoningDurationMs: null,
+        feedback: null,
+        operations: [],
+        createdAt: '2026-11-11T00:00:03.000Z',
+      },
+    ],
+    viewedLeafId: answerB,
+    createdAt: '2026-11-11T00:00:00.000Z',
+    updatedAt: '2026-11-11T00:00:03.000Z',
+  };
+  // The raced streamed repository: the regenerate landed as a child of the
+  // previous answer instead of a sibling under the user turn (the CI flake's
+  // flat user→assistant→assistant signature).
+  const repository = ExportedMessageRepository.fromBranchableArray(
+    [
+      {
+        parentId: null,
+        message: { id: userSiblingB, role: 'user', content: 'Question v2' },
+      },
+      {
+        parentId: userSiblingB,
+        message: { id: answerA, role: 'assistant', content: 'Answer A' },
+      },
+      {
+        parentId: answerA,
+        message: { id: answerB, role: 'assistant', content: 'Answer B' },
+      },
+    ],
+    { headId: answerB },
+  );
+
+  const reconciled = reconcileCanonicalTerminalMessages(repository, tree);
+  const entry = reconciled.messages.find(
+    ({ message }) => message.id === answerB,
+  );
+  expect(entry?.parentId).toBe(userSiblingB);
 });
