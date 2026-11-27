@@ -438,3 +438,10 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - #110 chat-sse-load red again (S2 ramp peak, run 45949552031); not mentioned in the report.
 - Lesson: tasks 9/10 merged without any prototype comparison; fidelity was first checked at task 12.
 - Owner rulings (2026-11-27): restricted member row = implementer's a11y variant (I must update the prototype + notes in a docs PR); matter chip in the chat header = implement; layouts = match r18; Linux UI round 4 approved for the task-12 recapture only.
+
+## 2026-11-27 — round 4 (#111, run 45982407809) review; prototype 18.1 PR #113
+
+- r18 layout now mostly present on desktop, but still 62/64 over gate. Unreported: chat-share capture STILL shows "We could not load who can see this chat". Mobile matter header squeezes the title (actions share the title row). settings-matters-restrict still renders inside the settings panel, not as a stacked dialog with its own overlay.
+- Owner rulings: matter dates = absolute like Chats; round 5 approved as the final capture round (iterate locally first, Mac captures are not evidence).
+- Docs PR #113 (draft, base main): prototype 18.1 = restricted row a11y variant + absolute matter dates (28 PNGs re-rendered; the rest are byte-identical). After the owner merges it, main must be merged into f6-projects before round 5.
+- #112 (mid-run parentage source fix) green: approve. chat-thread:363 still recurs (terminal reconcile hole), so the durable fix is required before #92. SSE S2 one failure (peak 418, auth pool waiting 471): accepted as intermittent, with a follow-up on auth pool headroom.
