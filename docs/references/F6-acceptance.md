@@ -478,3 +478,39 @@ reproduce on the current head (45782643479's ramp admitted 490 with
 422 `evicted` closes; 45807647830 was itself 500/500) — peak is at
 baseline, so no audience-lookup/`notifyAccessChanged` root-cause is
 warranted.
+
+## Task 12 — Matters visual states (pending captures, `f6-t12-visual`)
+
+Capture spec `brand-visual-matters.spec.ts` + fixtures
+`matter-state-fixtures.ts` cover the 16 Matters states at revision 18
+(64 views: 2 viewports × 2 themes). The org is real (Kantor Hukum Adil:
+Dewi owner; Andi/Rina/Citra members via invitations, onboarding +
+jobTitle); only the F6 payloads are fixtured (`/api/projects*`,
+`/api/org/projects*`, `/api/org/members/search`, `/api/chats/:id/shares`,
+`/api/chats?scope=shared`). Axe runs on every capture (WCAG tags via
+`captureBrandViews` default). No goldens and no `approval.json` — the CI
+run writes `visual-pending-*` artifacts + `pending-compare` sheets for
+owner eye review.
+
+**Prototype deviation (owner ruling requested on the sheet):** the
+approved r18 prototype dims the restricted member row with
+`opacity:.55`, which fails axe `color-contrast` (name, secondary line,
+and initials badge all below 4.5:1). `members-dialog.tsx` drops the row
+opacity and keeps the name in `text-muted-foreground` + the explicit
+"Access restricted by your organization" line — the distinction stays
+readable and passes WCAG.
+
+**Follow-up recorded from the #108 branch-navigation fix (does not
+block #108):** on regenerate, the streamed repository's new assistant
+entry can record `parentId` = the _previous_ assistant leaf instead of
+the user turn. `onReload` slices the AI SDK flat list at the parent,
+re-pushes the old assistant, and `regenerate()` appends after it; when
+the flat-list rebuild wins the sync race, the external-store mapping
+parents the new answer under the old answer → a flat `user→asst→asst`
+chain with no branch navigator. A **live user does see the flat chain
+while the run streams**: `reconcileCanonicalTerminalMessages` is
+skipped whenever `freshRun` is non-null (`chat-runtime.tsx:370-375`),
+so the wrong parentage stays visible until the run terminates and the
+reconcile reparents it — which post-#108 it now always does. Fixing the
+mid-run parentage at the source (reparent from `freshTree`, or prevent
+the mis-parented append) is a separate PR with RED evidence.

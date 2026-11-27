@@ -3962,7 +3962,7 @@
       "replaces": []
     }
   },
-  "planned": [
+  "pending": [
     "matters-list-desktop-light",
     "matters-list-desktop-dark",
     "matters-list-mobile-light",
@@ -4027,5 +4027,6 @@
     "matter-personal-desktop-dark",
     "matter-personal-mobile-light",
     "matter-personal-mobile-dark"
-  ]
+  ],
+  "planned": []
 }
