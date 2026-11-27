@@ -255,9 +255,11 @@ Recorded in `.superpowers/sdd/2026-11-25-f6-projects-ethical-wall/progress.md`
 and `batch-1-report.md`: `chat-sse-load` marginal-capacity (PR #94),
 40P01 raced decision (became PR #97 fix, root-caused again on the fix
 branch — see fix-batch section), `ai-execution`
-proposal-limits truncation (resolved as regression, see fix-batch
-section), `ai-worker-crash` pause-release race (environmental), sse-load
-bad-object push artifact, organizations axe-scan (unrelated e2e).
+proposal-limits approval-drop (root-caused and fixed — see
+`f6-fix-batch3` section; 20/20 loaded runs green),
+`ai-worker-crash` pause-release race (environmental; shutdown-bound
+wait reappeared once in 37 loaded runs — see `f6-fix-batch3` section),
+sse-load bad-object push artifact, organizations axe-scan (unrelated e2e).
 
 ## Fix batch — `f6-fix-batch1`
 
@@ -356,3 +358,62 @@ org-membership gate. Note for future migrations: PostgreSQL 17 requires
 EXECUTE on the existing function for `CREATE OR REPLACE` — `0050`
 grants EXECUTE to `lexon_migrator` around the replace and restores the
 `0045` acl afterwards.
+
+## Fix batch — `f6-fix-batch3`
+
+**ai-execution approval-drop (4 CI occurrences)** — root cause:
+`streamCommittedProof` authorized a publication batch with one correlated
+`EXISTS` subplan per operation-bearing event (~4 ms per arm). Measured
+inside `publishCommitted` (temporary `RUN_STREAMS_TIMING` phase marks,
+since reverted): a 25-event batch spent 110 ms and a 32-event batch
+120–128 ms in `authorizeCommitted` alone — over half the 250 ms
+`publicationDeadlineMs` before a single part reached Valkey. Under CI
+load the tx overruns the deadline outright or leaves too little budget
+for the parts loop; `publishCommitted` returns `unavailable`, the
+lifecycle batch is skipped, and accepted approval events never reach the
+stream (the `publishedApprovalIds: []` signature). The
+`#publishCommittedLifecycle` fix batch-1 commit (`6fc42b64`) had already
+collapsed the call count to one tx per batch; the remaining cost was
+inside the query plan.
+
+Fix: the per-event arms now join a single `VALUES` list in one aggregate
+(`count(*) = arm count` ⇔ every event's arm matched — `o.id` is unique
+per run, so the join is at most one row per arm). Same row set, same
+refusal semantics, one scan of the run's `app.ai_operations` instead of
+N correlated subplans.
+
+Measured after the fix (same instrumentation): `authorizeCommitted` is
+flat ~7 ms regardless of batch size (25→7.0 ms, 32→6.5–7.8 ms,
+14→7.4 ms); total `publishCommitted` ≤ ~10 ms — 25× headroom under the
+250 ms deadline.
+
+**Proof under load:** 20 consecutive `ai-execution.spec.ts` runs
+(86 tests each) green while the full `backend-integration` suite and a
+parallel `ai-worker-crash` loop contended on the same host; max
+`authorizeCommitted` observed 9.9 ms, zero publication drops. Full
+`backend-integration` regression: 736/736 green under the same load.
+Removed from the flake ledger; the sibling test's
+`publicationDeadlineMs: 2000` note (A-13 F4.2) stays — it exercises a
+different invariant (mid-batch expiry recovery).
+
+**Dropped-event visibility:** a dropped `approval-required` is
+user-visible — live clients never render the approval card (the event
+is the only live path to `tool-approval-request`). The durable
+`app.ai_operations` row is unchanged, so a reconnect/reload rebuilds it
+via the `snapshot-operation` frames (`stream-hub.ts` replays operations
+from the DB snapshot, not the stream) — user-visible until reload, then
+self-healing.
+
+**ai-worker-crash (>4 s advisory waits):** the `terminate()` graceful
+shutdown is asserted `<5000 ms`; the worker's finalization tx serializes
+on the org claim lane (`pg_advisory_xact_lock`, bounded by
+`lock_timeout=5000` → 55P03→`unavailable`). Under load a stalled lane
+holder pushes the wait past the assertion. This is a distinct mechanism
+from the publication drop (the read-side proof tx never held the lane);
+the authorize collapse removes ~120 ms of per-publish serialized PG work
+globally, which lowers lane pressure. One reproduction in 37 loaded
+runs post-fix (previously: 1 CI occurrence) — tracked below.
+
+Flake ledger update: `ai-execution` proposal-limits approval-drop —
+**resolved** (this fix). `ai-worker-crash` shutdown bound — load-sensitive,
+under observation (1/37 loaded reproductions post-fix).
