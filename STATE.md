@@ -419,3 +419,9 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - #92 head ec72b863: everything green EXCEPT compose-e2e 2/3 = chat-thread.spec.ts:363 (branch selection after reload). The chat-thread branch family (363 + 469) has now failed ~6 times on shard 2 during F6 and 4x on main in F5. It needs a root cause before #92 merges. The report again ran gh pr checks 92 while it was pending.
 - Batch-3 code review: create projectId gate (404/403 via the definer, born-bound insert, project-chat profile), ownerName for readers only, and restrictedCount on orgList only are OK. Issue: ChatService.memberNames calls the auth listMembers API (up to 10 pages x 100) INSIDE the tenant DB transaction, on every reader chat open and every shared list page. It holds a DB connection during an external call, costs O(org size), and a port error 500s the reader view. Fix before #92: resolve names outside withTenant, fail soft, look up by ids if the port allows.
 - Recommended: approve ONE extra Linux UI round (round 3) for task 12 only.
+
+## 2026-11-27 — #108 (branch-nav) + #109 (memberNames) reviewed; task 12 started
+
+- #108 639eb0d0: reconcileCanonicalTerminalMessages now repairs parentId from the canonical tree (guarded). A real product bug, also behind F5 main failures. It repairs at reconcile time; the stream-side source of the stale parent is not yet explained. Approve when CI is green; follow-up: explain or fix the source.
+- #109 ff564569: names resolved after withTenant, listMembers filter userId in [ids], fail-soft, spy test. Approve when CI is green.
+- Task 12: the 16 r18 capture specs are being written on f6-t12 (round 3 approved).
