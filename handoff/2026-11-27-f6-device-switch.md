@@ -105,3 +105,12 @@ Its reply has not been verified yet. On the new device, check: every F6 worktree
 branch exists on origin at the reported SHA, every open PR body has a
 "Status / Remaining" checklist, and #92 has the "Implementer handoff
 2026-11-27" comment with the local notes.
+
+### Verified 2026-11-27 (implementer handoff reply)
+
+- Every reported branch exists on origin at the reported SHA (f6-r18-matters 94c112e7, f6-srcfix-regen 8c8782b0, f6-t12-visual 9215ba88, and the checkpoint branches).
+- #111 body: Status WIP + Remaining checklist, including the chat-share error state. #110 is marked superseded by #111. #112 is marked done.
+- #92 handoff comment with the local notes: https://github.com/pahle/lexon-ai-v6/pull/92#issuecomment-7217687120
+- New clutter: draft PRs #114-#119 ("WIP: audit checkpoint ... (superseded)") for old task branches whose work is already squashed into f6-projects, plus pushed branches stash-backup-f4-task13-report / -task13 / -task12-wip (old F4 stashes). Recommendation: the owner closes #114-#119 without merging; the branches are deleted after F6 merges, together with all f6-* branches.
+- No lexon-e2e-* containers or volumes were left.
+- The local shared checkout lexon-ai-v6 sits on branch f6-projects (stale b8904025), not detached at origin/main. Irrelevant after the device switch: the new device clones fresh.
