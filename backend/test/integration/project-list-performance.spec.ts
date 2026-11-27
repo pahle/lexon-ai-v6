@@ -8,13 +8,19 @@ import { createTestApi, apiHeaders } from '../setup/test-api.js';
 import { createAuthEnvironment } from '../setup/auth-environment.js';
 import { loadRuntimeConfig } from '../../src/config/runtime-config.js';
 import { createPlatformPools } from '../../src/infrastructure/db/testing/platform-console-fixture.js';
-import { withAppTenant } from '../../src/infrastructure/db/testing/project-fixture.js';
+import {
+  errorCode,
+  withAppTenant,
+} from '../../src/infrastructure/db/testing/project-fixture.js';
+import { CLAIM_LANE_LOCK_TIMEOUT_MS } from '../../src/infrastructure/db/index.js';
 import {
   chatReadWhere,
+  commitClaimedStep,
   explainListSurface,
   formatListGateMarkdown,
   listGateSurfaces,
   LIST_GATE_POLICY,
+  ORG_CLAIM_LANE_LOCK_SQL,
 } from '../../src/infrastructure/db/testing/project-list-benchmark.js';
 
 const testRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -175,6 +181,163 @@ test(
          ORDER BY c.last_activity_at LIMIT 30`,
         [orgId, actorId],
       );
+      // The ai_run admission trigger enforces the capacity singleton on every
+      // live-status insert — seed it before any run row exists.
+      await pools.migrator.query(
+        `INSERT INTO ops.ai_engine_capacity
+         (singleton,max_active,max_active_per_org,terminal_slots,max_len,event_bytes,slot_bytes,memory_budget_bytes,config_fingerprint)
+         VALUES(true,64,64,8,1024,4096,6291456,1073741824,'f6-list-gate')
+         ON CONFLICT(singleton) DO UPDATE
+         SET max_active=64,max_active_per_org=64`,
+      );
+      // §14 delete-lane scenario: one dedicated project holding exactly 200
+      // chats (chat_count is trigger-maintained → inserts bump it), 5 of
+      // them with live runs — one paused on an approval — plus 6 standalone
+      // chats elsewhere in the org each carrying a claimed step for the
+      // concurrent same-org commit probe (the 6th is the baseline sample).
+      const deleteProject = randomUUID();
+      await pools.migrator.query(
+        `INSERT INTO app.projects(id,org_id,owner_user_id,name,last_activity_at)
+         VALUES ($1,$2,$3,'Gate delete target',clock_timestamp())`,
+        [deleteProject, orgId, actorId],
+      );
+      await pools.migrator.query(
+        `INSERT INTO app.chats(id,org_id,owner_user_id,title,project_id,last_activity_at)
+         SELECT gen_random_uuid(),$1,
+                CASE WHEN g%2=0 THEN $2 ELSE
+                  (SELECT id FROM auth."user"
+                   WHERE email LIKE 'gate-member-%@example.test'
+                   ORDER BY id OFFSET g%49 LIMIT 1) END,
+                'delete lane chat '||g,$3,clock_timestamp()
+         FROM generate_series(1,200) g`,
+        [orgId, actorId, deleteProject],
+      );
+      // Project-bound chats are visible only via lexon_project_access — every
+      // chat owner must also be a project member for the run/step seeds and
+      // the delete fence to see the rows.
+      await pools.migrator.query(
+        `INSERT INTO app.project_members(org_id,project_id,user_id,role)
+         SELECT c.org_id,c.project_id,c.owner_user_id,'editor' FROM app.chats c
+         WHERE c.org_id=$1 AND c.project_id=$2 AND c.deleted_at IS NULL
+         ON CONFLICT DO NOTHING`,
+        [orgId, deleteProject],
+      );
+      const liveChats = (
+        await pools.migrator.query<{ id: string; owner: string }>(
+          `SELECT id,owner_user_id AS owner FROM app.chats
+           WHERE org_id=$1 AND project_id=$2 ORDER BY id LIMIT 5`,
+          [orgId, deleteProject],
+        )
+      ).rows;
+      for (const [index, live] of liveChats.entries()) {
+        const runId = randomUUID();
+        const stepId = randomUUID();
+        await pools.migrator.query(
+          `INSERT INTO app.ai_runs(id,org_id,initiating_user_id,profile_id,profile_version,
+             resolved_config,model_id,input_text,status,input_budget_tokens,output_budget_tokens)
+           VALUES ($1,$2,$3,'gate-profile',1,$5,'synthetic/test','gate live run',$4,1000,1000)`,
+          [
+            runId,
+            orgId,
+            live.owner,
+            index === 0 ? 'awaiting_approval' : 'running',
+            JSON.stringify({ resourceIds: [live.id] }),
+          ],
+        );
+        await pools.migrator.query(
+          `INSERT INTO app.chat_runs(org_id,chat_id,run_id,kind)
+           VALUES ($1,$2,$3,'answer')`,
+          [orgId, live.id, runId],
+        );
+        await withAppTenant(
+          pools.app,
+          { orgId, userId: live.owner },
+          async (client) => {
+            await client.query(
+              `INSERT INTO app.ai_steps(id,org_id,run_id,sequence,expected_version,state,fence,lease_until)
+               VALUES ($1,$2,$3,1,1,'claimed',1,clock_timestamp()+interval '1 hour')`,
+              [stepId, orgId, runId],
+            );
+          },
+        );
+        if (index === 0) {
+          // The paused-on-approval run carries the live ai_operations row
+          // the delete fence must settle (expires_at required by
+          // ai_operations_lifecycle).
+          const opClient = await pools.migrator.connect();
+          try {
+            await opClient.query('BEGIN');
+            await opClient.query(`SELECT set_config('app.user_id',$1,true)`, [
+              live.owner,
+            ]);
+            await opClient.query(
+              `INSERT INTO app.ai_operations(id,org_id,run_id,step_id,call_occurrence,tool_name,
+                 tool_version,idempotency_mode,args,args_hash,snapshot_hash,approval_required,
+                 status,kind,expires_at)
+               VALUES ($1,$2,$3,$4,0,'fixture-tool',1,'read','{}',$5,$6,true,'awaiting_approval','approval',clock_timestamp()+interval '1 hour')`,
+              [
+                randomUUID(),
+                orgId,
+                runId,
+                stepId,
+                'c'.repeat(64),
+                'd'.repeat(64),
+              ],
+            );
+            await opClient.query('COMMIT');
+          } catch (error) {
+            await opClient.query('ROLLBACK').catch(() => undefined);
+            throw error;
+          } finally {
+            opClient.release();
+          }
+        }
+      }
+      const probeChats = (
+        await pools.migrator.query<{ id: string }>(
+          `INSERT INTO app.chats(id,org_id,owner_user_id,title,last_activity_at)
+           SELECT gen_random_uuid(),$1,$2,'claim probe '||g,clock_timestamp()
+           FROM generate_series(1,6) g RETURNING id`,
+          [orgId, actorId],
+        )
+      ).rows;
+      const probeClaims: Parameters<typeof commitClaimedStep>[2][] = [];
+      for (const probe of probeChats) {
+        const runId = randomUUID();
+        const stepId = randomUUID();
+        await pools.migrator.query(
+          `INSERT INTO app.ai_runs(id,org_id,initiating_user_id,profile_id,profile_version,
+             resolved_config,model_id,input_text,status,input_budget_tokens,output_budget_tokens)
+           VALUES ($1,$2,$3,'gate-profile',1,$4,'synthetic/test','claim probe','running',1000,1000)`,
+          [runId, orgId, actorId, JSON.stringify({ resourceIds: [probe.id] })],
+        );
+        await pools.migrator.query(
+          `INSERT INTO app.chat_runs(org_id,chat_id,run_id,kind)
+           VALUES ($1,$2,$3,'answer')`,
+          [orgId, probe.id, runId],
+        );
+        await withAppTenant(
+          pools.app,
+          { orgId, userId: actorId },
+          async (client) => {
+            await client.query(
+              `INSERT INTO app.ai_steps(id,org_id,run_id,sequence,expected_version,state,fence,lease_until)
+               VALUES ($1,$2,$3,1,1,'claimed',1,clock_timestamp()+interval '1 hour')`,
+              [stepId, orgId, runId],
+            );
+          },
+        );
+        probeClaims.push({
+          runId,
+          orgId,
+          userId: actorId,
+          stepId,
+          sequence: 1,
+          expectedVersion: 1,
+          fence: 1,
+          leaseUntil: new Date(Date.now() + 3_600_000),
+        });
+      }
       const foreignOrg = randomUUID();
       const foreignClient = await pools.migrator.connect();
       try {
@@ -204,7 +367,7 @@ test(
         [foreignOrg, gateAdmin],
       );
       await pools.migrator.query(
-        'ANALYZE app.projects,app.project_members,app.project_denies,app.chats,app.chat_shares,app.project_instructions',
+        'ANALYZE app.projects,app.project_members,app.project_denies,app.chats,app.chat_shares,app.project_instructions,app.ai_runs,app.chat_runs,app.ai_steps,app.ai_operations',
       );
       await record({ type: 'seed-complete', orgId, foreignOrg });
 
@@ -388,35 +551,104 @@ test(
       await remeasure(pools, ctx, record);
 
       stage = 'project-delete-claim-lane';
-      const deleteTimings: number[] = [];
-      for (let i = 0; i < 3; i += 1) {
-        const created = await fetch(`${origin}/api/projects`, {
-          method: 'POST',
-          headers: { ...actor, 'content-type': 'application/json' },
-          body: JSON.stringify({ name: `Delete target ${i}` }),
-        });
-        expect(created.status === 200 || created.status === 201).toBe(true);
-        const body = (await created.json()) as {
-          id?: string;
-          project?: { id: string };
-        };
-        const projectId = body.id ?? body.project?.id;
-        expect(projectId).toBeTruthy();
-        const started = performance.now();
-        const deleted = await fetch(`${origin}/api/projects/${projectId}`, {
-          method: 'DELETE',
-          headers: { ...actor, 'content-type': 'application/json' },
-          body: JSON.stringify({ chatCount: 0 }),
-        });
-        deleteTimings.push(performance.now() - started);
-        expect(deleted.status).toBe(204);
-      }
-      await record({ type: 'project-delete-claim-lane', ms: deleteTimings });
+      // The real §8 scenario: ops.project_delete holds the org claim lane
+      // (pg_advisory_xact_lock) across the whole 200-chat tombstone loop
+      // while 5 live runs are fenced — including one paused on an approval.
+      // (a) pg_locks sampled on a second connection yields the advisory-hold
+      // window; (b) five concurrent same-org commits on OTHER chats queue
+      // behind the lane — any 55P03/'unavailable' is a gate failure. The
+      // 6th probe commit is the uncontended baseline.
+      const baselineStarted = performance.now();
+      const baselineCommit = await commitClaimedStep(
+        pools.app,
+        ctx,
+        probeClaims[0]!,
+      );
+      const baselineCommitMs = performance.now() - baselineStarted;
+      expect(baselineCommit).toBe(true);
 
-      stage = 'sse-three-run-peak';
-      const sse = await measureSsePeak(`${origin}/api/chats/events`, actor, 3);
-      await record({ type: 'sse-three-run-peak', ...sse });
-      expect(sse.connected).toBe(3);
+      const laneSamples: Array<{
+        t: number;
+        holders: number;
+        waiters: number;
+      }> = [];
+      let sampling = true;
+      const sampler = (async () => {
+        const probe = await pools.migrator.connect();
+        try {
+          while (sampling) {
+            const rows = await probe.query<{ pid: number; granted: boolean }>(
+              ORG_CLAIM_LANE_LOCK_SQL,
+              [orgId],
+            );
+            laneSamples.push({
+              t: performance.now(),
+              holders: rows.rows.filter((row) => row.granted).length,
+              waiters: rows.rows.filter((row) => !row.granted).length,
+            });
+            await new Promise((resolve) => setImmediate(resolve));
+          }
+        } finally {
+          probe.release();
+        }
+      })();
+
+      const deleteStarted = performance.now();
+      const deletePromise = fetch(`${origin}/api/projects/${deleteProject}`, {
+        method: 'DELETE',
+        headers: { ...actor, 'content-type': 'application/json' },
+        body: JSON.stringify({ chatCount: 200 }),
+      });
+      const laneObservedAt = await (async () => {
+        const deadline = performance.now() + 3000;
+        while (performance.now() < deadline) {
+          const seen = laneSamples.find((s) => s.holders > 0);
+          if (seen) return seen.t;
+          await new Promise((resolve) => setTimeout(resolve, 1));
+        }
+        return undefined;
+      })();
+      const commitResults = await Promise.all(
+        probeClaims.slice(1).map(async (claim) => {
+          const started = performance.now();
+          try {
+            const ok = await commitClaimedStep(pools.app, ctx, claim);
+            return { ok, threw: false, ms: performance.now() - started };
+          } catch (error) {
+            return {
+              ok: false,
+              threw: true,
+              code: errorCode(error),
+              ms: performance.now() - started,
+            };
+          }
+        }),
+      );
+      const deleteResponse = await deletePromise;
+      const deleteHttpMs = performance.now() - deleteStarted;
+      sampling = false;
+      await sampler;
+      const granted = laneSamples.filter((s) => s.holders > 0);
+      const laneHoldMs = granted.length
+        ? granted[granted.length - 1]!.t - granted[0]!.t
+        : 0;
+      const peakWaiters = Math.max(0, ...laneSamples.map((s) => s.waiters));
+      expect(deleteResponse.status).toBe(204);
+      expect(laneHoldMs).toBeLessThan(CLAIM_LANE_LOCK_TIMEOUT_MS);
+      expect(commitResults.every((result) => result.ok)).toBe(true);
+      await record({
+        type: 'project-delete-claim-lane',
+        chats: 200,
+        liveRuns: 5,
+        laneHoldMs: Number(laneHoldMs.toFixed(2)),
+        laneObserved: laneObservedAt !== undefined,
+        deleteHttpMs: Number(deleteHttpMs.toFixed(2)),
+        baselineCommitMs: Number(baselineCommitMs.toFixed(2)),
+        commitWaitsMs: commitResults.map((r) => Number(r.ms.toFixed(2))),
+        commitFailures: commitResults.filter((r) => !r.ok),
+        peakWaiters,
+        timeoutBudgetMs: CLAIM_LANE_LOCK_TIMEOUT_MS,
+      });
     } catch (error) {
       await record({
         type: 'benchmark-error',
@@ -766,40 +998,8 @@ async function remeasure(
   }
 }
 
-async function measureSsePeak(
-  url: string,
-  headers: Record<string, string>,
-  count: number,
-): Promise<{ connected: number; firstByteMs: number[]; maxMs: number }> {
-  const results = await Promise.all(
-    Array.from({ length: count }, async () => {
-      const started = performance.now();
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 30_000);
-      try {
-        const response = await fetch(url, {
-          headers: { ...headers, accept: 'text/event-stream' },
-          signal: controller.signal,
-        });
-        if (!response.ok || !response.body) {
-          return { connected: false, ms: performance.now() - started };
-        }
-        const reader = response.body.getReader();
-        await reader.read();
-        const ms = performance.now() - started;
-        reader.cancel().catch(() => undefined);
-        return { connected: true, ms };
-      } catch {
-        return { connected: false, ms: performance.now() - started };
-      } finally {
-        clearTimeout(timer);
-        controller.abort();
-      }
-    }),
-  );
-  return {
-    connected: results.filter((r) => r.connected).length,
-    firstByteMs: results.map((r) => Number(r.ms.toFixed(2))),
-    maxMs: Number(Math.max(...results.map((r) => r.ms)).toFixed(2)),
-  };
-}
+// The S2 burst/ramp evidence for this gate is the CI `chat-sse-load.yml`
+// workflow itself (500 authenticated Caddy clients cannot run under
+// testcontainers): three dispatched runs against the f6-projects head are
+// compared to the F5 baseline (serverPeakOpenSse 500/500 both modes, run
+// 45166468664) and appended to this gate's JSONL + F6-acceptance.md.

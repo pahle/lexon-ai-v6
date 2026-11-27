@@ -1,4 +1,8 @@
 import type { Queryable } from './project-fixture.js';
+import type { Pool } from 'pg';
+import { withAppTenantSession } from './project-fixture.js';
+import { AiStepRepository } from '../ai-step.repository.js';
+import type { StepClaim } from '../ai-records.js';
 import { buildAuthorizationPredicate } from '../authorization-predicate.js';
 import { projectListSql, projectOrgListSql } from '../project.repository.js';
 import { chatListSql } from '../chat-search.repository.js';
@@ -130,6 +134,33 @@ export function chatReadWhere(
     userId: ctx.userId,
     excludeDeleted: true,
   }).where(alias, orgParam, userParam);
+}
+
+/** The org claim-lane key `ops.project_delete` and every claim/commit
+ * mutation serialize on: `pg_advisory_xact_lock(hashtextextended(key,0))`
+ * stores the 64-bit key as (classid=high32, objid=low32, objsubid=1) in
+ * pg_locks — the unsigned halves of the signed bigint hash. */
+export const ORG_CLAIM_LANE_LOCK_SQL = `SELECT pid,granted FROM pg_locks
+  WHERE locktype='advisory' AND objsubid=1
+    AND classid::bigint=((hashtextextended('lexon.ai_step_claim:'||$1,0)>>32)&4294967295)
+    AND objid::bigint=(hashtextextended('lexon.ai_step_claim:'||$1,0)&4294967295)`;
+
+/** One real same-org claim-lane mutation: `AiStepRepository.commit` takes
+ * `lockResourceForRun` → `lockTenantClaimGuard` → the org advisory lane,
+ * then the claim/run/step row locks — exactly what a worker does when
+ * settling a step while `ops.project_delete` holds the lane. */
+export async function commitClaimedStep(
+  app: Pool,
+  tenant: { orgId: string; userId: string },
+  claim: StepClaim,
+): Promise<boolean> {
+  return withAppTenantSession(app, tenant, (tx) =>
+    new AiStepRepository().commit(tx, claim, {
+      state: 'committed',
+      text: 'gate claim-lane probe',
+      data: {},
+    }),
+  );
 }
 
 export async function explainListSurface(

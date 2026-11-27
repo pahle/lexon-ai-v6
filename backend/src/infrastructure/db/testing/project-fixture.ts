@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
+import {
+  beginSession,
+  endSession,
+  type TenantSession,
+} from '../tenant-session.js';
 
 /** Minimal query surface so spec files never import pg directly (the
  * database-owner boundary rule reserves pg imports for this directory). */
@@ -252,6 +257,24 @@ export async function withAppTenant<T>(
   } finally {
     client.release();
   }
+}
+
+/** `withAppTenant` variant that binds a real `TenantSession` so repository
+ * methods that require one (claim/commit, which take the org claim lane)
+ * can be driven from specs. */
+export async function withAppTenantSession<T>(
+  app: Pool,
+  tenant: { orgId: string; userId: string },
+  fn: (session: TenantSession) => Promise<T>,
+): Promise<T> {
+  return withAppTenant(app, tenant, async (client) => {
+    const session = beginSession(client, tenant, app);
+    try {
+      return await fn(session);
+    } finally {
+      endSession(session);
+    }
+  });
 }
 
 /** Returns the PG error code ('42501', '23514', …) or 'unknown'. */
