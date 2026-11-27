@@ -162,7 +162,7 @@ test('Chat actions opens Rename and Delete on an open chat', async () => {
   const items = [...document.body.querySelectorAll('[role="menuitem"]')].map(
     (item) => item.textContent,
   );
-  expect(items).toEqual(['Rename', 'Delete']);
+  expect(items).toEqual(['Rename', 'Share', 'Delete']);
   await view.unmount();
 });
 

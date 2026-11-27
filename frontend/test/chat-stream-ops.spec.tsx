@@ -130,6 +130,54 @@ it('maps a capped tool-input-available (input dropped) and reports the missing i
   expect(onOperationSummaryMissing).toHaveBeenCalledWith(operationId);
 });
 
+it('keeps the delta-reassembled input when a capped tool-input-available drops the wire input', async () => {
+  const onOperation = vi.fn();
+  const onOperationSummaryMissing = vi.fn();
+  const chunks = await streamChunks(
+    [
+      { version: 1, type: 'start', runId, messageId: assistantId },
+      {
+        version: 1,
+        type: 'tool-input-start',
+        runId,
+        toolCallId: operationId,
+        toolName: 'rename_chat',
+      },
+      {
+        version: 1,
+        type: 'tool-input-delta',
+        runId,
+        toolCallId: operationId,
+        inputTextDelta: '{"newTitle":"Somasi',
+      },
+      {
+        version: 1,
+        type: 'tool-input-delta',
+        runId,
+        toolCallId: operationId,
+        inputTextDelta: ' PT Sinar"}',
+      },
+      // §9 over-cap fallback: the available frame arrives without `input`.
+      {
+        version: 1,
+        type: 'tool-input-available',
+        runId,
+        toolCallId: operationId,
+        toolName: 'rename_chat',
+        operationId,
+      },
+    ],
+    { onOperation, onOperationSummaryMissing },
+  );
+  expect(chunks).toContainEqual({
+    type: 'tool-input-available',
+    toolCallId: operationId,
+    toolName: 'rename_chat',
+    input: { newTitle: 'Somasi PT Sinar' },
+  });
+  expect(onOperationSummaryMissing).toHaveBeenCalledWith(operationId);
+});
+
 it('maps approval-required to a tool-approval-request carrying the summary and reports it', async () => {
   const onOperation = vi.fn();
   const chunks = await streamChunks(

@@ -22,6 +22,7 @@ import { RUNTIME_CONFIG } from '../../config/config.module.js';
 import {
   CreateChatInputSchema,
   ChatIdentityFallbackEventSchema,
+  ChatListScopeSchema,
   ChatSearchRequestSchema,
   EditMessageInputSchema,
   RegenerateInputSchema,
@@ -145,13 +146,19 @@ export class ChatController {
           .transform(Number)
           .pipe(z.number().int().min(1).max(100))
           .optional(),
+        scope: ChatListScopeSchema.optional(),
       })
       .parse(query);
     return this.authorization.withActor(identity, (actor) =>
-      this.chats.list(actor, {
-        ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
-        ...(input.limit === undefined ? {} : { limit: input.limit }),
-      }),
+      this.chats.list(
+        actor,
+        {
+          ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
+          ...(input.limit === undefined ? {} : { limit: input.limit }),
+          ...(input.scope === undefined ? {} : { scope: input.scope }),
+        },
+        identity,
+      ),
     );
   }
 
@@ -188,7 +195,12 @@ export class ChatController {
   ) {
     const identity = currentVerifiedIdentity();
     const result = await this.authorization.withActor(identity, (actor) =>
-      this.chats.get(actor, UuidSchema.parse(chatId), { ifNoneMatch }),
+      this.chats.get(
+        actor,
+        UuidSchema.parse(chatId),
+        { ifNoneMatch },
+        identity,
+      ),
     );
     // Explicit ETag on both 200 and 304 (never Express's body hash) and
     // no-store so a stale poll body is never replayed. No Vary.

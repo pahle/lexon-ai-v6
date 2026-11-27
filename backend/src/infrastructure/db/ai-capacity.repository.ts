@@ -1,5 +1,5 @@
 import { TenantDatabase } from './tenant-database.js';
-import { inspectPool } from './tenant-session.js';
+import { applyClaimLaneLockTimeout, inspectPool } from './tenant-session.js';
 import type { AiConfig } from '../../config/ai-config.js';
 
 function valid(config: AiConfig): boolean {
@@ -51,6 +51,7 @@ export class AiCapacityRepository {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+      await applyClaimLaneLockTimeout(client);
       await client.query('SELECT pg_advisory_xact_lock(1976301,17)');
       const inserted = await client.query(
         `INSERT INTO ops.ai_engine_capacity

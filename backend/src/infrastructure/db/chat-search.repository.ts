@@ -1,13 +1,24 @@
 import { z } from 'zod';
-import { buildAuthorizationPredicate } from './authorization-predicate.js';
+import {
+  buildAuthorizationPredicate,
+  type ChatAuthorizationPredicate,
+} from './authorization-predicate.js';
 import { requireSession, type TenantSession } from './tenant-session.js';
 
 const uuid = z.uuid();
 
-export const CHAT_SEARCH_SQL = `WITH owner_chats AS MATERIALIZED (
+/** The FTS query stays owner-scoped (search over others' chats is F8), but
+ * the owner arm carries the §4.1 project-access disjunction emitted by the
+ * predicate builder so a denied or removed member gets no hits on their own
+ * project chats. Built per call so the fragment always comes from
+ * `buildAuthorizationPredicate` — never hand-rolled. */
+export function chatSearchSql(
+  scope: Pick<ChatAuthorizationPredicate, 'where'>,
+): string {
+  return `WITH owner_chats AS MATERIALIZED (
   SELECT chat.id,chat.title,chat.updated_at,chat.last_activity_at
   FROM app.chats chat
-  WHERE chat.org_id=$1 AND chat.owner_user_id=$2 AND chat.deleted_at IS NULL
+  WHERE ${scope.where('chat', '$1', '$2')}
 ), search_input AS MATERIALIZED (
   SELECT $3::text AS query_text,lower($3::text) AS query_lower,
     plainto_tsquery('english',$3::text) AS query_ts,
@@ -96,6 +107,7 @@ LEFT JOIN LATERAL (
   WHERE page.page_rank<=$7
 ) snippet ON true
 ORDER BY page.score::numeric DESC,page.last_activity_at DESC,page.chat_id ASC`;
+}
 
 export interface ChatListCursor {
   readonly activityAt: string;
@@ -124,12 +136,51 @@ export interface ChatSearchSnippetMarkers {
   readonly end: string;
 }
 
+/** §14 gate surface: the chat-list query, built per call from the same
+ * authorization predicate so the repository and the benchmark never drift. */
+export function chatListSql(
+  scope: Pick<ChatAuthorizationPredicate, 'where'>,
+): string {
+  return `SELECT chat.id,chat.title,chat.updated_at,chat.owner_user_id,
+     to_char(chat.last_activity_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS activity_at,
+     latest.created_at AS last_message_at,
+     project.name AS project_name,
+     EXISTS (
+       SELECT 1 FROM app.chat_runs cr
+       JOIN app.ai_runs r ON r.org_id=cr.org_id AND r.id=cr.run_id
+       JOIN app.ai_operations o ON o.org_id=r.org_id AND o.run_id=r.id
+       WHERE cr.org_id=chat.org_id AND cr.chat_id=chat.id
+         AND cr.kind='answer' AND r.status='awaiting_approval'
+         AND o.status='awaiting_approval' AND o.decision IS NULL
+     ) AS awaiting_user
+   FROM app.chats chat
+   LEFT JOIN app.projects project
+     ON project.org_id=chat.org_id AND project.id=chat.project_id
+   LEFT JOIN LATERAL (
+     SELECT message.created_at FROM app.chat_messages message
+     WHERE message.org_id=chat.org_id AND message.chat_id=chat.id
+     ORDER BY message.created_at DESC,message.id DESC LIMIT 1
+   ) latest ON true
+   WHERE ${scope.where('chat', '$1', '$2')}
+     AND ($3::timestamptz IS NULL OR (chat.last_activity_at,chat.id)<($3,$4::uuid))
+   ORDER BY chat.last_activity_at DESC,chat.id DESC
+   LIMIT $5`;
+}
+
 export class ChatSearchRepository {
-  async list(tx: TenantSession, cursor: ChatListCursor | null, limit: number) {
+  /** The sidebar/Chats list. `own` is the OwnedChat scope — the caller's own
+   * chats with the project-access disjunction (§5 row 1); `shared` is the
+   * `chat_shares` arm only, which can never return a project chat (row 2). */
+  async list(
+    tx: TenantSession,
+    cursor: ChatListCursor | null,
+    limit: number,
+    listScope: 'own' | 'shared' = 'own',
+  ) {
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) return [];
     const scope = buildAuthorizationPredicate({
-      scope: 'owned-chat',
+      scope: listScope === 'shared' ? 'shared-chat' : 'owned-chat',
       orgId: ctx.orgId,
       userId: ctx.userId,
       excludeDeleted: true,
@@ -141,36 +192,15 @@ export class ChatSearchRepository {
       last_message_at: Date | null;
       activity_at: string;
       awaiting_user: boolean;
-    }>(
-      `SELECT chat.id,chat.title,chat.updated_at,
-         to_char(chat.last_activity_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS activity_at,
-         latest.created_at AS last_message_at,
-         EXISTS (
-           SELECT 1 FROM app.chat_runs cr
-           JOIN app.ai_runs r ON r.org_id=cr.org_id AND r.id=cr.run_id
-           JOIN app.ai_operations o ON o.org_id=r.org_id AND o.run_id=r.id
-           WHERE cr.org_id=chat.org_id AND cr.chat_id=chat.id
-             AND cr.kind='answer' AND r.status='awaiting_approval'
-             AND o.status='awaiting_approval' AND o.decision IS NULL
-         ) AS awaiting_user
-       FROM app.chats chat
-       LEFT JOIN LATERAL (
-         SELECT message.created_at FROM app.chat_messages message
-         WHERE message.org_id=chat.org_id AND message.chat_id=chat.id
-         ORDER BY message.created_at DESC,message.id DESC LIMIT 1
-       ) latest ON true
-       WHERE chat.org_id=$1 AND chat.owner_user_id=$2 AND chat.deleted_at IS NULL
-         AND ($3::timestamptz IS NULL OR (chat.last_activity_at,chat.id)<($3,$4::uuid))
-       ORDER BY chat.last_activity_at DESC,chat.id DESC
-       LIMIT $5`,
-      [
-        scope.orgId,
-        scope.userId,
-        cursor?.activityAt ?? null,
-        cursor?.chatId ?? null,
-        limit,
-      ],
-    );
+      project_name: string | null;
+      owner_user_id: string;
+    }>(chatListSql(scope), [
+      scope.orgId,
+      scope.userId,
+      cursor?.activityAt ?? null,
+      cursor?.chatId ?? null,
+      limit,
+    ]);
     return result.rows;
   }
 
@@ -189,7 +219,7 @@ export class ChatSearchRepository {
       userId: ctx.userId,
       excludeDeleted: true,
     });
-    const result = await client.query<ChatSearchRow>(CHAT_SEARCH_SQL, [
+    const result = await client.query<ChatSearchRow>(chatSearchSql(scope), [
       scope.orgId,
       scope.userId,
       queryText,
@@ -223,8 +253,8 @@ export class ChatSearchRepository {
          SELECT message.id,message.parent_message_id,message.created_at
          FROM app.chat_messages message
          JOIN app.chats chat ON chat.org_id=message.org_id AND chat.id=message.chat_id
-         WHERE message.org_id=$1 AND chat.owner_user_id=$2 AND chat.id=$3
-           AND chat.deleted_at IS NULL AND message.id=$4
+         WHERE message.org_id=$1 AND ${scope.where('chat', '$1', '$2')}
+           AND chat.id=$3 AND message.id=$4
          UNION ALL
          SELECT child.id,child.parent_message_id,child.created_at
          FROM descendants parent
@@ -242,15 +272,15 @@ export class ChatSearchRepository {
          ELSE (SELECT id FROM leaves ORDER BY created_at DESC,id DESC LIMIT 1)
        END AS leaf_id
        FROM app.chats chat
-       WHERE chat.org_id=$1 AND chat.owner_user_id=$2 AND chat.id=$3
-         AND chat.deleted_at IS NULL AND EXISTS (SELECT 1 FROM descendants)`,
+       WHERE ${scope.where('chat', '$1', '$2')} AND chat.id=$3
+         AND EXISTS (SELECT 1 FROM descendants)`,
       [scope.orgId, scope.userId, chatId, messageId],
     );
     const leafId = result.rows[0]?.leaf_id;
     if (!leafId) return null;
     const selected = await client.query(
       `UPDATE app.chats SET viewed_leaf_id=$4
-       WHERE org_id=$1 AND owner_user_id=$2 AND id=$3 AND deleted_at IS NULL`,
+       WHERE ${scope.where('chats', '$1', '$2')} AND id=$3`,
       [scope.orgId, scope.userId, chatId, leafId],
     );
     return selected.rowCount === 1 ? { leafId, messageId } : null;

@@ -68,10 +68,10 @@ function createStreams(ai: Ai, streamsUrl: string, prefix: string) {
           { orgId: claim.orgId, userId: claim.userId },
           (tx) => steps.streamTerminalProof(tx, claim),
         ),
-      authorizeCommitted: (claim, event) =>
+      authorizeCommitted: (claim, events) =>
         ai.database.withTenant(
           { orgId: claim.orgId, userId: claim.userId },
-          (tx) => steps.streamCommittedProof(tx, claim, event),
+          (tx) => steps.streamCommittedProof(tx, claim, events),
         ),
       reconcile: async (entries) =>
         Promise.all(
@@ -89,7 +89,11 @@ function createStreams(ai: Ai, streamsUrl: string, prefix: string) {
   });
 }
 
-function createSweep(ai: Ai, streams?: RunStreams) {
+function createSweep(
+  ai: Ai,
+  streams?: RunStreams,
+  logger?: { warn(event: Record<string, unknown>): void },
+) {
   const registry = new RunRegistry();
   registry.register({
     profiles: [
@@ -120,7 +124,7 @@ function createSweep(ai: Ai, streams?: RunStreams) {
     outbox: new OutboxRepository(),
     registry,
     ...(streams ? { streams } : {}),
-    logger: { warn: () => undefined },
+    logger: logger ?? { warn: () => undefined },
   });
 }
 
@@ -684,6 +688,92 @@ test('a poison candidate never blocks the rest of the batch', async ({
       runVersion: 4,
     });
     expect(await resumeCount(ai, 1, healthy.run.id)).toBe(1);
+  } finally {
+    await migrator.end();
+    await ai.close();
+  }
+});
+
+test('a candidate with an invalid resume priority skips the override, logs without K1 and is not retried', async ({
+  services,
+}) => {
+  const ai = await createAiFixture(services);
+  const migrator = createRoleClient(services.migratorUrl);
+  const warnings: Record<string, unknown>[] = [];
+  const sweep = createSweep(ai, undefined, {
+    warn: (event) => warnings.push(event),
+  });
+  try {
+    await migrator.connect();
+    // The fixture's resolved_config carries no routing, so the corrupt
+    // routing is merged in: a valid queue with a poisoned priority. jsonb
+    // cannot hold NaN (JSON.stringify(NaN) is 'null'), so the stored form of
+    // a NaN priority is null; 1.5 and 0 reach the sweep as numbers.
+    const invalidPriorities = [1.5, 0, null] as const;
+    const seeded = [];
+    for (const [index, priority] of invalidPriorities.entries()) {
+      const candidate = await seedPausedCandidate(ai, index, {
+        kind: 'approval',
+      });
+      await ai.withTenant(index, async (tx) => {
+        const { client } = requireSession(tx);
+        await client.query(
+          `UPDATE app.ai_runs
+           SET resolved_config = resolved_config || $2::jsonb
+           WHERE id=$1`,
+          [
+            candidate.run.id,
+            JSON.stringify({ queue: 'ai-interactive', priority }),
+          ],
+        );
+      });
+      seeded.push(candidate);
+    }
+
+    await sweep.sweep();
+
+    for (const [index, candidate] of seeded.entries()) {
+      expect(
+        await operationRow(ai, index, candidate.operation.id),
+      ).toMatchObject({
+        status: 'expired',
+        result: { expired: 'approval' },
+        expiry_cleared: true,
+      });
+      expect(await runRow(ai, index, candidate.run.id)).toMatchObject({
+        status: 'running',
+        runVersion: 4,
+      });
+      // The invalid override is skipped: the resume lands on the default
+      // queue with no priority rather than poisoning the append.
+      const resume = await ai.outboxForTenantRunSequence(
+        candidate.tenant,
+        candidate.run.id,
+        2,
+      );
+      expect(resume).toMatchObject({
+        type: 'run.resume.v1',
+        queue_name: null,
+        priority: null,
+      });
+      expect(await resumeCount(ai, index, candidate.run.id)).toBe(1);
+    }
+    // One K1-free warn per skipped override: ids and a safe code only.
+    expect(warnings).toHaveLength(invalidPriorities.length);
+    for (const [index, warning] of warnings.entries())
+      expect(warning).toEqual({
+        event: 'ai_operation_expiry_invalid_routing',
+        runId: seeded[index]!.run.id,
+        operationId: seeded[index]!.operation.id,
+        safeCode: 'AI_INTERNAL',
+      });
+    expect(JSON.stringify(warnings)).not.toContain('Expiry fixture rename');
+
+    // Settled candidates never re-list: a second pass adds nothing.
+    await sweep.sweep();
+    expect(warnings).toHaveLength(invalidPriorities.length);
+    for (const [index, candidate] of seeded.entries())
+      expect(await resumeCount(ai, index, candidate.run.id)).toBe(1);
   } finally {
     await migrator.end();
     await ai.close();

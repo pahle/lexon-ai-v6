@@ -17,6 +17,7 @@ import {
 } from '../identity-access/index.js';
 import {
   AiRunRepository,
+  ChatRepository,
   type ChatTitleNotification,
   TenantDatabase,
 } from '../../infrastructure/db/index.js';
@@ -30,6 +31,7 @@ import {
   type Subscription,
 } from '../../infrastructure/queue/stream-hub.js';
 import { CancelSignals } from '../../infrastructure/queue/cancel-signals.js';
+import { redactRunStreamEventForReader } from '../../infrastructure/queue/run-stream-parts.js';
 
 const PROCESS_ID = randomUUID();
 const MAX_PENDING_TITLE_INVALIDATIONS = 64;
@@ -48,6 +50,7 @@ interface AuthorizedSnapshot {
   readonly snapshot: ChatSnapshot;
   readonly streamGeneration: number;
   readonly resumable: boolean;
+  readonly readerView: boolean;
 }
 
 interface SnapshotRead {
@@ -127,6 +130,8 @@ export class RunEventsService {
     @Inject(RUN_SSE_REVALIDATION)
     private readonly revalidation: RunSseRevalidation,
   ) {}
+
+  private readonly chats = new ChatRepository();
 
   // One single-flight cache for every stream's session assert in this process.
   readonly #revalidation = new RevalidationCache({ ttlMs: 1000 });
@@ -241,6 +246,10 @@ export class RunEventsService {
             }
           }
           if (closed) return;
+          // F6 §5 row 12: the audience was already resolved once at dispatch
+          // (CancelSignals → ops.lexon_chat_notification_audience under
+          // service claims) — this connection only receives chatIds it may
+          // read, so no per-connection read predicate runs here.
           const event = ChatInvalidationEventSchema.parse({
             version: 1,
             type: 'chat.invalidated',
@@ -266,13 +275,11 @@ export class RunEventsService {
       }
     };
     const enqueueInvalidation = (notification: ChatTitleNotification) => {
-      if (
-        closed ||
-        notification.orgId !== orgId ||
-        notification.userId !== userId
-      )
-        return;
-      if (!invalidateAll) {
+      if (closed || notification.orgId !== orgId) return;
+      if (notification.chatId === null) {
+        invalidateAll = true;
+        pendingChatIds.clear();
+      } else if (!invalidateAll) {
         pendingChatIds.add(notification.chatId);
         if (pendingChatIds.size > MAX_PENDING_TITLE_INVALIDATIONS) {
           pendingChatIds.clear();
@@ -284,6 +291,7 @@ export class RunEventsService {
 
     try {
       unsubscribe = await this.signals.subscribeChatTitleInvalidations(
+        { orgId, userId },
         notificationScope.bind(enqueueInvalidation),
         notificationScope.bind(() => void close('revoked')),
       );
@@ -424,7 +432,7 @@ export class RunEventsService {
             await this.#revalidate(identity, orgId);
             const owned = await this.database.withTenant(
               { orgId, userId },
-              (tx) => this.runs.existsForOwnedChat(tx, runId, userId),
+              (tx) => this.runs.existsForAccessibleChat(tx, runId, userId),
               { timeoutMs: 1000 },
             );
             if (!owned) throw new NotFoundException();
@@ -555,6 +563,9 @@ export class RunEventsService {
           reload: reloadFallback,
         },
         recoveryMode,
+        // F6 §5 row 14: the per-run stream is shared bytes — a non-owner
+        // subscriber gets every frame minus the operation payloads.
+        current.readerView ? redactRunStreamEventForReader : undefined,
       );
       if (closed) {
         if (streamSubscription.revoke) await streamSubscription.revoke();

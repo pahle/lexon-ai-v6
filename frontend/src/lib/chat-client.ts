@@ -45,11 +45,16 @@ export function createChatClient(options: ChatClientOptions): ChatApi {
 
   const withPage = (
     path: string,
-    input: { cursor?: string; limit?: number } = {},
+    input: {
+      cursor?: string;
+      limit?: number;
+      scope?: contracts.ChatListScope;
+    } = {},
   ) => {
     const query = new URLSearchParams();
     if (input.limit !== undefined) query.set('limit', String(input.limit));
     if (input.cursor) query.set('cursor', input.cursor);
+    if (input.scope !== undefined) query.set('scope', input.scope);
     return path + (query.size > 0 ? `?${query.toString()}` : '');
   };
 
@@ -81,7 +86,7 @@ export function createChatClient(options: ChatClientOptions): ChatApi {
       notModified: false,
       tree: await parseJsonResponse(
         response,
-        contracts.ChatTreeSchema,
+        contracts.ChatDetailSchema,
         () => new ChatClientError('AI_INTERNAL', 503),
       ),
       etag: response.headers.get('etag'),
@@ -169,5 +174,19 @@ export function createChatClient(options: ChatClientOptions): ChatApi {
         'POST',
         contracts.OperationDecisionInputSchema.parse(input),
       ),
+    listShares: (chatId) =>
+      call(
+        `/chats/${id(chatId)}/shares`,
+        z.array(contracts.ChatShareSummarySchema),
+      ),
+    addShares: (chatId, input) =>
+      call(
+        `/chats/${id(chatId)}/shares`,
+        z.array(contracts.ChatShareSummarySchema),
+        'POST',
+        contracts.ShareAddInputSchema.parse(input),
+      ),
+    removeShare: (chatId, userId) =>
+      call(`/chats/${id(chatId)}/shares/${id(userId)}`, null, 'DELETE'),
   };
 }

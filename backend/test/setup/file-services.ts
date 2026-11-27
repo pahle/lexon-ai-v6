@@ -12,6 +12,7 @@ import {
   cloneDatabase,
   dropDatabase,
   roleUrl,
+  startLockWaitMonitor,
 } from '../../src/infrastructure/db/testing/provision.js';
 import type { FileServices } from './provided-context.js';
 
@@ -33,6 +34,7 @@ export const test = base.extend(
     const dbName = `lexon_test_${id}`;
     const queuePrefix = `lexon_${runId}_${id}`;
     const bucket = `lexon-${runId}-${id}`;
+    const stopLockMonitor = startLockWaitMonitor(postgresAdminUrl, dbName);
     const s3 = new S3Client({
       endpoint: descriptor.seaweedS3Url,
       credentials: {
@@ -43,6 +45,7 @@ export const test = base.extend(
       forcePathStyle: true,
     });
     onCleanup(async () => {
+      await stopLockMonitor();
       try {
         let token: string | undefined;
         do {

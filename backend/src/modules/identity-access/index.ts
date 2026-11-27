@@ -30,7 +30,13 @@ export {
 export type { OrganizationSelectionPort } from './identity-session.service.js';
 export { ORGANIZATION_SELECTION } from './identity-session.service.js';
 export { RUN_SSE_REVALIDATION } from './identity-session.service.js';
-export { PublicRoute, AccountRoute, PlatformRoute } from './route-access.js';
+export {
+  PublicRoute,
+  AccountRoute,
+  PlatformRoute,
+  ROUTE_ACCESS,
+} from './route-access.js';
+export type { RouteAccess } from './route-access.js';
 export { currentTenantContext } from './request-identity.js';
 export type { TenantRequestContext } from './request-identity.js';
 export type { RunActor } from './run-actor.js';

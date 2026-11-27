@@ -41,7 +41,10 @@ function setup(
   let notify: ((n: unknown) => void) | undefined;
   const signals = {
     subscribeChatTitleInvalidations: vi.fn(
-      async (next: (n: unknown) => void) => {
+      async (
+        _scope: { orgId: string; userId: string },
+        next: (n: unknown) => void,
+      ) => {
         notify = next;
         return async () => undefined;
       },
@@ -146,7 +149,6 @@ test('AUTH_UNAVAILABLE while delivering an invalidation keeps the stream open', 
   );
   signals.callback()({
     orgId: actor.orgId,
-    userId: actor.userId,
     chatId: randomUUID(),
   });
   await vi.advanceTimersByTimeAsync(100);
@@ -156,7 +158,6 @@ test('AUTH_UNAVAILABLE while delivering an invalidation keeps the stream open', 
   });
   signals.callback()({
     orgId: actor.orgId,
-    userId: actor.userId,
     chatId: randomUUID(),
   });
   await vi.advanceTimersByTimeAsync(100);
@@ -201,7 +202,7 @@ function runStream(
     }),
   };
   const snapshot = { snapshot: {}, streamGeneration: 1, resumable: true };
-  const existsForOwnedChat = vi.fn(async () => owned);
+  const existsForAccessibleChat = vi.fn(async () => owned);
   const service = new RunEventsService(
     {
       withTenant: async (_s: unknown, work: (tx: never) => unknown) =>
@@ -209,7 +210,7 @@ function runStream(
     } as never,
     {
       authorizedChatSnapshot: async () => snapshot,
-      existsForOwnedChat,
+      existsForAccessibleChat,
     } as never,
     { assertLiveActor: vi.fn() } as never,
     {
@@ -233,7 +234,7 @@ function runStream(
   return {
     connect,
     close,
-    existsForOwnedChat,
+    existsForAccessibleChat,
     registry,
     signals,
     deleteSignal: () => onDeleted?.(),
@@ -264,11 +265,11 @@ test('a revoked session or a lost ownership check still closes the run stream', 
 
 test('run stream: over 10 s, at most 2 session checks and 2 ownership checks', async () => {
   const assert = vi.fn(async () => undefined);
-  const { connect, existsForOwnedChat } = runStream(assert, true);
+  const { connect, existsForAccessibleChat } = runStream(assert, true);
   await connect();
   await vi.advanceTimersByTimeAsync(10_000);
   expect(assert.mock.calls.length).toBeLessThanOrEqual(2);
-  expect(existsForOwnedChat.mock.calls.length).toBeLessThanOrEqual(2);
+  expect(existsForAccessibleChat.mock.calls.length).toBeLessThanOrEqual(2);
 });
 
 test('run stream: a revoked session closes at the next 5 s revalidation tick', async () => {

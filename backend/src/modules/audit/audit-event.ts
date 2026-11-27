@@ -441,6 +441,108 @@ const chatMessageFeedback = z.strictObject({
     action: z.enum(['set', 'changed', 'cleared']),
   }),
 });
+// F6 — single-owner project events carry ids only; content stays in the
+// tables (spec §3.8: no names, no instruction text in audit metadata).
+const projectAudit = {
+  ...base,
+  outcome: z.literal('success'),
+  orgId: UuidSchema,
+  actorUserId: UuidSchema,
+};
+const projectCreated = z.strictObject({
+  ...projectAudit,
+  type: z.literal('project.created.v1'),
+  metadata: z.strictObject({ projectId: UuidSchema }),
+});
+const projectSettings = z.strictObject({
+  ...projectAudit,
+  type: z.literal('project.settings_changed.v1'),
+  metadata: z.strictObject({
+    projectId: UuidSchema,
+    fields: z
+      .array(z.enum(['name', 'matterNumber', 'practiceArea']))
+      .min(1)
+      .max(3)
+      .refine((fields) => new Set(fields).size === fields.length),
+  }),
+});
+const projectInstructions = z.strictObject({
+  ...projectAudit,
+  type: z.literal('project.instructions_changed.v1'),
+  metadata: z.strictObject({
+    projectId: UuidSchema,
+    action: z.enum(['set', 'cleared']),
+  }),
+});
+const projectMemberAdded = z.strictObject({
+  ...projectAudit,
+  type: z.literal('project.member_added.v1'),
+  subjectUserId: UuidSchema,
+  memberId: UuidSchema,
+  metadata: z.strictObject({
+    projectId: UuidSchema,
+    role: z.enum(['viewer', 'editor']),
+  }),
+});
+const projectMemberRole = z.strictObject({
+  ...projectAudit,
+  type: z.literal('project.member_role_changed.v1'),
+  subjectUserId: UuidSchema,
+  memberId: UuidSchema,
+  metadata: z.strictObject({
+    projectId: UuidSchema,
+    previousRole: z.enum(['viewer', 'editor']),
+    role: z.enum(['viewer', 'editor']),
+  }),
+});
+const projectMemberRemoved = z.strictObject({
+  ...projectAudit,
+  type: z.literal('project.member_removed.v1'),
+  subjectUserId: UuidSchema,
+  memberId: UuidSchema,
+  metadata: z.strictObject({
+    projectId: UuidSchema,
+    reason: z.literal('deny').optional(),
+  }),
+});
+const projectDenyAdded = z.strictObject({
+  ...projectAudit,
+  type: z.literal('project.deny_added.v1'),
+  subjectUserId: UuidSchema,
+  metadata: z.strictObject({
+    projectId: UuidSchema,
+    setByUserId: UuidSchema,
+  }),
+});
+const projectDenyLifted = z.strictObject({
+  ...projectAudit,
+  type: z.literal('project.deny_lifted.v1'),
+  subjectUserId: UuidSchema,
+  metadata: z.strictObject({
+    projectId: UuidSchema,
+    setByUserId: UuidSchema,
+  }),
+});
+const projectDeleted = z.strictObject({
+  ...projectAudit,
+  type: z.literal('project.deleted.v1'),
+  metadata: z.strictObject({
+    projectId: UuidSchema,
+    chatCount: z.number().int().nonnegative().safe(),
+  }),
+});
+const chatShared = z.strictObject({
+  ...projectAudit,
+  type: z.literal('chat.shared.v1'),
+  subjectUserId: UuidSchema,
+  metadata: z.strictObject({ chatId: UuidSchema }),
+});
+const chatShareRevoked = z.strictObject({
+  ...projectAudit,
+  type: z.literal('chat.share_revoked.v1'),
+  subjectUserId: UuidSchema,
+  metadata: z.strictObject({ chatId: UuidSchema }),
+});
 export const AuditEventSchema = z.union([
   failed,
   success,
@@ -475,6 +577,17 @@ export const AuditEventSchema = z.union([
   chatMessageRegenerated,
   chatDeletion,
   chatMessageFeedback,
+  projectCreated,
+  projectSettings,
+  projectInstructions,
+  projectMemberAdded,
+  projectMemberRole,
+  projectMemberRemoved,
+  projectDenyAdded,
+  projectDenyLifted,
+  projectDeleted,
+  chatShared,
+  chatShareRevoked,
 ]);
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 export type OrgAuditEvent = AuditEvent & { orgId: string };

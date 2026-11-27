@@ -32,12 +32,19 @@ import {
 } from '../../src/infrastructure/db/testing/ai-fixture.js';
 import { createChatFixture } from '../../src/infrastructure/db/testing/chat-fixture.js';
 import {
+  durableOperationState,
+  durableOperationsForRun,
+  durableRunState,
+  durableStepState,
+} from '../../src/infrastructure/db/testing/durable-state.js';
+import {
   AiOperationRepository,
   AiAttemptRepository,
   AiRunRepository,
   AiStepRepository,
   OutboxRepository,
   RunActorFactsRepository,
+  requireSession,
   type StepClaim,
 } from '../../src/infrastructure/db/index.js';
 import {
@@ -176,6 +183,13 @@ async function setup(
     tenant?: { orgId: string; userId: string };
     resourceIds?: readonly string[];
     cancelSignals?: CancelSignals;
+    /**
+     * Opt out of the auto-bound chat and keep the run on the zero-resource
+     * arm. The chat-bound arm exercises the 0044 access-loss finalizers; a
+     * removed member's own session can no longer reach the run there, so
+     * post-loss assertions read durable state through durableRunState.
+     */
+    bindChat?: boolean;
   } = {},
 ) {
   const authorization = new RunAuthorizationService();
@@ -238,14 +252,47 @@ async function setup(
     ...(options.cancelSignals ? { cancelSignals: options.cancelSignals } : {}),
   });
   const tenant = options.tenant ?? ai.tenants[0]!;
+  // Production topology: every run is bound to a chat through chat_runs
+  // with resolvedConfig.resourceIds naming that chat — the write-fence
+  // trigger enforces the binding, and the stream proofs and registry read
+  // through the link. Callers that name their own resourceIds bind their
+  // chat themselves; otherwise the harness stands in a standalone chat.
+  const boundChatId =
+    options.bindChat !== false &&
+    (!options.resourceIds || options.resourceIds.length === 0)
+      ? randomUUID()
+      : undefined;
+  if (boundChatId) {
+    await ai.database.withTenant(tenant, async (tx) => {
+      const { client } = requireSession(tx);
+      await client.query(
+        'INSERT INTO app.chats(id,org_id,owner_user_id) VALUES($1,$2,$3)',
+        [boundChatId, tenant.orgId, tenant.userId],
+      );
+    });
+  }
   const created = (await actorScope(tenant, authorization, (actor) =>
     runService.start(actor, {
       profileId: (options.profile ?? profile).id,
       prompt: 'Synthetic prompt',
       ...(options.effort ? { effort: options.effort } : {}),
-      ...(options.resourceIds ? { resourceIds: options.resourceIds } : {}),
+      ...(options.resourceIds
+        ? { resourceIds: options.resourceIds }
+        : boundChatId
+          ? { resourceIds: [boundChatId] }
+          : {}),
     }),
   )) as { runId: string };
+  if (boundChatId) {
+    await ai.database.withTenant(tenant, async (tx) => {
+      const { client } = requireSession(tx);
+      await client.query(
+        `INSERT INTO app.chat_runs(org_id,chat_id,run_id,kind)
+         VALUES($1,$2,$3,'answer')`,
+        [tenant.orgId, boundChatId, created.runId],
+      );
+    });
+  }
   return {
     tenant,
     runId: created.runId,
@@ -2092,10 +2139,10 @@ test('new approval requirement stages the pending operation without an effect', 
           { orgId: claim.orgId, userId: claim.userId },
           (tx) => steps.streamTerminalProof(tx, claim),
         ),
-      authorizeCommitted: (claim, event) =>
+      authorizeCommitted: (claim, events) =>
         ai.database.withTenant(
           { orgId: claim.orgId, userId: claim.userId },
-          (tx) => steps.streamCommittedProof(tx, claim, event),
+          (tx) => steps.streamCommittedProof(tx, claim, events),
         ),
       reconcile: async (entries) =>
         Promise.all(
@@ -2718,10 +2765,10 @@ test('approval-required transactional operations remain staged and produce no ef
         { orgId: claim.orgId, userId: claim.userId },
         (tx) => steps.streamTerminalProof(tx, claim),
       ),
-    authorizeCommitted: (claim, event) =>
+    authorizeCommitted: (claim, events) =>
       ai.database.withTenant(
         { orgId: claim.orgId, userId: claim.userId },
-        (tx) => steps.streamCommittedProof(tx, claim, event),
+        (tx) => steps.streamCommittedProof(tx, claim, events),
       ),
     reconcile: async (entries) =>
       entries.map((entry) => ({
@@ -2983,10 +3030,10 @@ test('proposal limits preserve every accepted approval event and refuse excess b
           { orgId: claim.orgId, userId: claim.userId },
           (tx) => steps.streamTerminalProof(tx, claim),
         ),
-      authorizeCommitted: (claim, event) =>
+      authorizeCommitted: (claim, events) =>
         ai.database.withTenant(
           { orgId: claim.orgId, userId: claim.userId },
-          (tx) => steps.streamCommittedProof(tx, claim, event),
+          (tx) => steps.streamCommittedProof(tx, claim, events),
         ),
       reconcile: async (entries) =>
         entries.map(({ runId }) => ({ runId, state: 'active' as const })),
@@ -3161,10 +3208,10 @@ test('a missing 31-event approval batch resets from all 15 durable operation sta
         { orgId: claim.orgId, userId: claim.userId },
         (tx) => steps.streamTerminalProof(tx, claim),
       ),
-    authorizeCommitted: (claim, event) =>
+    authorizeCommitted: (claim, events) =>
       ai.database.withTenant(
         { orgId: claim.orgId, userId: claim.userId },
-        (tx) => steps.streamCommittedProof(tx, claim, event),
+        (tx) => steps.streamCommittedProof(tx, claim, events),
       ),
     reconcile: async (entries) =>
       entries.map(({ runId }) => ({ runId, state: 'active' as const })),
@@ -3173,6 +3220,9 @@ test('a missing 31-event approval batch resets from all 15 durable operation sta
     url: services.valkey.streamsUrl,
     prefix: services.queuePrefix,
     authority,
+    // A-13 (F4.2): under a loaded worker the 31-part committed batch can
+    // overrun the 250ms default and stop before the injected -3 part.
+    publicationDeadlineMs: 2000,
   });
   const reader = new SseStreamReader(services.valkey.streamsUrl);
   const hub = new StreamHub(reader);
@@ -3815,7 +3865,7 @@ test('initiator access loss before a decision finishes the stream from the actua
           ],
         },
       ],
-      { tools: [tool], streams, tenant },
+      { tools: [tool], streams, tenant, bindChat: true },
     );
     const recover = streams.recover.bind(streams);
     vi.spyOn(streams, 'recover').mockImplementation(async (claim, snapshot) => {
@@ -3909,14 +3959,13 @@ test('initiator access loss before a decision finishes the stream from the actua
         }),
       ),
     ).rejects.toThrow('AI approval decision refused');
-    const run = await ai.database.withTenant(tenant, (tx) =>
-      h.runs.find(tx, h.runId),
+    // The bound-run RLS chain hides the row from the de-membered initiator,
+    // so the settled outcome is read through the migrator role.
+    const run = await durableRunState(services.migratorUrl, h.runId);
+    const stored = await durableOperationState(
+      services.migratorUrl,
+      operation.id,
     );
-    const stored = (
-      await ai.database.withTenant(tenant, (tx) =>
-        h.operations.forRun(tx, { runId: h.runId, throughSequence: 3 }),
-      )
-    )[0]!;
     expect(run).toMatchObject({
       status: 'failed',
       errorCode: 'AI_ACCESS_REVOKED',
@@ -3949,9 +3998,7 @@ test('initiator access loss before a decision finishes the stream from the actua
     expect(await ai.toolEffectCountFor(tenant)).toBe(0);
     expect(await ai.orgSlotCountFor(tenant)).toBe(0);
     expect(
-      await ai.database.withTenant(tenant, (tx) =>
-        h.steps.find(tx, { runId: h.runId, sequence: 1 }),
-      ),
+      await durableStepState(services.migratorUrl, h.runId, 1),
     ).toMatchObject({ state: 'awaiting_approval', leaseUntil: null });
     expect(activeClaim).toBeDefined();
     const streamKey = `${services.queuePrefix}:{run-streams}:${h.runId}:events`;
@@ -4568,7 +4615,7 @@ test('initiator membership loss after approval fails resume without an effect', 
           ],
         },
       ],
-      { tools: [tool], tenant },
+      { tools: [tool], tenant, bindChat: true },
     );
     const approvals = new ApprovalService(
       ai.database,
@@ -4612,13 +4659,11 @@ test('initiator membership loss after approval fails resume without an effect', 
       ),
       { signal: new AbortController().signal },
     );
-    const run = await ai.database.withTenant(tenant, (tx) =>
-      h.runs.find(tx, h.runId),
-    );
+    // The bound-run RLS chain hides the rows from the de-membered
+    // initiator, so the settled outcome is read through the migrator role.
+    const run = await durableRunState(services.migratorUrl, h.runId);
     const failedOperation = (
-      await ai.database.withTenant(tenant, (tx) =>
-        h.operations.forRun(tx, { runId: h.runId, throughSequence: 3 }),
-      )
+      await durableOperationsForRun(services.migratorUrl, h.runId, 3)
     )[0]!;
     expect(run).toMatchObject({
       status: 'failed',
@@ -4632,11 +4677,12 @@ test('initiator membership loss after approval fails resume without an effect', 
     expect(await ai.outboxForTenantRunSequence(tenant, h.runId, 3)).toBeNull();
     expect(await ai.toolEffectCountFor(tenant)).toBe(0);
     expect(await ai.orgSlotCountFor(tenant)).toBe(0);
+    // The access-loss finalizer terminalizes the still-pending resume step
+    // with the run — state 'failed' (the F5 committed-arm semantics changed
+    // with the 0044 definer path; see project-access-loss.spec.ts).
     expect(
-      await ai.database.withTenant(tenant, (tx) =>
-        h.steps.find(tx, { runId: h.runId, sequence: 2 }),
-      ),
-    ).toMatchObject({ state: 'committed', leaseUntil: null });
+      await durableStepState(services.migratorUrl, h.runId, 2),
+    ).toMatchObject({ state: 'failed', leaseUntil: null });
   } finally {
     await organizations.close();
     await api.close();
@@ -4717,7 +4763,7 @@ test('mixed pending and approved operations terminate on membership loss before 
           ],
         },
       ],
-      { tools: [pendingTool, approvedTool], tenant },
+      { tools: [pendingTool, approvedTool], tenant, bindChat: true },
     );
     const approvals = new ApprovalService(
       ai.database,
@@ -4776,11 +4822,13 @@ test('mixed pending and approved operations terminate on membership loss before 
       ),
       { signal: new AbortController().signal },
     );
-    const run = await ai.database.withTenant(tenant, (tx) =>
-      h.runs.find(tx, h.runId),
-    );
-    const terminalOperations = await ai.database.withTenant(tenant, (tx) =>
-      h.operations.forRun(tx, { runId: h.runId, throughSequence: 3 }),
+    // De-membered initiator reads go through the migrator role (RLS hides
+    // the bound run, its ops and its steps from the app claim).
+    const run = await durableRunState(services.migratorUrl, h.runId);
+    const terminalOperations = await durableOperationsForRun(
+      services.migratorUrl,
+      h.runId,
+      3,
     );
     expect(run).toMatchObject({
       status: 'failed',
@@ -4827,11 +4875,10 @@ test('mixed pending and approved operations terminate on membership loss before 
     expect(await ai.outboxForTenantRunSequence(tenant, h.runId, 3)).toBeNull();
     expect(await ai.toolEffectCountFor(tenant)).toBe(0);
     expect(await ai.orgSlotCountFor(tenant)).toBe(0);
+    // Same 0044 arm as above: the pending resume step ends 'failed'.
     expect(
-      await ai.database.withTenant(tenant, (tx) =>
-        h.steps.find(tx, { runId: h.runId, sequence: 2 }),
-      ),
-    ).toMatchObject({ state: 'committed', leaseUntil: null });
+      await durableStepState(services.migratorUrl, h.runId, 2),
+    ).toMatchObject({ state: 'failed', leaseUntil: null });
   } finally {
     await audit.close();
     await organizations.close();
@@ -5636,7 +5683,6 @@ test('a checkpoint after unavailable XADD persists text without a resumable curs
   services,
 }) => {
   const ai = await createAiFixture(services);
-  const chat = await createChatFixture(services);
   const steps = new AiStepRepository();
   const authority: RunStreamAuthority = {
     authorizeActive: (claim) =>
@@ -5649,10 +5695,10 @@ test('a checkpoint after unavailable XADD persists text without a resumable curs
         { orgId: claim.orgId, userId: claim.userId },
         (tx) => steps.streamTerminalProof(tx, claim),
       ),
-    authorizeCommitted: (claim, event) =>
+    authorizeCommitted: (claim, events) =>
       ai.database.withTenant(
         { orgId: claim.orgId, userId: claim.userId },
-        (tx) => steps.streamCommittedProof(tx, claim, event),
+        (tx) => steps.streamCommittedProof(tx, claim, events),
       ),
     reconcile: async (entries) =>
       entries.map(({ runId }) => ({ runId, state: 'active' as const })),
@@ -5708,9 +5754,8 @@ test('a checkpoint after unavailable XADD persists text without a resumable curs
       { timeout: 2500 },
     );
     const durable = await ai.withTenant(0, (tx) => h.runs.find(tx, h.runId));
-    const chatId = randomUUID();
-    await chat.chat.createFor(h.tenant, chatId);
-    await chat.chat.associateFor(h.tenant, chatId, h.runId);
+    // The harness auto-bound this run to a standalone chat (production
+    // topology) — the snapshot read authorizes through that link.
     const authorized = await ai.withTenant(0, (tx) =>
       h.runs.authorizedChatSnapshot(tx, h.runId, h.tenant.userId),
     );
@@ -5736,7 +5781,6 @@ test('a checkpoint after unavailable XADD persists text without a resumable curs
   } finally {
     evalSpy.mockRestore();
     await streams.close();
-    await chat.close();
     await ai.close();
   }
 });
@@ -7163,25 +7207,23 @@ test('revoked resume fails without publishing a run header', async ({
       }
       if (args[0] === FINISH_RUN_STREAM) {
         const runId = String(args[13]);
-        runStatusAtFinish = (
-          await ai.database.withTenant(tenant, (tx) =>
-            stream.runs.find(tx, runId),
-          )
-        )?.status;
+        // Fires after the initiator is de-membered: the run is RLS-invisible
+        // to their claim, so read durable state via the migrator role.
+        runStatusAtFinish = (await durableRunState(services.migratorUrl, runId))
+          ?.status;
       }
       return originalEval.apply(this, args as never);
     } as never);
     const h = await setup(ai, [{ events: [success] }], {
       streams: stream.streams,
       tenant,
+      bindChat: true,
     });
     await organizations.mutateMember(team.members[0]!.id, 'delete');
     await h.executor.execute(job(h.runId, tenant, 1, 1, 'run.start.v1'), {
       signal: new AbortController().signal,
     });
-    const durable = await ai.database.withTenant(tenant, (tx) =>
-      h.runs.find(tx, h.runId),
-    );
+    const durable = await durableRunState(services.migratorUrl, h.runId);
     expect(headerRejected).toBe(false);
     expect(durable).toMatchObject({
       status: 'failed',
@@ -7453,10 +7495,10 @@ test('terminal reset recovers committed text across an unconfirmed next-step rec
         { orgId: claim.orgId, userId: claim.userId },
         (tx) => steps.streamTerminalProof(tx, claim),
       ),
-    authorizeCommitted: (claim, event) =>
+    authorizeCommitted: (claim, events) =>
       ai.database.withTenant(
         { orgId: claim.orgId, userId: claim.userId },
-        (tx) => steps.streamCommittedProof(tx, claim, event),
+        (tx) => steps.streamCommittedProof(tx, claim, events),
       ),
     reconcile: async (
       entries: readonly { runId: string; orgId: string; userId: string }[],

@@ -1,0 +1,3707 @@
+{
+  "generatedAt": "2026-11-26T16:31:19.284Z",
+  "sourceRun": 45807656646,
+  "sourceSha": "0accec6c",
+  "pendingIds": 190,
+  "region": {
+    "desktopXLimit": 260,
+    "mobileXLimit": 304
+  },
+  "verdict": {
+    "insideRegion": 184,
+    "outsideRegion": [],
+    "noBaseline": [
+      "chat-thinking-desktop-dark",
+      "chat-thinking-desktop-light",
+      "indicator-mark-desktop-dark",
+      "indicator-mark-desktop-light",
+      "indicator-wander-desktop-dark",
+      "indicator-wander-desktop-light"
+    ],
+    "missingCapture": []
+  },
+  "results": [
+    {
+      "id": "chat-answer-actions-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-answer-actions-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-approval-approved-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.84,
+      "differing": 10938,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-approval-approved-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.82,
+      "differing": 10634,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-approval-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.89,
+      "differing": 11515,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-approval-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.86,
+      "differing": 11173,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-approval-expired-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11443,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-approval-expired-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.86,
+      "differing": 11101,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-approval-rejected-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11443,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-approval-rejected-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.86,
+      "differing": 11101,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-branch-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-branch-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-composer-running-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-composer-running-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-copied-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-copied-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-copy-failed-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-copy-failed-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-deep-thinking-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.92,
+      "differing": 11944,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-deep-thinking-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.9,
+      "differing": 11605,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-delete-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.73,
+      "differing": 9480,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-delete-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.7,
+      "differing": 9072,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-edit-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.94,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-edit-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-error-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-error-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-feedback-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-feedback-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-floating-menu-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-floating-menu-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-new-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.92,
+      "differing": 11944,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-new-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.9,
+      "differing": 11605,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-question-answered-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.87,
+      "differing": 11329,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-question-answered-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.85,
+      "differing": 11006,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-question-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11394,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-question-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.85,
+      "differing": 11072,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-question-dismissed-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.87,
+      "differing": 11329,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-question-dismissed-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.85,
+      "differing": 11006,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-question-multi-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11394,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-question-multi-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.85,
+      "differing": 11072,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-question-select-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.85,
+      "differing": 11025,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-question-select-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.83,
+      "differing": 10721,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-question-text-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.87,
+      "differing": 11025,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-question-text-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.85,
+      "differing": 10721,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-reasoning-collapsed-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-reasoning-collapsed-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-reasoning-open-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-reasoning-open-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-reconnecting-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-reconnecting-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-rename-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.74,
+      "differing": 9480,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-rename-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.71,
+      "differing": 9072,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-starter-pill-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.92,
+      "differing": 11944,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-starter-pill-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.9,
+      "differing": 11605,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-stopped-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-stopped-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-streaming-scroll-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-streaming-scroll-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-thinking-desktop-dark",
+      "status": "no-baseline",
+      "viewport": "desktop",
+      "theme": "dark",
+      "capture": "chat-thinking-desktop-dark.png"
+    },
+    {
+      "id": "chat-thinking-desktop-light",
+      "status": "no-baseline",
+      "viewport": "desktop",
+      "theme": "light",
+      "capture": "chat-thinking-desktop-light.png"
+    },
+    {
+      "id": "chat-thread-loading-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-thread-loading-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-tool-activity-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.87,
+      "differing": 11275,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-tool-activity-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.84,
+      "differing": 10932,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-tool-expanded-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.87,
+      "differing": 11275,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-tool-expanded-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.84,
+      "differing": 10932,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-tool-failed-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.87,
+      "differing": 11275,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-tool-failed-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.84,
+      "differing": 10932,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-tool-running-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.87,
+      "differing": 11275,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chat-tool-running-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.84,
+      "differing": 10932,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chats-empty-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.11,
+      "differing": 1440,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 264
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chats-empty-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.11,
+      "differing": 1425,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 264
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chats-history-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.92,
+      "differing": 11944,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chats-history-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.9,
+      "differing": 11605,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chats-load-failed-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.24,
+      "differing": 3164,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 284
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chats-load-failed-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.24,
+      "differing": 3133,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 284
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chats-loading-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.13,
+      "differing": 1662,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 398
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chats-loading-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.13,
+      "differing": 1664,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 398
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chats-no-results-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.94,
+      "differing": 11944,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chats-no-results-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11605,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chats-search-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": true,
+      "percent": 0.94,
+      "differing": 11944,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chats-search-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11605,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chats-waiting-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.86,
+      "differing": 11140,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "chats-waiting-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.84,
+      "differing": 10834,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "indicator-finished-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "indicator-finished-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "indicator-mark-desktop-dark",
+      "status": "no-baseline",
+      "viewport": "desktop",
+      "theme": "dark",
+      "capture": "indicator-mark-desktop-dark.png"
+    },
+    {
+      "id": "indicator-mark-desktop-light",
+      "status": "no-baseline",
+      "viewport": "desktop",
+      "theme": "light",
+      "capture": "indicator-mark-desktop-light.png"
+    },
+    {
+      "id": "indicator-wander-desktop-dark",
+      "status": "no-baseline",
+      "viewport": "desktop",
+      "theme": "dark",
+      "capture": "indicator-wander-desktop-dark.png"
+    },
+    {
+      "id": "indicator-wander-desktop-light",
+      "status": "no-baseline",
+      "viewport": "desktop",
+      "theme": "light",
+      "capture": "indicator-wander-desktop-light.png"
+    },
+    {
+      "id": "mobile-sheet-open-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "mobile-sheet-open-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "mobile-sheet-open-mobile-dark",
+      "status": "diffed",
+      "viewport": "mobile",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 3.72,
+      "differing": 12242,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 282,
+        "y1": 482
+      },
+      "regionLimitX": 304,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "mobile-sheet-open-mobile-light",
+      "status": "diffed",
+      "viewport": "mobile",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 3.6,
+      "differing": 11845,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 282,
+        "y1": 482
+      },
+      "regionLimitX": 304,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "not-found-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": true,
+      "identicalToCheckedIn": true,
+      "staleReviewDrift": false,
+      "percent": 0,
+      "differing": 0,
+      "bbox": null,
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "not-found-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": true,
+      "identicalToCheckedIn": true,
+      "staleReviewDrift": false,
+      "percent": 0,
+      "differing": 0,
+      "bbox": null,
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "onboarding-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-2",
+      "identicalToBaseline": true,
+      "identicalToCheckedIn": true,
+      "staleReviewDrift": false,
+      "percent": 0,
+      "differing": 0,
+      "bbox": null,
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "onboarding-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-2",
+      "identicalToBaseline": true,
+      "identicalToCheckedIn": true,
+      "staleReviewDrift": false,
+      "percent": 0,
+      "differing": 0,
+      "bbox": null,
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "onboarding-invitations-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-2",
+      "identicalToBaseline": true,
+      "identicalToCheckedIn": true,
+      "staleReviewDrift": false,
+      "percent": 0,
+      "differing": 0,
+      "bbox": null,
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "onboarding-invitations-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-2",
+      "identicalToBaseline": true,
+      "identicalToCheckedIn": true,
+      "staleReviewDrift": false,
+      "percent": 0,
+      "differing": 0,
+      "bbox": null,
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "onboarding-team-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-2",
+      "identicalToBaseline": true,
+      "identicalToCheckedIn": true,
+      "staleReviewDrift": false,
+      "percent": 0,
+      "differing": 0,
+      "bbox": null,
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "onboarding-team-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-2",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": true,
+      "staleReviewDrift": true,
+      "percent": 0,
+      "differing": 0,
+      "bbox": null,
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "organization-switcher-open-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "organization-switcher-open-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "organization-switcher-open-mobile-dark",
+      "status": "diffed",
+      "viewport": "mobile",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 3.13,
+      "differing": 10304,
+      "bbox": {
+        "x0": 16,
+        "y0": 229,
+        "x1": 282,
+        "y1": 482
+      },
+      "regionLimitX": 304,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "organization-switcher-open-mobile-light",
+      "status": "diffed",
+      "viewport": "mobile",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 3.04,
+      "differing": 9998,
+      "bbox": {
+        "x0": 16,
+        "y0": 229,
+        "x1": 282,
+        "y1": 482
+      },
+      "regionLimitX": 304,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "organizations-not-found-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.92,
+      "differing": 11944,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "organizations-not-found-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.9,
+      "differing": 11605,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-account-detail-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3653,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-account-detail-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3572,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-account-disable-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.23,
+      "differing": 2972,
+      "bbox": {
+        "x0": 16,
+        "y0": 178,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-account-disable-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.22,
+      "differing": 2880,
+      "bbox": {
+        "x0": 16,
+        "y0": 178,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-account-disabled-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3653,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-account-disabled-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3572,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-account-invite-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.23,
+      "differing": 2976,
+      "bbox": {
+        "x0": 16,
+        "y0": 178,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-account-invite-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.23,
+      "differing": 2922,
+      "bbox": {
+        "x0": 16,
+        "y0": 178,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-account-sign-out-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.23,
+      "differing": 2972,
+      "bbox": {
+        "x0": 16,
+        "y0": 178,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-account-sign-out-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.22,
+      "differing": 2880,
+      "bbox": {
+        "x0": 16,
+        "y0": 178,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-account-unverified-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3653,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-account-unverified-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3572,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-accounts-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3650,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-accounts-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.27,
+      "differing": 3563,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-accounts-error-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3650,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-accounts-error-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.27,
+      "differing": 3563,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-accounts-filtered-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3650,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-accounts-filtered-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.27,
+      "differing": 3563,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-accounts-invitations-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3650,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-accounts-invitations-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.27,
+      "differing": 3563,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-accounts-loading-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3650,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-accounts-loading-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.27,
+      "differing": 3563,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-accounts-no-results-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3650,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-accounts-no-results-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3563,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-accounts-row-menu-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3650,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-accounts-row-menu-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.27,
+      "differing": 3563,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-accounts-search-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3650,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-accounts-search-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3563,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-no-access-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.92,
+      "differing": 11944,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-no-access-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.9,
+      "differing": 11605,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-organization-active-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3653,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-organization-active-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3572,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-organization-provision-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.24,
+      "differing": 3082,
+      "bbox": {
+        "x0": 16,
+        "y0": 178,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-organization-provision-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.23,
+      "differing": 2980,
+      "bbox": {
+        "x0": 16,
+        "y0": 178,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-organization-provisioning-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3653,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-organization-provisioning-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3572,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-organizations-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.29,
+      "differing": 3790,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-organizations-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3672,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-organizations-empty-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.29,
+      "differing": 3790,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-organizations-empty-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3672,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-organizations-error-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.29,
+      "differing": 3790,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-organizations-error-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3672,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-organizations-loading-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.29,
+      "differing": 3790,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "platform-organizations-loading-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.28,
+      "differing": 3672,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 240,
+        "y1": 361
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "recent-load-failed-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.24,
+      "differing": 3164,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 284
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "recent-load-failed-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": true,
+      "percent": 0.24,
+      "differing": 3133,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 284
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "recent-load-failed-mobile-dark",
+      "status": "diffed",
+      "viewport": "mobile",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.82,
+      "differing": 2703,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 281,
+        "y1": 264
+      },
+      "regionLimitX": 304,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "recent-load-failed-mobile-light",
+      "status": "diffed",
+      "viewport": "mobile",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.81,
+      "differing": 2667,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 281,
+        "y1": 264
+      },
+      "regionLimitX": 304,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "recent-menu-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.85,
+      "differing": 11032,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "recent-menu-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.9,
+      "differing": 11672,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 250,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "recent-menu-mobile-dark",
+      "status": "diffed",
+      "viewport": "mobile",
+      "theme": "dark",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 3.51,
+      "differing": 11555,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 282,
+        "y1": 482
+      },
+      "regionLimitX": 304,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "recent-menu-mobile-light",
+      "status": "diffed",
+      "viewport": "mobile",
+      "theme": "light",
+      "captureShard": "shard-1",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 3.68,
+      "differing": 12103,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 293,
+        "y1": 482
+      },
+      "regionLimitX": 304,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "settings-appearance-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": true,
+      "percent": 0.7,
+      "differing": 9097,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 218,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "settings-appearance-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.68,
+      "differing": 8762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 219,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "settings-general-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": true,
+      "percent": 0.7,
+      "differing": 9097,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 218,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "settings-general-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.68,
+      "differing": 8762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 219,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "settings-invitations-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.7,
+      "differing": 9097,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 218,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "settings-invitations-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": true,
+      "percent": 0.68,
+      "differing": 8762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 219,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "settings-members-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": true,
+      "percent": 0.7,
+      "differing": 9097,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 218,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "settings-members-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": true,
+      "percent": 0.68,
+      "differing": 8762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 219,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "settings-members-load-failed-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.7,
+      "differing": 9097,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 218,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "settings-members-load-failed-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.68,
+      "differing": 8762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 219,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "settings-profile-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.7,
+      "differing": 9097,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 218,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "settings-profile-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": true,
+      "percent": 0.68,
+      "differing": 8762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 219,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "settings-profile-save-failed-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.7,
+      "differing": 9097,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 218,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "settings-profile-save-failed-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": true,
+      "percent": 0.68,
+      "differing": 8762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 219,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "settings-security-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": true,
+      "percent": 0.7,
+      "differing": 9097,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 218,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "settings-security-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": true,
+      "percent": 0.68,
+      "differing": 8762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 219,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "shell-personal-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.92,
+      "differing": 11944,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "shell-personal-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": true,
+      "percent": 0.9,
+      "differing": 11605,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "shell-team-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.92,
+      "differing": 11944,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "shell-team-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": true,
+      "percent": 0.9,
+      "differing": 11605,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "sidebar-collapsed-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.01,
+      "differing": 130,
+      "bbox": {
+        "x0": 24,
+        "y0": 116,
+        "x1": 39,
+        "y1": 129
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "sidebar-collapsed-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.01,
+      "differing": 130,
+      "bbox": {
+        "x0": 24,
+        "y0": 116,
+        "x1": 39,
+        "y1": 129
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "toast-success-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.7,
+      "differing": 9097,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 218,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "toast-success-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.68,
+      "differing": 8762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 219,
+        "y1": 481
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "user-menu-open-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.91,
+      "differing": 11762,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "user-menu-open-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.88,
+      "differing": 11421,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 239,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "user-menu-open-mobile-dark",
+      "status": "diffed",
+      "viewport": "mobile",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 3.72,
+      "differing": 12242,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 282,
+        "y1": 482
+      },
+      "regionLimitX": 304,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "user-menu-open-mobile-light",
+      "status": "diffed",
+      "viewport": "mobile",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 3.6,
+      "differing": 11845,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 282,
+        "y1": 482
+      },
+      "regionLimitX": 304,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "workspace-error-desktop-dark",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "dark",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.92,
+      "differing": 11944,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    },
+    {
+      "id": "workspace-error-desktop-light",
+      "status": "diffed",
+      "viewport": "desktop",
+      "theme": "light",
+      "captureShard": "shard-3",
+      "identicalToBaseline": false,
+      "identicalToCheckedIn": false,
+      "staleReviewDrift": false,
+      "percent": 0.9,
+      "differing": 11605,
+      "bbox": {
+        "x0": 16,
+        "y0": 177,
+        "x1": 238,
+        "y1": 482
+      },
+      "regionLimitX": 260,
+      "insideSidebarRegion": true
+    }
+  ]
+}

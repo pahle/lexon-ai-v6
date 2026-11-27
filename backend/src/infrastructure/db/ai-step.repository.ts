@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import { RunErrorCodeSchema, type RunStreamEvent } from '@lexon/contracts';
 import { buildAuthorizationPredicate } from './authorization-predicate.js';
-import { requireSession, type TenantSession } from './tenant-session.js';
+import {
+  applyClaimLaneLockTimeout,
+  isLockWaitTimeout,
+  requireSession,
+  type TenantSession,
+} from './tenant-session.js';
 import { AiChatResourceRepository } from './ai-chat-resource.repository.js';
 import type {
   StepClaim,
@@ -136,10 +141,133 @@ export class AiStepRepository {
     };
   }
 
+  /**
+   * F6 §9 claim-path probe: returns the live run's status/version and the
+   * pending-or-claimed step at next_sequence through the definer — the run
+   * row itself is invisible to lexon_app once the chat owner loses project
+   * access, so this is the only way a claim learns the run still exists.
+   */
+  async accessLossFacts(
+    tx: TenantSession,
+    input: { runId: string },
+  ): Promise<{
+    runStatus: string;
+    runVersion: number;
+    nextSequence: number;
+    stepId: string | null;
+    stepSequence: number | null;
+    stepExpectedVersion: number | null;
+    stepFence: number | null;
+    stepState: string | null;
+  } | null> {
+    const { client, ctx } = requireSession(tx);
+    if (!ctx.userId || !uuid.safeParse(input.runId).success) return null;
+    // The definer takes the org claim lane; bound its wait like every other
+    // claim-lane call in this transaction.
+    await applyClaimLaneLockTimeout(client);
+    const result = await client.query<{
+      run_status: string;
+      run_version: number;
+      next_sequence: number;
+      step_id: string | null;
+      step_sequence: number | null;
+      step_expected_version: number | null;
+      step_fence: number | null;
+      step_state: string | null;
+    }>(`SELECT * FROM ops.lexon_ai_access_loss_facts($1,$2,$3)`, [
+      ctx.orgId,
+      ctx.userId,
+      input.runId,
+    ]);
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      runStatus: row.run_status,
+      runVersion: Number(row.run_version),
+      nextSequence: Number(row.next_sequence),
+      stepId: row.step_id,
+      stepSequence:
+        row.step_sequence === null ? null : Number(row.step_sequence),
+      stepExpectedVersion:
+        row.step_expected_version === null
+          ? null
+          : Number(row.step_expected_version),
+      stepFence: row.step_fence === null ? null : Number(row.step_fence),
+      stepState: row.step_state,
+    };
+  }
+
+  /**
+   * F6 §9 claim/resume-path settler: fails the caller's claimed step,
+   * settles its attempts and every outstanding operation, fails the run
+   * AI_ACCESS_REVOKED, appends the audit pair and notifies bound chats —
+   * all inside the definer because every row is invisible to lexon_app.
+   * The caller's step coordinates are verified against the locked rows;
+   * changed=false for every refused probe.
+   */
+  async finalizeAccessLoss(
+    tx: TenantSession,
+    claim: Pick<
+      StepClaim,
+      | 'runId'
+      | 'orgId'
+      | 'userId'
+      | 'stepId'
+      | 'sequence'
+      | 'expectedVersion'
+      | 'fence'
+    >,
+  ): Promise<{ changed: boolean; runVersion: number | null }> {
+    const { client, ctx } = requireSession(tx);
+    if (
+      !uuid.safeParse(claim.runId).success ||
+      !uuid.safeParse(claim.orgId).success ||
+      !uuid.safeParse(claim.userId).success ||
+      !uuid.safeParse(claim.stepId).success ||
+      claim.orgId !== ctx.orgId ||
+      claim.userId !== ctx.userId ||
+      !Number.isSafeInteger(claim.sequence) ||
+      claim.sequence < 1 ||
+      !Number.isSafeInteger(claim.expectedVersion) ||
+      claim.expectedVersion < 1 ||
+      !Number.isSafeInteger(claim.fence) ||
+      // A pending step legitimately carries fence=0 (insertInitial) — only
+      // negative fences are refused, matching the definer.
+      claim.fence < 0
+    )
+      return { changed: false, runVersion: null };
+    await applyClaimLaneLockTimeout(client);
+    const result = await client.query<{
+      changed: boolean;
+      run_version: number | null;
+      run_status: string | null;
+    }>(
+      `SELECT changed,run_version,run_status
+         FROM ops.lexon_ai_finalize_access_loss($1,$2,$3,$4,$5,$6,$7)`,
+      [
+        claim.orgId,
+        claim.userId,
+        claim.runId,
+        claim.expectedVersion,
+        claim.sequence,
+        claim.stepId,
+        claim.fence,
+      ],
+    );
+    return {
+      changed: result.rows[0]?.changed === true,
+      runVersion:
+        result.rows[0]?.run_version === null ||
+        result.rows[0]?.run_version === undefined
+          ? null
+          : Number(result.rows[0].run_version),
+    };
+  }
+
   async streamCommittedProof(
     tx: TenantSession,
     claim: CommittedStreamReference,
-    event: RunStreamEvent,
+    events: readonly RunStreamEvent[],
   ): Promise<
     | {
         status:
@@ -160,7 +288,70 @@ export class AiStepRepository {
   > {
     if (!validTerminalReference(tx, claim)) return undefined;
     const { client, ctx } = requireSession(tx);
-    const scope = buildAuthorizationPredicate(ctx);
+    // §5 row 10: viewer-level stream access — a viewer claim is authorized
+    // through the chat read predicate; the run initiator keeps publish
+    // authority (write arms stay initiating_user_id owner-only — zero-resource
+    // runs have no chat link to test).
+    const scope = buildAuthorizationPredicate({
+      scope: 'chat-read',
+      orgId: ctx.orgId,
+      userId: claim.userId,
+      excludeDeleted: true,
+    });
+    const params: unknown[] = [
+      scope.orgId,
+      claim.runId,
+      claim.userId,
+      claim.sequence,
+      claim.expectedVersion,
+      claim.stepId,
+      claim.fence,
+      claim.committedRunVersion,
+      claim.committedStatus,
+    ];
+    // One publication authorizes a whole event batch in a single query (one
+    // tenant tx per publishCommitted call, not per part — the per-part loop
+    // made a 15-event batch cost 15 serialized tenant transactions against the
+    // 250 ms publication deadline). The per-event arms join one VALUES list in
+    // a single aggregate: a per-arm EXISTS subplan costs ~4 ms per event (a
+    // 32-part batch ~125 ms), while one run-scoped scan over app.ai_operations
+    // is a few ms. count(*) = arm count ⇔ every event's arm matched.
+    const armValues: string[] = [];
+    for (const event of events) {
+      if (!('operationId' in event) || event.operationId == null) continue;
+      const idParam = `$${params.length + 1}`;
+      const typeParam = `$${params.length + 2}`;
+      const statusParam = `$${params.length + 3}`;
+      params.push(
+        event.operationId,
+        event.type,
+        event.type === 'operation-status' ? event.status : '',
+      );
+      armValues.push(`(${idParam},${typeParam},${statusParam})`);
+    }
+    const armCountParam = armValues.length > 0 ? `$${params.length + 1}` : '';
+    if (armValues.length > 0) params.push(armValues.length);
+    const armCheck =
+      armValues.length > 0
+        ? `AND (SELECT count(*) FROM (VALUES ${armValues.join(',')})
+                AS arm(op_id, ev_type, ev_status)
+             JOIN app.ai_operations o
+               ON o.org_id=s.org_id AND o.run_id=s.run_id AND o.id=arm.op_id::uuid
+             JOIN app.ai_steps operation_step
+               ON operation_step.org_id=o.org_id AND operation_step.run_id=o.run_id
+              AND operation_step.id=o.step_id
+             WHERE operation_step.sequence<=s.sequence AND (
+               (arm.ev_type='approval-required' AND o.status='awaiting_approval'
+                 AND o.kind='approval') OR
+               (arm.ev_type='question-required' AND o.status='awaiting_approval'
+                 AND o.kind='question') OR
+               (arm.ev_type='tool-input-available') OR
+               (arm.ev_type='tool-output-available' AND
+                 o.status IN ('succeeded','failed','outcome_unknown','answered')) OR
+               (arm.ev_type='operation-status' AND
+                 CASE WHEN o.status='succeeded' THEN 'completed' ELSE o.status END=arm.ev_status)
+             )) = ${armCountParam}`
+        : '';
     const result = await client.query<{
       status:
         'running' | 'awaiting_approval' | 'completed' | 'failed' | 'cancelled';
@@ -175,49 +366,23 @@ export class AiStepRepository {
       `SELECT r.status,r.run_version,r.next_sequence,s.id AS step_id,
               s.sequence,s.expected_version,s.fence,r.stream_generation
        FROM app.ai_runs r JOIN app.ai_steps s ON s.org_id=r.org_id AND s.run_id=r.id
-       WHERE r.org_id=$1 AND r.id=$2 AND r.initiating_user_id=$3
+       WHERE r.org_id=$1 AND r.id=$2
+         AND (r.initiating_user_id=$3 OR EXISTS (
+           SELECT 1 FROM app.chat_runs cr
+           JOIN app.chats c ON c.org_id=cr.org_id AND c.id=cr.chat_id
+           WHERE cr.org_id=r.org_id AND cr.run_id=r.id AND cr.kind='answer'
+             AND ${scope.where('c', '$1', '$3')}))
          AND r.status=$9 AND r.run_version=$8
          AND r.next_sequence >= $4 + 1
          AND s.id=$6 AND s.sequence=$4 AND s.expected_version=$5 AND s.fence=$7
          AND s.state IN ('committed','awaiting_approval')
-         AND ($10::uuid IS NULL OR EXISTS (
-           SELECT 1 FROM app.ai_operations o
-           JOIN app.ai_steps operation_step
-             ON operation_step.org_id=o.org_id AND operation_step.run_id=o.run_id
-            AND operation_step.id=o.step_id
-           WHERE o.org_id=s.org_id AND o.run_id=s.run_id
-             AND operation_step.sequence<=s.sequence
-             AND o.id=$10 AND (
-               ($11='approval-required' AND o.status='awaiting_approval'
-                 AND o.kind='approval') OR
-               ($11='question-required' AND o.status='awaiting_approval'
-                 AND o.kind='question') OR
-               ($11='tool-input-available') OR
-               ($11='tool-output-available' AND
-                 o.status IN ('succeeded','failed','outcome_unknown','answered')) OR
-               ($11='operation-status' AND
-                 CASE WHEN o.status='succeeded' THEN 'completed' ELSE o.status END=$12)
-             )
-         ))
+         ${armCheck}
          AND NOT EXISTS (
            SELECT 1 FROM app.ai_steps newer
            WHERE newer.org_id=s.org_id AND newer.run_id=s.run_id
              AND newer.sequence>s.sequence AND newer.state IN ('committed','awaiting_approval')
          )`,
-      [
-        scope.orgId,
-        claim.runId,
-        claim.userId,
-        claim.sequence,
-        claim.expectedVersion,
-        claim.stepId,
-        claim.fence,
-        claim.committedRunVersion,
-        claim.committedStatus,
-        'operationId' in event ? event.operationId : null,
-        event.type,
-        event.type === 'operation-status' ? event.status : '',
-      ],
+      params,
     );
     const row = result.rows[0];
     return row
@@ -253,7 +418,15 @@ export class AiStepRepository {
   > {
     if (!validClaim(tx, claim)) return undefined;
     const { client, ctx } = requireSession(tx);
-    const scope = buildAuthorizationPredicate(ctx);
+    // §5 row 10: viewer-level stream access — a viewer claim is authorized
+    // through the chat read predicate; the run initiator keeps publish
+    // authority (zero-resource runs have no chat link to test).
+    const scope = buildAuthorizationPredicate({
+      scope: 'chat-read',
+      orgId: ctx.orgId,
+      userId: claim.userId,
+      excludeDeleted: true,
+    });
     const result = await client.query<{
       run_version: number;
       next_sequence: number;
@@ -269,6 +442,11 @@ export class AiStepRepository {
               s.id AS step_id,s.sequence,s.expected_version,s.fence,s.lease_until
        FROM app.ai_runs r JOIN app.ai_steps s ON s.org_id=r.org_id AND s.run_id=r.id
        WHERE r.org_id=$1 AND r.id=$2 AND r.run_version=$3 AND r.next_sequence=$4
+         AND (r.initiating_user_id=$7 OR EXISTS (
+           SELECT 1 FROM app.chat_runs cr
+           JOIN app.chats c ON c.org_id=cr.org_id AND c.id=cr.chat_id
+           WHERE cr.org_id=r.org_id AND cr.run_id=r.id AND cr.kind='answer'
+             AND ${scope.where('c', '$1', '$7')}))
          AND r.status IN ('queued','running','awaiting_approval','cancelling')
          AND s.id=$5 AND s.sequence=$4 AND s.expected_version=$3 AND s.fence=$6
          AND s.state='claimed' AND s.lease_until>clock_timestamp()`,
@@ -279,6 +457,7 @@ export class AiStepRepository {
         claim.sequence,
         claim.stepId,
         claim.fence,
+        scope.userId,
       ],
     );
     const row = result.rows[0];
@@ -342,7 +521,15 @@ export class AiStepRepository {
   > {
     if (!validTerminalReference(tx, claim)) return undefined;
     const { client, ctx } = requireSession(tx);
-    const scope = buildAuthorizationPredicate(ctx);
+    // §5 row 10: viewer-level stream access — a viewer claim is authorized
+    // through the chat read predicate; the run initiator keeps publish
+    // authority (zero-resource runs have no chat link to test).
+    const scope = buildAuthorizationPredicate({
+      scope: 'chat-read',
+      orgId: ctx.orgId,
+      userId: claim.userId,
+      excludeDeleted: true,
+    });
     const result = await client.query<{
       status: 'completed' | 'failed' | 'cancelled';
       error_code: string | null;
@@ -375,35 +562,82 @@ export class AiStepRepository {
          )
          ORDER BY sequence DESC,updated_at DESC LIMIT 1
        ) s ON true
-       WHERE r.org_id=$1 AND r.id=$2 AND r.status IN ('completed','failed','cancelled')`,
+       WHERE r.org_id=$1 AND r.id=$2
+         AND (r.initiating_user_id=$6 OR EXISTS (
+           SELECT 1 FROM app.chat_runs cr
+           JOIN app.chats c ON c.org_id=cr.org_id AND c.id=cr.chat_id
+           WHERE cr.org_id=r.org_id AND cr.run_id=r.id AND cr.kind='answer'
+             AND ${scope.where('c', '$1', '$6')}))
+         AND r.status IN ('completed','failed','cancelled')`,
       [
         scope.orgId,
         claim.runId,
         claim.neutral === true,
         claim.stepId,
         claim.sequence,
+        scope.userId,
       ],
     );
     const row = result.rows[0];
     if (
-      !row ||
-      row.latest_step_id !== claim.stepId ||
-      Number(row.latest_sequence) !== claim.sequence ||
-      Number(row.latest_expected_version) !== claim.expectedVersion ||
-      Number(row.latest_fence) !== claim.fence
+      row &&
+      row.latest_step_id === claim.stepId &&
+      Number(row.latest_sequence) === claim.sequence &&
+      Number(row.latest_expected_version) === claim.expectedVersion &&
+      Number(row.latest_fence) === claim.fence
+    ) {
+      const safeCode = RunErrorCodeSchema.safeParse(row.error_code);
+      return {
+        status: row.status,
+        ...(safeCode.success ? { errorCode: safeCode.data } : {}),
+        runVersion: Number(row.run_version),
+        nextSequence: Number(row.next_sequence),
+        latestCommittedStepId: row.latest_step_id!,
+        latestCommittedSequence: Number(row.latest_sequence),
+        latestCommittedExpectedVersion: Number(row.latest_expected_version),
+        latestCommittedFence: Number(row.latest_fence),
+        streamGeneration: Number(row.stream_generation),
+      };
+    }
+    // F6 §9: the app-role read above returns nothing once the initiator loses
+    // project access — the run and its bound chat are both RLS-invisible.
+    // The definer repeats the same step-shape rules and this side still
+    // enforces the caller's coordinate match before a finish may write.
+    const fallback = await client.query<{
+      status: 'completed' | 'failed' | 'cancelled';
+      error_code: string | null;
+      run_version: number;
+      next_sequence: number;
+      step_id: string;
+      sequence: number;
+      expected_version: number;
+      fence: number | string;
+      stream_generation: number | string;
+    }>(`SELECT * FROM ops.lexon_ai_terminal_stream_proof($1,$2,$3)`, [
+      ctx.orgId,
+      ctx.userId,
+      claim.runId,
+    ]);
+    const proof = fallback.rows[0];
+    if (
+      !proof ||
+      proof.step_id !== claim.stepId ||
+      Number(proof.sequence) !== claim.sequence ||
+      Number(proof.expected_version) !== claim.expectedVersion ||
+      Number(proof.fence) !== claim.fence
     )
       return undefined;
-    const safeCode = RunErrorCodeSchema.safeParse(row.error_code);
+    const proofCode = RunErrorCodeSchema.safeParse(proof.error_code);
     return {
-      status: row.status,
-      ...(safeCode.success ? { errorCode: safeCode.data } : {}),
-      runVersion: Number(row.run_version),
-      nextSequence: Number(row.next_sequence),
-      latestCommittedStepId: row.latest_step_id!,
-      latestCommittedSequence: Number(row.latest_sequence),
-      latestCommittedExpectedVersion: Number(row.latest_expected_version),
-      latestCommittedFence: Number(row.latest_fence),
-      streamGeneration: Number(row.stream_generation),
+      status: proof.status,
+      ...(proofCode.success ? { errorCode: proofCode.data } : {}),
+      runVersion: Number(proof.run_version),
+      nextSequence: Number(proof.next_sequence),
+      latestCommittedStepId: proof.step_id,
+      latestCommittedSequence: Number(proof.sequence),
+      latestCommittedExpectedVersion: Number(proof.expected_version),
+      latestCommittedFence: Number(proof.fence),
+      streamGeneration: Number(proof.stream_generation),
     };
   }
 
@@ -612,33 +846,41 @@ export class AiStepRepository {
     )
       return null;
     const scope = buildAuthorizationPredicate(ctx);
-    await this.lockTenantClaimGuard(tx);
-    if (!(await this.chatResources.lockLiveForRun(tx, input.runId)))
-      return null;
-    const run = await client.query(
-      `SELECT 1 FROM app.ai_runs WHERE org_id=$1 AND id=$2 AND run_version=$3
-       AND next_sequence=$4 AND status IN ('queued','running','awaiting_approval','cancelling') FOR UPDATE`,
-      [scope.orgId, input.runId, input.expectedVersion, input.sequence],
-    );
-    if (run.rowCount !== 1) return null;
-    const selected = await client.query<StepRow & { lease_live: boolean }>(
-      `SELECT s.*,(s.lease_until IS NOT NULL AND s.lease_until>clock_timestamp()) AS lease_live
-       FROM app.ai_steps s
-       WHERE s.org_id=$1 AND s.run_id=$2 AND s.sequence=$3 AND s.expected_version=$4
-       FOR UPDATE`,
-      [scope.orgId, input.runId, input.sequence, input.expectedVersion],
-    );
-    const current = selected.rows[0];
-    if (!current || !['pending', 'claimed'].includes(current.state))
-      return null;
-    if (current.state === 'claimed' && current.lease_live) return null;
-
-    const liveClaims = await client.query<{ count: string }>(
-      `SELECT count(*)::text AS count FROM app.ai_steps
-       WHERE org_id=$1 AND state='claimed' AND lease_until>clock_timestamp()`,
-      [scope.orgId],
-    );
-    if (Number(liveClaims.rows[0]?.count ?? 0) >= 2) return null;
+    let current: (StepRow & { lease_live: boolean }) | undefined;
+    try {
+      // Lock-acquisition section only: once writes begin a 55P03 must
+      // propagate so the transaction rolls back instead of reporting a
+      // "no claim" while partial settlement has already committed.
+      await this.lockTenantClaimGuard(tx);
+      if (!(await this.chatResources.lockLiveForRun(tx, input.runId)))
+        return null;
+      const run = await client.query(
+        `SELECT 1 FROM app.ai_runs WHERE org_id=$1 AND id=$2 AND run_version=$3
+         AND next_sequence=$4 AND status IN ('queued','running','awaiting_approval','cancelling') FOR UPDATE`,
+        [scope.orgId, input.runId, input.expectedVersion, input.sequence],
+      );
+      if (run.rowCount !== 1) return null;
+      const selected = await client.query<StepRow & { lease_live: boolean }>(
+        `SELECT s.*,(s.lease_until IS NOT NULL AND s.lease_until>clock_timestamp()) AS lease_live
+         FROM app.ai_steps s
+         WHERE s.org_id=$1 AND s.run_id=$2 AND s.sequence=$3 AND s.expected_version=$4
+         FOR UPDATE`,
+        [scope.orgId, input.runId, input.sequence, input.expectedVersion],
+      );
+      current = selected.rows[0];
+      if (!current || !['pending', 'claimed'].includes(current.state))
+        return null;
+      if (current.state === 'claimed' && current.lease_live) return null;
+      const liveClaims = await client.query<{ count: string }>(
+        `SELECT count(*)::text AS count FROM app.ai_steps
+         WHERE org_id=$1 AND state='claimed' AND lease_until>clock_timestamp()`,
+        [scope.orgId],
+      );
+      if (Number(liveClaims.rows[0]?.count ?? 0) >= 2) return null;
+    } catch (error) {
+      if (isLockWaitTimeout(error)) return null;
+      throw error;
+    }
 
     const unknownAttemptIds: string[] = [];
     if (current.state === 'claimed') {
@@ -683,6 +925,10 @@ export class AiStepRepository {
     client: ReturnType<typeof requireSession>['client'],
     orgId: string,
   ): Promise<void> {
+    // Bound every lock wait in this transaction: the org claim lane serializes
+    // claim mutations, and a stalled writer must never hang its followers past
+    // CLAIM_LANE_LOCK_TIMEOUT_MS (readers translate 55P03 into "unavailable").
+    await applyClaimLaneLockTimeout(client);
     await client.query(
       `SELECT pg_advisory_xact_lock(
         hashtextextended('lexon.ai_step_claim:' || $1::text, 0)

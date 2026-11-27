@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { ChatTreeSchema } from '@lexon/contracts';
+import { ChatDetailSchema } from '@lexon/contracts';
 import {
   activeRunFrames,
   answer,
@@ -504,11 +504,12 @@ test('copied answer and given feedback hold their timers', async ({
 // makes the thread scrollable, so the thread can rest at its start with the
 // scroll-to-latest button showing.
 function streamingTree() {
-  return ChatTreeSchema.parse({
+  return ChatDetailSchema.parse({
     id: chatId,
     title: fileNames.newChat,
     messages: [userMessage(), assistantMessage('streaming-answer')],
     viewedLeafId: assistantMessageId,
+    access: 'owner',
     createdAt: timestamp,
     updatedAt: timestamp,
   });

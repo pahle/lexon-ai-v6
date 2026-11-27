@@ -1,13 +1,21 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, vi } from 'vitest';
-import type { ChatTitleNotification } from '../../src/infrastructure/db/index.js';
+import {
+  type ChatTitleNotification,
+  type TenantSession,
+} from '../../src/infrastructure/db/index.js';
 import type {
   RunActor,
   VerifiedIdentity,
 } from '../../src/modules/identity-access/index.js';
 import { RunEventsService } from '../../src/modules/chat/run-events.service.js';
 
-function setup(options: { limit?: number; blockDrain?: boolean } = {}) {
+function setup(
+  options: {
+    limit?: number;
+    blockDrain?: boolean;
+  } = {},
+) {
   const userId = randomUUID();
   const orgId = randomUUID();
   const actor = { userId, orgId } as RunActor;
@@ -59,7 +67,11 @@ function setup(options: { limit?: number; blockDrain?: boolean } = {}) {
   };
   const signals = {
     subscribeChatTitleInvalidations: vi.fn(
-      async (next: typeof callback, onUnavailable: typeof unavailable) => {
+      async (
+        _scope: { orgId: string; userId: string },
+        next: typeof callback,
+        onUnavailable: typeof unavailable,
+      ) => {
         callback = next;
         unavailable = onUnavailable;
         return unsubscribes;
@@ -79,8 +91,19 @@ function setup(options: { limit?: number; blockDrain?: boolean } = {}) {
       close(reason?: string): Promise<void>;
     };
   }> = [];
+  // The audience check moved to dispatch (CancelSignals resolves
+  // ops.lexon_chat_notification_audience once per notification); the drain
+  // path no longer queries the database for access.
+  const database = {
+    withTenant: vi.fn(
+      async (
+        _ctx: { orgId: string; userId: string },
+        fn: (tx: TenantSession) => Promise<unknown> | unknown,
+      ) => fn({} as never),
+    ),
+  };
   const service = new RunEventsService(
-    {} as never,
+    database as never,
     {} as never,
     { assertLiveActor: vi.fn() } as never,
     {} as never,
@@ -121,6 +144,7 @@ function setup(options: { limit?: number; blockDrain?: boolean } = {}) {
   return {
     actor,
     callback: () => callback!,
+    database,
     connect,
     get firstConnectionId() {
       return firstConnectionId;
@@ -136,22 +160,19 @@ function setup(options: { limit?: number; blockDrain?: boolean } = {}) {
 
 const notification = (
   orgId: string,
-  userId: string,
   chatId = randomUUID(),
-): ChatTitleNotification => ({ orgId, userId, chatId });
+): ChatTitleNotification => ({ orgId, chatId });
 
 test('title invalidation stream coalesces overflow to one owner-wide event while a slow sink drains', async () => {
   const context = setup({ blockDrain: true });
   const subscription = await context.connect();
   const first = randomUUID();
-  context.callback()(
-    notification(context.actor.orgId, context.actor.userId, first),
-  );
+  context.callback()(notification(context.actor.orgId, first));
   await vi.waitFor(() =>
     expect(context.sinks[0]!.sink.drain).toHaveBeenCalledOnce(),
   );
   for (let index = 0; index < 65; index++)
-    context.callback()(notification(context.actor.orgId, context.actor.userId));
+    context.callback()(notification(context.actor.orgId));
   context.releaseDrain();
   await vi.waitFor(() =>
     expect(
@@ -169,7 +190,7 @@ test('title invalidation stream closes and releases its lease when a slow client
   const context = setup({ blockDrain: true });
   const subscription = await context.connect();
   context.sinks[0]!.sink.drain = vi.fn(async () => false);
-  context.callback()(notification(context.actor.orgId, context.actor.userId));
+  context.callback()(notification(context.actor.orgId));
   await vi.waitFor(() =>
     expect(context.sinks[0]!.close).toHaveBeenCalledWith('slow-client'),
   );
@@ -196,4 +217,38 @@ test('notification-listener loss closes a live title stream and cleans up its su
   await vi.waitFor(() => expect(context.unsubscribes).toHaveBeenCalledOnce());
   await subscription.close();
   expect(context.registry.release).toHaveBeenCalledOnce();
+});
+
+test('a chatId:null notification coalesces to one refresh event without a database read', async () => {
+  // F6 fix-batch: access filtering happens once at dispatch; a chatId:null
+  // payload (access-change refresh or overflow coalescing) carries no id to
+  // leak, so the connection writes the refresh directly.
+  const context = setup();
+  const subscription = await context.connect();
+  expect(context.sinks[0]!.writes).toEqual([': connected']);
+  context.callback()({
+    orgId: context.actor.orgId,
+    chatId: null,
+  });
+  await vi.waitFor(() =>
+    expect(
+      context.sinks[0]!.writes.some((frame) => frame.includes('"chatId":null')),
+    ).toBe(true),
+  );
+  await subscription.close();
+});
+
+test('a readable chat notification is delivered with its chatId to the connected user', async () => {
+  const context = setup();
+  const subscription = await context.connect();
+  const chatId = randomUUID();
+  context.callback()(notification(context.actor.orgId, chatId));
+  await vi.waitFor(() =>
+    expect(
+      context.sinks[0]!.writes.some((frame) =>
+        frame.includes(`"chatId":"${chatId}"`),
+      ),
+    ).toBe(true),
+  );
+  await subscription.close();
 });

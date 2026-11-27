@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { requireSession, type TenantSession } from './tenant-session.js';
+import { buildAuthorizationPredicate } from './authorization-predicate.js';
+import {
+  applyClaimLaneLockTimeout,
+  requireSession,
+  type TenantSession,
+} from './tenant-session.js';
 
 const uuid = z.uuid();
 
@@ -8,6 +13,7 @@ export class AiChatResourceRepository {
   async lockLiveForRun(tx: TenantSession, runId: string): Promise<boolean> {
     if (!uuid.safeParse(runId).success) return false;
     const { client, ctx } = requireSession(tx);
+    await applyClaimLaneLockTimeout(client);
     const runResult = await client.query<{
       owner_user_id: string;
       resource_ids: unknown;
@@ -33,11 +39,19 @@ export class AiChatResourceRepository {
       resourceIds[0].toLowerCase() !== run.chat_id?.toLowerCase()
     )
       return false;
+    // Owner+access scope (§5 row 6 analogue): a denied/removed member cannot
+    // take the write fence on their own project chat.
+    const scope = buildAuthorizationPredicate({
+      scope: 'owned-chat',
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      excludeDeleted: true,
+    });
     const chat = await client.query(
-      `SELECT 1 FROM app.chats
-       WHERE org_id=$1 AND id=$2 AND owner_user_id=$3 AND deleted_at IS NULL
+      `SELECT 1 FROM app.chats c
+       WHERE ${scope.where('c', '$1', '$3')} AND c.id=$2
        FOR UPDATE`,
-      [ctx.orgId, run.chat_id, ctx.userId],
+      [scope.orgId, run.chat_id, scope.userId],
     );
     return chat.rowCount === 1;
   }

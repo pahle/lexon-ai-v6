@@ -5,6 +5,7 @@ import {
   RunErrorCodeSchema,
   RunStatusSchema,
 } from './ai-run.js';
+import type { ChatShareSummary, ShareAddInput } from './projects.js';
 // The operation summary schema lives beside the run stream events that carry
 // it (ai-run.ts); re-export so both import paths keep working.
 export { ChatOperationSnapshotSchema };
@@ -74,50 +75,91 @@ export const ChatMutationResultSchema = z.strictObject({
 });
 export type ChatMutationResult = z.infer<typeof ChatMutationResultSchema>;
 
-export const ChatTreeSchema = z
-  .strictObject({
-    id: uuid,
-    title: z.string().min(1).max(240),
-    messages: z.array(ChatMessageSchema),
-    viewedLeafId: uuid.nullable(),
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  })
-  .refine(
-    (tree) => {
-      const byId = new Map(
-        tree.messages.map((message) => [message.id, message]),
-      );
-      if (byId.size !== tree.messages.length) return false;
-      for (const message of tree.messages) {
-        if (message.parentId !== null && !byId.has(message.parentId))
-          return false;
-        if (message.role === 'user' && message.parentId !== null) {
-          const parent = byId.get(message.parentId);
-          if (!parent || parent.role !== 'assistant') return false;
-        }
-        if (message.role === 'assistant') {
-          const parent = byId.get(message.parentId);
-          if (!parent || parent.role !== 'user') return false;
-        }
-        const visited = new Set<string>();
-        let cursor: ChatMessage | undefined = message;
-        while (cursor && cursor.parentId !== null) {
-          if (visited.has(cursor.id)) return false;
-          visited.add(cursor.id);
-          cursor = byId.get(cursor.parentId);
-        }
-        if (!cursor || cursor.role !== 'user') return false;
+const chatTreeShape = {
+  id: uuid,
+  title: z.string().min(1).max(240),
+  messages: z.array(ChatMessageSchema),
+  viewedLeafId: uuid.nullable(),
+  createdAt: timestamp,
+  updatedAt: timestamp,
+} as const;
+
+const chatTreeLinksRefinement = {
+  check: (tree: { messages: ChatMessage[]; viewedLeafId: string | null }) => {
+    const byId = new Map(tree.messages.map((message) => [message.id, message]));
+    if (byId.size !== tree.messages.length) return false;
+    for (const message of tree.messages) {
+      if (message.parentId !== null && !byId.has(message.parentId))
+        return false;
+      if (message.role === 'user' && message.parentId !== null) {
+        const parent = byId.get(message.parentId);
+        if (!parent || parent.role !== 'assistant') return false;
       }
-      if (tree.messages.length === 0) return tree.viewedLeafId === null;
-      if (tree.viewedLeafId === null) return false;
-      const leaf = byId.get(tree.viewedLeafId);
-      if (!leaf) return false;
-      return !tree.messages.some((message) => message.parentId === leaf.id);
-    },
-    { message: 'Chat tree must contain a valid viewed leaf and parent links' },
-  );
+      if (message.role === 'assistant') {
+        const parent = byId.get(message.parentId);
+        if (!parent || parent.role !== 'user') return false;
+      }
+      const visited = new Set<string>();
+      let cursor: ChatMessage | undefined = message;
+      while (cursor && cursor.parentId !== null) {
+        if (visited.has(cursor.id)) return false;
+        visited.add(cursor.id);
+        cursor = byId.get(cursor.parentId);
+      }
+      if (!cursor || cursor.role !== 'user') return false;
+    }
+    if (tree.messages.length === 0) return tree.viewedLeafId === null;
+    if (tree.viewedLeafId === null) return false;
+    const leaf = byId.get(tree.viewedLeafId);
+    if (!leaf) return false;
+    return !tree.messages.some((message) => message.parentId === leaf.id);
+  },
+  params: {
+    message: 'Chat tree must contain a valid viewed leaf and parent links',
+  },
+} as const;
+
+export const ChatTreeSchema = z
+  .strictObject(chatTreeShape)
+  .refine(chatTreeLinksRefinement.check, chatTreeLinksRefinement.params);
 export type ChatTree = z.infer<typeof ChatTreeSchema>;
+
+// Caller's access level on the chat detail payload: 'owner' renders the full
+// composer surface, 'reader' the read-only/"Waiting for <owner>" view (F6).
+export const ChatAccessSchema = z.enum(['owner', 'reader']);
+export type ChatAccess = z.infer<typeof ChatAccessSchema>;
+
+// GET /chats/:id payload — the tree plus the caller's access level. Kept out
+// of ChatTree itself: access is a per-request authorization fact, not part of
+// the tree's identity, and a ChatDetail stays assignable to ChatTree.
+// `ownerName`/`projectName` are emitted for readers only (F6 §10): the
+// read-only bar renders "Shared by <ownerName>" / "<ownerName>'s chat" and a
+// project-bound chat needs projectName to pick the label. A departed owner's
+// name no longer resolves — the field is absent and the UI falls back to the
+// generic label.
+export const ChatDetailSchema = z
+  .strictObject({
+    ...chatTreeShape,
+    access: ChatAccessSchema,
+    ownerName: z
+      .string()
+      .min(1)
+      .refine((value) => Array.from(value).length <= 120)
+      .optional(),
+    projectName: z
+      .string()
+      .min(1)
+      .refine((value) => Array.from(value).length <= 120)
+      .optional(),
+  })
+  .refine(chatTreeLinksRefinement.check, chatTreeLinksRefinement.params);
+export type ChatDetail = z.infer<typeof ChatDetailSchema>;
+
+// GET /chats scope (F6 §5 rows 1–2): absent/'own' is the caller's own chats
+// with the project-access disjunction; 'shared' is the chat_shares arm only
+// (project chats can never appear there).
+export const ChatListScopeSchema = z.enum(['own', 'shared']);
+export type ChatListScope = z.infer<typeof ChatListScopeSchema>;
 
 export const ChatPageSchema = z.strictObject({
   items: z.array(
@@ -127,6 +169,20 @@ export const ChatPageSchema = z.strictObject({
       updatedAt: timestamp,
       lastMessageAt: timestamp.nullable(),
       awaitingUser: z.boolean(),
+      // Secondary text on the caller's own project chats (F6); absent on
+      // standalone chats.
+      projectName: z
+        .string()
+        .min(1)
+        .refine((value) => Array.from(value).length <= 120)
+        .optional(),
+      // Secondary text on shared-scope rows: "Shared by <ownerName>" (F6 §10).
+      // Absent when the sharer's name no longer resolves (departed owner).
+      ownerName: z
+        .string()
+        .min(1)
+        .refine((value) => Array.from(value).length <= 120)
+        .optional(),
     }),
   ),
   pageInfo: z.strictObject({ nextCursor: z.string().max(256).nullable() }),
@@ -198,6 +254,9 @@ export const CreateChatInputSchema = z.strictObject({
   requestId: uuid,
   text: chatText,
   effort: ChatEffortSchema,
+  // Binds the new chat to a project (F6): the create-request INSERT policy
+  // enforces owner/editor standing server-side.
+  projectId: uuid.optional(),
 });
 export type CreateChatInput = z.infer<typeof CreateChatInputSchema>;
 
@@ -469,14 +528,14 @@ export interface ChatGetOptions {
 }
 
 export type ChatGetResult =
-  | { notModified: false; tree: ChatTree; etag: string | null }
+  | { notModified: false; tree: ChatDetail; etag: string | null }
   | { notModified: true; etag: string };
 
 export interface ChatApi {
   create(input: CreateChatInput): Promise<ChatMutationResult>;
   get(chatId: string, options?: ChatGetOptions): Promise<ChatGetResult>;
   list(
-    input?: { cursor?: string; limit?: number },
+    input?: { cursor?: string; limit?: number; scope?: ChatListScope },
     signal?: AbortSignal,
   ): Promise<ChatPage>;
   search(
@@ -507,4 +566,8 @@ export interface ChatApi {
     operationId: string,
     input: OperationDecisionInput,
   ): Promise<OperationDecisionResult>;
+  /** F6 §10 owner-only standalone-chat sharing (chat_shares arm). */
+  listShares(chatId: string): Promise<ChatShareSummary[]>;
+  addShares(chatId: string, input: ShareAddInput): Promise<ChatShareSummary[]>;
+  removeShare(chatId: string, userId: string): Promise<void>;
 }

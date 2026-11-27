@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ChatTreeSchema } from '@lexon/contracts';
+import { ChatDetailSchema } from '@lexon/contracts';
 import {
   assistantMessage,
   chatId,
@@ -86,11 +86,12 @@ test('long conversation, fast stream, 4x CPU: no render loop, settles, scrolls',
         },
       );
     }
-    return ChatTreeSchema.parse({
+    return ChatDetailSchema.parse({
       id: chatId,
       title: fileNames.newChat,
       messages,
       viewedLeafId: phase === 'idle' ? history.last : newAssistantId,
+      access: 'owner',
       createdAt: timestamp,
       updatedAt: timestamp,
     });

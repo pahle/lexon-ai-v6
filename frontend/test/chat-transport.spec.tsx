@@ -122,6 +122,7 @@ it('uses the same-origin chat API and validates its persisted tree', async () =>
         },
       ],
       viewedLeafId: assistantId,
+      access: 'owner',
       createdAt: '2026-11-11T00:00:00.000Z',
       updatedAt: '2026-11-11T00:00:01.000Z',
     }),

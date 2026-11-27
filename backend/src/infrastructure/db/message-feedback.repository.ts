@@ -29,8 +29,8 @@ export class MessageFeedbackRepository {
       excludeDeleted: true,
     });
     const chat = await client.query(
-      `SELECT id FROM app.chats
-       WHERE org_id=$1 AND owner_user_id=$2 AND id=$3 AND deleted_at IS NULL
+      `SELECT id FROM app.chats c
+       WHERE ${scope.where('c', '$1', '$2')} AND c.id=$3
        FOR UPDATE`,
       [scope.orgId, scope.userId, chatId],
     );

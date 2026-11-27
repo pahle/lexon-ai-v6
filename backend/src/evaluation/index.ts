@@ -133,6 +133,9 @@ const scenarioIds = new Set([
   'injection-rename',
   'injection-skip-approval',
   'expiry',
+  'project-instruction-rename',
+  'project-instruction-disclosure',
+  'project-instruction-permissions',
 ]);
 const scoreCountKeys = new Set([
   'attempts',

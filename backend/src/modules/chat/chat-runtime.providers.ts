@@ -12,11 +12,13 @@ import {
 } from '../../infrastructure/db/index.js';
 import { ModelAllowlistSchema } from '../../infrastructure/ai/index.js';
 import {
+  OrganizationAuthPort,
   RunAuthorizationService,
   RUN_SSE_REVALIDATION,
 } from '../identity-access/index.js';
 import { createProductionRunRegistry, RunRegistry } from './run-registry.js';
 import { ChatHistoryContextProvider } from './chat-history-context.js';
+import { ProjectContextProvider } from './project-context.js';
 import { RunService } from './run.service.js';
 import { ChatService } from './chat.service.js';
 import { ChatSearchService } from './chat-search.service.js';
@@ -40,10 +42,18 @@ export function chatRuntimeProviders(): Provider[] {
         new ChatHistoryContextProvider(database),
     },
     {
+      provide: ProjectContextProvider,
+      inject: [TenantDatabase],
+      useFactory: (database: TenantDatabase) =>
+        new ProjectContextProvider(database),
+    },
+    {
       provide: RunRegistry,
-      inject: [ChatHistoryContextProvider],
-      useFactory: (history: ChatHistoryContextProvider) =>
-        createProductionRunRegistry([history]),
+      inject: [ChatHistoryContextProvider, ProjectContextProvider],
+      useFactory: (
+        history: ChatHistoryContextProvider,
+        project: ProjectContextProvider,
+      ) => createProductionRunRegistry([history, project]),
     },
   ];
 }
@@ -144,10 +154,10 @@ export function chatApiProviders(
                   steps.advanceTerminalStreamGeneration(tx, claim, observed),
                 { timeoutMs: 500 },
               ),
-            authorizeCommitted: (claim, event) =>
+            authorizeCommitted: (claim, events) =>
               database.withTenant(
                 { orgId: claim.orgId, userId: claim.userId },
-                (tx) => steps.streamCommittedProof(tx, claim, event),
+                (tx) => steps.streamCommittedProof(tx, claim, events),
               ),
             reconcile: (entries) =>
               Promise.all(
@@ -247,13 +257,22 @@ export function chatApiProviders(
     chatRunServiceProvider(config),
     {
       provide: ChatService,
-      inject: [TenantDatabase, RunService, RunAuthorizationService, RunStreams],
+      inject: [
+        TenantDatabase,
+        RunService,
+        RunAuthorizationService,
+        RunStreams,
+        // F6 §10: reader labels resolve names through the auth directory —
+        // optional so the ai-worker entrypoint (no auth.port) still builds.
+        { token: OrganizationAuthPort, optional: true },
+      ],
       useFactory: (
         database: TenantDatabase,
         runs: RunService,
         authorization: RunAuthorizationService,
         streams: RunStreams,
-      ) => new ChatService(database, runs, authorization, streams),
+        port: OrganizationAuthPort | undefined,
+      ) => new ChatService(database, runs, authorization, streams, port),
     },
     {
       provide: ApprovalService,

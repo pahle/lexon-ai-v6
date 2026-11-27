@@ -1,17 +1,19 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type {
+  ChatDetail,
+  ChatListScope,
+  ChatOperationSnapshot,
   ChatPage,
   ChatMutationResult,
-  ChatTree as SharedChatTree,
   CreateChatInput,
   SendMessageInput,
 } from '@lexon/contracts';
 import { ChatApiError } from '@lexon/contracts';
 import {
+  ChatDetailSchema,
   ChatOperationSnapshotSchema,
   ChatPageSchema,
-  ChatTreeSchema,
 } from '@lexon/contracts';
 import type { RunStreamEvent } from '@lexon/contracts';
 import { RunStatusSchema } from '@lexon/contracts';
@@ -24,9 +26,12 @@ import {
   ChatRepository,
   ChatDeletionRepository,
   ChatSearchRepository,
+  ProjectRepository,
   isPgUniqueViolation,
+  isRetryableAuthError,
   readTreeValidator,
   TenantDatabase,
+  withAuthRetry,
 } from '../../infrastructure/db/index.js';
 import type {
   CommittedStreamReference,
@@ -35,7 +40,9 @@ import type {
 } from '../../infrastructure/db/index.js';
 import { requireSession } from '../../infrastructure/db/index.js';
 import type { RunStreams } from '../../infrastructure/queue/index.js';
-import type { RunActor } from '../identity-access/index.js';
+import type { RunActor, VerifiedIdentity } from '../identity-access/index.js';
+import { IdentityError } from '../identity-access/index.js';
+import { OrganizationAuthPort } from '../identity-access/index.js';
 import { RunAuthorizationService } from '../identity-access/index.js';
 import { AuditService } from '../audit/index.js';
 import { RunService } from './run.service.js';
@@ -65,12 +72,26 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+/** F6 §5 row 14 reader view: drop every decisionable payload so the wire op
+ * carries only the ids/status/hash core the "Waiting for <owner>" marker
+ * needs. The fields are optional on the wire schema, same as the event-byte
+ * cap fallback, so this adds no contract surface. */
+function stripReaderPayloads(
+  operation: ChatOperationSnapshot,
+): ChatOperationSnapshot {
+  const core = { ...operation };
+  delete core.input;
+  delete core.display;
+  delete core.output;
+  return core;
+}
+
 /**
  * The service always computes a validator tag, unlike the shared
  * `ChatGetResult` wire shape where a plain 200 may carry no ETag header.
  */
 export type ChatServiceGetResult =
-  | { notModified: false; tree: SharedChatTree; etag: string }
+  | { notModified: false; tree: ChatDetail; etag: string }
   | { notModified: true; etag: string };
 
 /**
@@ -94,13 +115,53 @@ export class ChatService {
   private readonly audit = new AuditService();
   private readonly deletions = new ChatDeletionRepository();
   private readonly searchRepository = new ChatSearchRepository();
+  private readonly projects = new ProjectRepository();
 
   constructor(
     private readonly database: TenantDatabase,
     private readonly runService: RunService,
     private readonly authorization: RunAuthorizationService,
     private readonly streams?: RunStreams,
+    private readonly port?: OrganizationAuthPort,
   ) {}
+
+  /**
+   * F6 §10: reader labels carry the owner's display name, resolved through
+   * the auth-side member directory (lexon_app never reads auth tables).
+   * Callers invoke this OUTSIDE the tenant transaction: a directory call
+   * must never hold a tenant connection. A departed or unresolvable owner
+   * simply yields no name — the wire field is optional and the UI falls
+   * back to the generic read-only label; a directory failure degrades the
+   * same way, never a 500 on a read.
+   */
+  private async memberNames(
+    identity: VerifiedIdentity,
+    orgId: string,
+    userIds: ReadonlySet<string>,
+  ): Promise<Map<string, string>> {
+    const names = new Map<string, string>();
+    if (!this.port || userIds.size === 0) return names;
+    try {
+      await this.port.transaction(identity, async (tx, headers) => {
+        const result = await tx.call('listMembers', {
+          headers,
+          query: {
+            organizationId: orgId,
+            limit: 100,
+            filterField: 'userId',
+            filterOperator: 'in',
+            filterValue: [...userIds],
+          },
+        });
+        for (const member of result.members)
+          if (userIds.has(member.userId))
+            names.set(member.userId, member.user.name);
+      });
+    } catch {
+      // The member directory is a best-effort label source.
+    }
+    return names;
+  }
 
   async create(
     actor: RunActor,
@@ -116,6 +177,16 @@ export class ChatService {
           (await this.deletions.wasDeleted(tx, 'message', input.userMessageId))
         )
           throw new ChatApiError('CHAT_NOT_FOUND');
+        // F6 §4.3/§6: the binding is checked through the access definer so a
+        // denied or absent project answers the identical 404, while an org
+        // member who merely lacks owner/editor standing gets 403. The
+        // create-request INSERT policy stays the backstop.
+        if (input.projectId !== undefined) {
+          const access = await this.projects.access(tx, input.projectId);
+          if (access === 'none') throw new IdentityError('NOT_FOUND', 404);
+          if (access !== 'owner' && access !== 'editor')
+            throw new IdentityError('ORG_FORBIDDEN', 403);
+        }
         const retry = await this.mutations.findCreateRequest(
           tx,
           input.requestId,
@@ -127,7 +198,8 @@ export class ChatService {
             retry.chatId !== input.chatId ||
             retry.userMessageId !== input.userMessageId ||
             retry.text !== input.text ||
-            retry.effort !== input.effort
+            retry.effort !== input.effort ||
+            retry.projectId !== (input.projectId ?? null)
           )
             throw new ChatApiError('CHAT_CONFLICT');
           return this.mutations.toMutationResult(retry);
@@ -136,7 +208,12 @@ export class ChatService {
         if (await this.chats.lockLive(tx, input.chatId))
           throw new ChatApiError('CHAT_CONFLICT');
         try {
-          await this.chats.insert(tx, input.chatId, titleExcerpt(input.text));
+          await this.chats.insert(
+            tx,
+            input.chatId,
+            titleExcerpt(input.text),
+            input.projectId,
+          );
           await this.messages.insertUser(tx, {
             chatId: input.chatId,
             messageId: input.userMessageId,
@@ -145,7 +222,10 @@ export class ChatService {
             effort: input.effort,
           });
           const { runId } = await this.runService.startWithin(tx, actor, {
-            profileId: 'chat',
+            // F6 §9: project-bound chats run the project-chat profile so the
+            // project context provider is selected. The chat row is already
+            // bound, so the capability gate resolves project standing from it.
+            profileId: input.projectId ? 'project-chat' : 'chat',
             prompt: input.text,
             effort: input.effort,
             resourceIds: [input.chatId],
@@ -171,6 +251,7 @@ export class ChatService {
             chatId: input.chatId,
             userMessageId: input.userMessageId,
             assistantMessageId: runId,
+            ...(input.projectId ? { projectId: input.projectId } : {}),
           });
           await this.audit.append(tx, {
             version: 1,
@@ -219,106 +300,119 @@ export class ChatService {
     input: SendMessageInput,
   ): Promise<ChatMutationResult> {
     this.authorization.assertLiveActor(actor);
-    const outcome = await this.database.withTenant(
-      { orgId: actor.orgId, userId: actor.userId },
-      async (tx) => {
-        await this.steps.lockTenantClaimGuard(tx);
-        const chat = await this.chats.lockLive(tx, chatId);
-        if (!chat) throw new ChatApiError('CHAT_NOT_FOUND');
-        const retry = await this.mutations.findMessageMutation(
-          tx,
-          chatId,
-          input.userMessageId,
-        );
-        if (retry) {
-          if (
-            retry.parentMessageId !== input.parentMessageId ||
-            retry.text !== input.text ||
-            retry.effort !== input.effort
-          )
-            throw new ChatApiError('CHAT_CONFLICT');
-          return {
-            result: this.mutations.toMutationResult(retry),
-            superseded: undefined,
-          };
-        }
-        if (await this.deletions.wasDeleted(tx, 'message', input.userMessageId))
-          throw new ChatApiError('CHAT_CONFLICT');
-        // §6.4 owner ruling A: a send while an undecided panel is open
-        // resolves the paused call in this same transaction, completes the
-        // run and continues as a normal send. Any other active answer still
-        // conflicts exactly as before.
-        let superseded: SupersededPublication | undefined;
-        if (chat.activeAnswerRunId) {
-          superseded = await this.supersedePausedRun(
-            tx,
-            actor,
-            chatId,
-            chat.activeAnswerRunId,
-          );
-          if (!superseded) throw new ChatApiError('CHAT_CONFLICT');
-        }
-
-        try {
-          await this.messages.insertUser(tx, {
-            chatId,
-            messageId: input.userMessageId,
-            parentMessageId: input.parentMessageId,
-            text: input.text,
-            effort: input.effort,
-          });
-          const { runId } = await this.runService.startWithin(tx, actor, {
-            profileId: 'chat',
-            prompt: input.text,
-            effort: input.effort,
-            resourceIds: [chatId],
-          });
-          await this.chats.associateAnswer(tx, chatId, runId);
-          await this.messages.insertAssistant(tx, {
-            chatId,
-            messageId: runId,
-            parentMessageId: input.userMessageId,
-            runId,
-          });
-          await this.mutations.insertMutationRequest(tx, {
-            requestId: input.userMessageId,
-            kind: 'send',
-            chatId,
-            sourceMessageId: input.parentMessageId,
-            userMessageId: input.userMessageId,
-            assistantMessageId: runId,
-          });
-          await this.chats.selectLeaf(tx, chatId, runId);
-          await this.audit.append(tx, {
-            version: 1,
-            eventId: randomUUID(),
-            type: 'chat.message_sent.v1',
-            occurredAt: new Date().toISOString(),
-            outcome: 'success',
-            orgId: actor.orgId,
-            actorUserId: actor.userId,
-            metadata: { chatId, messageId: input.userMessageId },
-          });
-          return {
-            result: {
+    const outcome = await withAuthRetry(
+      () =>
+        this.database.withTenant(
+          { orgId: actor.orgId, userId: actor.userId },
+          async (tx) => {
+            await this.steps.lockTenantClaimGuard(tx);
+            const chat = await this.chats.lockLive(tx, chatId);
+            if (!chat) throw new ChatApiError('CHAT_NOT_FOUND');
+            const retry = await this.mutations.findMessageMutation(
+              tx,
               chatId,
-              userMessageId: input.userMessageId,
-              assistantMessageId: runId,
-              runId,
-            },
-            superseded,
-          };
-        } catch (error) {
-          if (
-            isPgUniqueViolation(error, [
-              'chat_messages_pkey',
-              'chat_one_active_answer',
-            ])
-          )
-            throw new ChatApiError('CHAT_CONFLICT');
-          throw error;
-        }
-      },
+              input.userMessageId,
+            );
+            if (retry) {
+              if (
+                retry.parentMessageId !== input.parentMessageId ||
+                retry.text !== input.text ||
+                retry.effort !== input.effort
+              )
+                throw new ChatApiError('CHAT_CONFLICT');
+              return {
+                result: this.mutations.toMutationResult(retry),
+                superseded: undefined,
+              };
+            }
+            if (
+              await this.deletions.wasDeleted(
+                tx,
+                'message',
+                input.userMessageId,
+              )
+            )
+              throw new ChatApiError('CHAT_CONFLICT');
+            // §6.4 owner ruling A: a send while an undecided panel is open
+            // resolves the paused call in this same transaction, completes the
+            // run and continues as a normal send. Any other active answer still
+            // conflicts exactly as before.
+            let superseded: SupersededPublication | undefined;
+            if (chat.activeAnswerRunId) {
+              superseded = await this.supersedePausedRun(
+                tx,
+                actor,
+                chatId,
+                chat.activeAnswerRunId,
+              );
+              if (!superseded) throw new ChatApiError('CHAT_CONFLICT');
+            }
+
+            try {
+              await this.messages.insertUser(tx, {
+                chatId,
+                messageId: input.userMessageId,
+                parentMessageId: input.parentMessageId,
+                text: input.text,
+                effort: input.effort,
+              });
+              const { runId } = await this.runService.startWithin(tx, actor, {
+                // F6 §9: project-bound chats run the project-chat profile so
+                // the project context provider is selected by contextBudgets
+                // alone.
+                profileId: chat.projectId ? 'project-chat' : 'chat',
+                prompt: input.text,
+                effort: input.effort,
+                resourceIds: [chatId],
+              });
+              await this.chats.associateAnswer(tx, chatId, runId);
+              await this.messages.insertAssistant(tx, {
+                chatId,
+                messageId: runId,
+                parentMessageId: input.userMessageId,
+                runId,
+              });
+              await this.mutations.insertMutationRequest(tx, {
+                requestId: input.userMessageId,
+                kind: 'send',
+                chatId,
+                sourceMessageId: input.parentMessageId,
+                userMessageId: input.userMessageId,
+                assistantMessageId: runId,
+              });
+              await this.chats.selectLeaf(tx, chatId, runId);
+              await this.audit.append(tx, {
+                version: 1,
+                eventId: randomUUID(),
+                type: 'chat.message_sent.v1',
+                occurredAt: new Date().toISOString(),
+                outcome: 'success',
+                orgId: actor.orgId,
+                actorUserId: actor.userId,
+                metadata: { chatId, messageId: input.userMessageId },
+              });
+              return {
+                result: {
+                  chatId,
+                  userMessageId: input.userMessageId,
+                  assistantMessageId: runId,
+                  runId,
+                },
+                superseded,
+              };
+            } catch (error) {
+              if (
+                isPgUniqueViolation(error, [
+                  'chat_messages_pkey',
+                  'chat_one_active_answer',
+                ])
+              )
+                throw new ChatApiError('CHAT_CONFLICT');
+              throw error;
+            }
+          },
+        ),
+      { retryable: isRetryableAuthError },
     );
     if (outcome.superseded) {
       // The settled ops close out on the dead run's stream before its
@@ -499,7 +593,6 @@ export class ChatService {
     await client.query(`SELECT pg_notify('lexon_chat_title', $1)`, [
       JSON.stringify({
         orgId: actor.orgId,
-        userId: actor.userId,
         chatId,
       }),
     ]);
@@ -521,9 +614,10 @@ export class ChatService {
     actor: RunActor,
     chatId: string,
     options?: { ifNoneMatch?: string | undefined },
+    identity?: VerifiedIdentity,
   ): Promise<ChatServiceGetResult> {
     this.authorization.assertLiveActor(actor);
-    return this.database.withTenant(
+    const result = await this.database.withTenant(
       { orgId: actor.orgId, userId: actor.userId },
       async (tx) => {
         const chat = await this.chats.readLive(tx, chatId);
@@ -534,57 +628,106 @@ export class ChatService {
         const etag = await readTreeValidator(tx, chatId);
         if (!etag) throw new ChatApiError('CHAT_NOT_FOUND');
         if (weakMatch(options?.ifNoneMatch, etag)) {
-          return { notModified: true, etag };
+          return { notModified: true as const, etag };
         }
         const tree = await this.messages.tree(tx, chatId);
         if (!tree) throw new ChatApiError('CHAT_NOT_FOUND');
-        const parsed = ChatTreeSchema.parse({
-          id: chatId,
-          title: chat.title || 'New chat',
-          messages: tree.messages.map((message) => {
-            return message.role === 'user'
-              ? {
-                  id: message.id,
-                  role: 'user' as const,
-                  parentId: message.parentMessageId,
-                  text: message.userText ?? '',
-                  effort: message.effort ?? 'high',
-                  createdAt: message.createdAt.toISOString(),
-                }
-              : {
-                  id: message.id,
-                  role: 'assistant' as const,
-                  parentId: message.parentMessageId!,
-                  runId: message.runId!,
-                  text: message.assistantText ?? '',
-                  status: RunStatusSchema.parse(message.status),
-                  reasoningSummary: message.reasoningSummary,
-                  reasoningDurationMs: message.reasoningDurationMs,
-                  feedback: message.feedback,
-                  operations: z
-                    .array(ChatOperationSnapshotSchema)
-                    .parse(message.operations),
-                  createdAt: message.createdAt.toISOString(),
-                };
-          }),
-          viewedLeafId: tree.viewedLeafId,
-          createdAt: chat.createdAt.toISOString(),
-          updatedAt: chat.updatedAt.toISOString(),
-        });
-        return { notModified: false, etag, tree: parsed };
+        // F6 §5 row 14: only the owner gets decisionable payloads — readers
+        // (project members, share recipients) see the op core so the UI can
+        // render the "Waiting for <owner>" marker, but input/display/output
+        // never leave the server for them.
+        const readerView = chat.ownerUserId !== actor.userId;
+        // F6 §10: the matter label is a tenant read and stays inside the
+        // transaction; the owner's name is an auth-directory call and must
+        // resolve after the transaction closes.
+        const projectName =
+          readerView && chat.projectId !== null
+            ? ((await this.projects.find(tx, chat.projectId))?.name ??
+              undefined)
+            : undefined;
+        return {
+          notModified: false as const,
+          etag,
+          chat,
+          tree,
+          readerView,
+          projectName,
+        };
       },
     );
+    if (result.notModified) return result;
+    const { etag, chat, tree, readerView, projectName } = result;
+    // F6 §10: a reader's chrome labels name the owner and, on project
+    // chats, the matter ("<owner>'s chat · read-only" / "Shared by
+    // <name>"). Both stay absent for the owner and both degrade to the
+    // generic label when they cannot be resolved.
+    const readerNames =
+      readerView && identity !== undefined
+        ? {
+            ...(chat.projectId === null ? {} : { projectName }),
+            ownerName: (
+              await this.memberNames(
+                identity,
+                actor.orgId,
+                new Set([chat.ownerUserId]),
+              )
+            ).get(chat.ownerUserId),
+          }
+        : {};
+    const parsed = ChatDetailSchema.parse({
+      id: chatId,
+      title: chat.title || 'New chat',
+      access: readerView ? ('reader' as const) : ('owner' as const),
+      ...readerNames,
+      messages: tree.messages.map((message) => {
+        return message.role === 'user'
+          ? {
+              id: message.id,
+              role: 'user' as const,
+              parentId: message.parentMessageId,
+              text: message.userText ?? '',
+              effort: message.effort ?? 'high',
+              createdAt: message.createdAt.toISOString(),
+            }
+          : {
+              id: message.id,
+              role: 'assistant' as const,
+              parentId: message.parentMessageId!,
+              runId: message.runId!,
+              text: message.assistantText ?? '',
+              status: RunStatusSchema.parse(message.status),
+              reasoningSummary: message.reasoningSummary,
+              reasoningDurationMs: message.reasoningDurationMs,
+              feedback: message.feedback,
+              operations: readerView
+                ? z
+                    .array(ChatOperationSnapshotSchema)
+                    .parse(message.operations)
+                    .map(stripReaderPayloads)
+                : z
+                    .array(ChatOperationSnapshotSchema)
+                    .parse(message.operations),
+              createdAt: message.createdAt.toISOString(),
+            };
+      }),
+      viewedLeafId: tree.viewedLeafId,
+      createdAt: chat.createdAt.toISOString(),
+      updatedAt: chat.updatedAt.toISOString(),
+    });
+    return { notModified: false, etag, tree: parsed };
   }
 
   async list(
     actor: RunActor,
-    input: { cursor?: string; limit?: number } = {},
+    input: { cursor?: string; limit?: number; scope?: ChatListScope } = {},
+    identity?: VerifiedIdentity,
   ): Promise<ChatPage> {
     this.authorization.assertLiveActor(actor);
     const request = z
       .strictObject({
         cursor: z.string().min(1).max(256).optional(),
         limit: z.number().int().min(1).max(100).default(20),
+        scope: z.enum(['own', 'shared']).default('own'),
       })
       .parse(input);
     let cursor: z.infer<typeof listCursorSchema> | null = null;
@@ -598,40 +741,59 @@ export class ChatService {
         throw new ChatApiError('CHAT_CONFLICT');
       }
     }
-    return this.database.withTenant(
+    const { pageRows, hasMore } = await this.database.withTenant(
       { orgId: actor.orgId, userId: actor.userId },
       async (tx) => {
         const rows = await this.searchRepository.list(
           tx,
           cursor ? { activityAt: cursor[2], chatId: cursor[3] } : null,
           request.limit + 1,
+          request.scope,
         );
-        const hasMore = rows.length > request.limit;
-        const pageRows = hasMore ? rows.slice(0, request.limit) : rows;
-        const items = pageRows.map((row) => ({
-          id: row.id,
-          title: row.title || 'New chat',
-          updatedAt: row.updated_at.toISOString(),
-          lastMessageAt: row.last_message_at?.toISOString() ?? null,
-          awaitingUser: row.awaiting_user,
-        }));
-        const last = pageRows.at(-1);
-        return ChatPageSchema.parse({
-          items,
-          pageInfo: {
-            nextCursor:
-              hasMore && last
-                ? encodeListCursor([
-                    1,
-                    ownerDigest(actor),
-                    last.activity_at,
-                    last.id,
-                  ])
-                : null,
-          },
-        });
+        const more = rows.length > request.limit;
+        return {
+          pageRows: more ? rows.slice(0, request.limit) : rows,
+          hasMore: more,
+        };
       },
     );
+    // F6 §10: shared-scope rows render "Shared by <name>" — resolved
+    // through the member directory AFTER the tenant transaction closes,
+    // omitted when a departed owner's name cannot be resolved.
+    const ownerNames =
+      request.scope === 'shared' && identity !== undefined
+        ? await this.memberNames(
+            identity,
+            actor.orgId,
+            new Set(pageRows.map((row) => row.owner_user_id)),
+          )
+        : new Map<string, string>();
+    const items = pageRows.map((row) => ({
+      id: row.id,
+      title: row.title || 'New chat',
+      updatedAt: row.updated_at.toISOString(),
+      lastMessageAt: row.last_message_at?.toISOString() ?? null,
+      awaitingUser: row.awaiting_user,
+      ...(row.project_name === null ? {} : { projectName: row.project_name }),
+      ...(ownerNames.has(row.owner_user_id)
+        ? { ownerName: ownerNames.get(row.owner_user_id) }
+        : {}),
+    }));
+    const last = pageRows.at(-1);
+    return ChatPageSchema.parse({
+      items,
+      pageInfo: {
+        nextCursor:
+          hasMore && last
+            ? encodeListCursor([
+                1,
+                ownerDigest(actor),
+                last.activity_at,
+                last.id,
+              ])
+            : null,
+      },
+    });
   }
 
   async resolveSearchMatch(

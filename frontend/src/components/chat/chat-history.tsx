@@ -7,7 +7,7 @@ import {
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useRef, useState, type ReactNode, type Ref } from 'react';
-import type { ChatApi } from '@lexon/contracts';
+import type { ChatApi, ChatListScope } from '@lexon/contracts';
 import {
   useInfiniteQuery,
   useQuery,
@@ -62,18 +62,24 @@ export function ChatHistory({
   client,
   scope,
   currentChatId,
+  listScope = 'own',
 }: {
   client: ChatApi;
   scope: ChatQueryScope;
   currentChatId?: string;
+  listScope?: ChatListScope;
 }) {
   const [deleteTarget, setDeleteTarget] = useState<ChatListItem | null>(null);
   const query = useInfiniteQuery({
-    queryKey: chatListQueryKey(scope, 20),
+    queryKey: chatListQueryKey(scope, 20, listScope),
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam, signal }) =>
       client.list(
-        { limit: 20, ...(pageParam ? { cursor: pageParam } : {}) },
+        {
+          limit: 20,
+          scope: listScope,
+          ...(pageParam ? { cursor: pageParam } : {}),
+        },
         signal,
       ),
     getNextPageParam: (page) => page.pageInfo.nextCursor ?? undefined,
@@ -135,11 +141,14 @@ export function ChatHistory({
               <MessageCircle aria-hidden="true" />
             </EmptyMedia>
             <EmptyTitle className="text-base leading-[normal] font-semibold text-foreground">
-              No chats yet
+              {listScope === 'shared'
+                ? 'Nothing shared with you'
+                : 'No chats yet'}
             </EmptyTitle>
             <EmptyDescription className="text-sm leading-[normal]">
-              Start a new chat to ask Lexon about a contract, a regulation, or a
-              case.
+              {listScope === 'shared'
+                ? 'Chats people share with you appear here.'
+                : 'Start a new chat to ask Lexon about a contract, a regulation, or a case.'}
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent className="mt-2">
@@ -173,6 +182,7 @@ export function ChatHistory({
                     client={client}
                     scope={scope}
                     current={item.id === currentChatId}
+                    shared={listScope === 'shared'}
                     onDelete={setDeleteTarget}
                   />
                 </li>
@@ -376,17 +386,26 @@ function ChatHistoryRow({
   client,
   scope,
   current,
+  shared = false,
   onDelete,
 }: {
   item: ChatListItem;
   client: ChatApi;
   scope: ChatQueryScope;
   current: boolean;
+  shared?: boolean;
   onDelete: (item: ChatListItem) => void;
 }) {
   const [renaming, setRenaming] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const queryClient = useQueryClient();
+  // F6 §10 secondary text: shared rows name the sharer; project chats name
+  // the matter (prototype `.hrow .hs`).
+  const secondary = shared
+    ? item.ownerName
+      ? `Shared by ${item.ownerName}`
+      : 'Shared chat'
+    : item.projectName;
   return (
     <div className="group/row relative flex min-w-0 items-center justify-between gap-4 rounded-[10px] border border-transparent p-3 text-sm leading-[normal] font-medium hover:bg-muted focus-within:bg-muted">
       <Link
@@ -395,32 +414,45 @@ function ChatHistoryRow({
         aria-current={current ? 'page' : undefined}
       >
         {item.title}
+        {secondary ? (
+          <span className="text-muted-foreground mt-0.5 block truncate text-xs font-normal">
+            {secondary}
+          </span>
+        ) : null}
       </Link>
       <span className="flex shrink-0 items-center gap-2.5 group-hover/row:invisible group-focus-within/row:invisible">
-        {item.awaitingUser ? <ChatWaitingPill /> : null}
+        {item.awaitingUser ? (
+          <ChatWaitingPill
+            name={shared ? (item.ownerName ?? 'the owner') : undefined}
+          />
+        ) : null}
         <time className="text-muted-foreground text-xs font-normal whitespace-nowrap">
           {formatActivityDate(item.updatedAt, { yesterday: true })}
         </time>
       </span>
-      <div className="absolute top-1/2 right-1.5 z-10 -translate-y-1/2 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100">
-        <ChatHistoryActions
-          item={item}
-          triggerRef={triggerRef}
-          onRename={() => setRenaming(true)}
-          onDelete={() => onDelete(item)}
-        />
-      </div>
-      <ChatRenameDialog
-        chat={item}
-        client={client}
-        scope={scope}
-        returnFocusRef={triggerRef}
-        open={renaming}
-        onOpenChange={setRenaming}
-        onSaved={(title) =>
-          finishChatRename(queryClient, scope, item.id, title)
-        }
-      />
+      {shared ? null : (
+        <>
+          <div className="absolute top-1/2 right-1.5 z-10 -translate-y-1/2 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100">
+            <ChatHistoryActions
+              item={item}
+              triggerRef={triggerRef}
+              onRename={() => setRenaming(true)}
+              onDelete={() => onDelete(item)}
+            />
+          </div>
+          <ChatRenameDialog
+            chat={item}
+            client={client}
+            scope={scope}
+            returnFocusRef={triggerRef}
+            open={renaming}
+            onOpenChange={setRenaming}
+            onSaved={(title) =>
+              finishChatRename(queryClient, scope, item.id, title)
+            }
+          />
+        </>
+      )}
     </div>
   );
 }

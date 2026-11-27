@@ -1,4 +1,4 @@
-import type { ChatPage, ChatSearchPage } from '@lexon/contracts';
+import type { ChatListScope, ChatPage, ChatSearchPage } from '@lexon/contracts';
 import type { QueryClient } from '@tanstack/react-query';
 
 export interface ChatQueryScope {
@@ -6,10 +6,19 @@ export interface ChatQueryScope {
   readonly userId: string;
 }
 
-export function chatListQueryKey(scope: ChatQueryScope, limit?: number) {
-  return limit === undefined
-    ? (['tenant', scope.orgId, 'chat', scope.userId, 'list'] as const)
-    : (['tenant', scope.orgId, 'chat', scope.userId, 'list', limit] as const);
+export function chatListQueryKey(
+  scope: ChatQueryScope,
+  limit?: number,
+  listScope?: ChatListScope,
+) {
+  const base = ['tenant', scope.orgId, 'chat', scope.userId, 'list'] as const;
+  return listScope === undefined || listScope === 'own'
+    ? limit === undefined
+      ? base
+      : ([...base, limit] as const)
+    : limit === undefined
+      ? ([...base, listScope] as const)
+      : ([...base, listScope, limit] as const);
 }
 
 export function chatThreadQueryKey(scope: ChatQueryScope, chatId: string) {

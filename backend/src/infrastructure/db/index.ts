@@ -11,6 +11,7 @@ export {
 } from './authorization-predicate.js';
 export type { TenantSession } from './tenant-session.js';
 export { assertTenantSession, requireSession } from './tenant-session.js';
+export { CLAIM_LANE_LOCK_TIMEOUT_MS } from './tenant-session.js';
 export { AuditRepository } from './audit.repository.js';
 export type { AuditWriteRecord } from './audit-write-record.js';
 export type { AuthCommandSession } from './auth/auth-types.js';
@@ -21,6 +22,12 @@ export { ProcessedJobsRepository } from './processed-jobs.repository.js';
 export { AiRunRepository } from './ai-run.repository.js';
 export { AiChatResourceRepository } from './ai-chat-resource.repository.js';
 export { ChatRepository } from './chat.repository.js';
+export { ProjectRepository } from './project.repository.js';
+export type {
+  ProjectRecord,
+  ProjectView,
+  ProjectMemberRow,
+} from './project.repository.js';
 export { chatTitleJobId } from './chat-title-job-id.js';
 export { ChatDeletionRepository } from './chat-deletion.repository.js';
 export { chatCleanupJobId } from './chat-cleanup-job-id.js';
@@ -36,12 +43,12 @@ export type {
 } from './step-permit.repository.js';
 export type { ChatRecord } from './chat.repository.js';
 export { ChatMessageRepository } from './chat-message.repository.js';
-export { TREE_SELECTED_COLUMNS, TREE_SQL } from './chat-message.repository.js';
+export { TREE_SELECTED_COLUMNS, treeSql } from './chat-message.repository.js';
 export type { ChatMessageRecord, ChatTree } from './chat-message.repository.js';
 export {
   readTreeValidator,
   VALIDATOR_INPUTS,
-  VALIDATOR_SQL,
+  validatorSql,
 } from './chat-tree-validator.js';
 export { ChatSearchRepository } from './chat-search.repository.js';
 export type {

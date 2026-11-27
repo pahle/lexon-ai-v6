@@ -52,9 +52,776 @@ export async function dropDatabase(
   }
 }
 
+// Diagnostics on lock wait: a claim-lane writer stalled client-side leaves its
+// followers in pg_stat_activity wait_event_type='Lock' until test timeout —
+// which is exactly the 30s-hang signature CI showed. Poll the spec database so
+// a hanging run reports its blocker instead of just failing late.
+const LOCK_WAIT_POLL_MS = 1000;
+const LOCK_WAIT_THRESHOLD_S = 2;
+
+export function startLockWaitMonitor(
+  postgresAdminUrl: string,
+  dbName: string,
+): () => Promise<void> {
+  const client = new Client({ connectionString: postgresAdminUrl });
+  let stopped = false;
+  let poll: ReturnType<typeof setInterval> | undefined;
+  const query = `
+    SELECT a.pid, a.wait_event, a.state,
+           round(extract(epoch from now()-a.query_start)::numeric,1) AS wait_s,
+           pg_blocking_pids(a.pid) AS blockers,
+           left(regexp_replace(a.query,'[[:space:]]+',' ','g'),180) AS query
+    FROM pg_stat_activity a
+    WHERE a.datname=$1 AND a.wait_event_type='Lock'
+      AND now()-a.query_start > interval '${LOCK_WAIT_THRESHOLD_S} seconds'
+    ORDER BY a.query_start`;
+  const blockers = `
+    SELECT b.pid, b.wait_event_type, b.wait_event, b.state,
+           left(regexp_replace(b.query,'[[:space:]]+',' ','g'),180) AS query
+    FROM pg_stat_activity b
+    WHERE b.datname=$1 AND b.pid IN (
+      SELECT unnest(pg_blocking_pids(a.pid))
+      FROM pg_stat_activity a
+      WHERE a.datname=$1 AND a.wait_event_type='Lock'
+        AND now()-a.query_start > interval '${LOCK_WAIT_THRESHOLD_S} seconds'
+    )`;
+  void client
+    .connect()
+    .then(() => {
+      poll = setInterval(() => {
+        void (async () => {
+          const waiters = await client.query(query, [dbName]);
+          if (!waiters.rows.length) return;
+          const holders = await client.query(blockers, [dbName]);
+          console.error(
+            `[lock-wait monitor] ${dbName} waits >${LOCK_WAIT_THRESHOLD_S}s:`,
+            JSON.stringify({ waiters: waiters.rows, blockers: holders.rows }),
+          );
+        })().catch(() => undefined);
+      }, LOCK_WAIT_POLL_MS);
+      poll.unref();
+    })
+    .catch(() => undefined);
+  return async () => {
+    if (stopped) return;
+    stopped = true;
+    if (poll) clearInterval(poll);
+    await client.end().catch(() => undefined);
+  };
+}
+
+export async function revertProjectActorFacts0044ForUpgradeTest(
+  migratorUrl: string,
+): Promise<void> {
+  // The 0045 fix batch re-OR-REPLACE'd this migration's settle definers and
+  // deny definers, so it unwinds first — newest-to-oldest, same rule the
+  // 0043 caller documents below.
+  await revertFixBatch0045ForUpgradeTest(migratorUrl);
+  const client = new Client({ connectionString: migratorUrl });
+  try {
+    await client.connect();
+    const role = await client.query<{ current_user: string }>(
+      'SELECT current_user',
+    );
+    if (role.rows[0]?.current_user !== 'lexon_migrator')
+      throw new Error('Wrong migration test role');
+    const journal = JSON.parse(
+      await readFile(
+        new URL('../../../../drizzle/meta/_journal.json', import.meta.url),
+        'utf8',
+      ),
+    ) as { entries: Array<{ tag: string; when: number }> };
+    const migration = journal.entries.find(
+      (entry) => entry.tag === '0044_project_actor_facts',
+    );
+    if (!migration) throw new Error('Migration 0044 journal entry missing');
+    await client.query('BEGIN');
+    // Reverses 0044_project_actor_facts so migrateDatabase replays it through
+    // the real drizzle path: the access-loss definer family drops first, then
+    // ai_mark_chat_deleted regains its 0026 body (the 0044 rewrite added
+    // the lexon_project_access clause the 0043 rewind would orphan). The
+    // drop+create — not CREATE OR REPLACE — mirrors the migration: the 0026
+    // REVOKE stripped lexon_migrator's EXECUTE grant, which makes OR REPLACE
+    // fail the function ACL check under PG 17.
+    await client.query(`
+      DROP FUNCTION auth.lexon_ai_actor_facts(uuid,uuid,uuid,uuid);
+      DROP FUNCTION ops.lexon_ai_access_loss_facts(uuid,uuid,uuid);
+      DROP FUNCTION ops.lexon_ai_finalize_access_loss(uuid,uuid,uuid,integer,integer,uuid,bigint);
+      DROP FUNCTION ops.lexon_ai_access_loss_decide(uuid,uuid,uuid,uuid,text);
+      DROP FUNCTION ops.lexon_ai_terminal_stream_proof(uuid,uuid,uuid);
+      DROP FUNCTION ops.lexon_ai_expire_access_loss(uuid,uuid,uuid,uuid);
+      DROP FUNCTION ops.ai_mark_chat_deleted(uuid,uuid,uuid);
+      CREATE FUNCTION ops.ai_mark_chat_deleted(input_org_id uuid,input_user_id uuid,input_chat_id uuid) RETURNS boolean
+      LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,app,ops,pg_temp AS $restore$
+      DECLARE context_org uuid; context_user uuid; locked_chat app.chats%ROWTYPE;
+      BEGIN
+        context_org:=NULLIF(current_setting('app.org_id',true),'')::uuid;
+        context_user:=NULLIF(current_setting('app.user_id',true),'')::uuid;
+        IF context_org IS NULL OR context_user IS NULL OR input_chat_id IS NULL
+          OR context_org IS DISTINCT FROM input_org_id OR context_user IS DISTINCT FROM input_user_id THEN
+          RETURN false;
+        END IF;
+        PERFORM pg_advisory_xact_lock(hashtextextended('lexon.ai_step_claim:' || context_org::text,0));
+        SELECT * INTO locked_chat FROM app.chats
+          WHERE org_id=context_org AND id=input_chat_id AND owner_user_id=context_user
+            AND deleted_at IS NULL FOR UPDATE;
+        IF NOT FOUND THEN RETURN false; END IF;
+        UPDATE app.chats SET deleted_at=clock_timestamp(),updated_at=clock_timestamp()
+          WHERE org_id=context_org AND id=input_chat_id;
+        RETURN true;
+      END $restore$;
+      REVOKE ALL ON FUNCTION ops.ai_mark_chat_deleted(uuid,uuid,uuid) FROM PUBLIC,lexon_auth,lexon_migrator;
+      GRANT EXECUTE ON FUNCTION ops.ai_mark_chat_deleted(uuid,uuid,uuid) TO lexon_app;
+    `);
+    const removed = await client.query(
+      'DELETE FROM drizzle.__drizzle_migrations WHERE created_at=$1::bigint',
+      [migration.when],
+    );
+    if (removed.rowCount !== 1)
+      throw new Error('Expected to remove the 0044 migration journal row');
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
+/** Replays the statement chunks that define `names` from a migration file —
+ * each `--> statement-breakpoint` chunk carries the CREATE plus its REVOKE/
+ * GRANT lines, so replaying the chunk restores body and grants atomically.
+ * Used by the fix-batch revert to hand the pre-0045 bodies back before the
+ * journal row drops. Callers DROP first when the target was OR REPLACE'd. */
+async function replayMigrationFunctions(
+  client: Client,
+  file: string,
+  names: readonly string[],
+): Promise<void> {
+  const sql = await readFile(
+    new URL(`../../../../drizzle/${file}`, import.meta.url),
+    'utf8',
+  );
+  const statements = sql.split(/-->\s*statement-breakpoint/);
+  for (const name of names) {
+    const pattern = new RegExp(
+      `CREATE( OR REPLACE)? FUNCTION ${name.replace('.', '\\.')}\\s*\\(`,
+    );
+    const statement = statements.find((chunk) => pattern.test(chunk));
+    if (!statement) throw new Error(`Migration body for ${name} missing`);
+    await client.query(statement);
+  }
+}
+
+export async function revertFixBatch20051ForUpgradeTest(
+  migratorUrl: string,
+): Promise<void> {
+  const client = new Client({ connectionString: migratorUrl });
+  try {
+    await client.connect();
+    const role = await client.query<{ current_user: string }>(
+      'SELECT current_user',
+    );
+    if (role.rows[0]?.current_user !== 'lexon_migrator')
+      throw new Error('Wrong migration test role');
+    const journal = JSON.parse(
+      await readFile(
+        new URL('../../../../drizzle/meta/_journal.json', import.meta.url),
+        'utf8',
+      ),
+    ) as { entries: Array<{ tag: string; when: number }> };
+    const migration = journal.entries.find(
+      (entry) => entry.tag === '0051_fix_batch2',
+    );
+    if (!migration) throw new Error('Migration 0051 journal entry missing');
+    await client.query('BEGIN');
+    // Reverses 0051_fix_batch2: the internal level evaluator drops and the
+    // three wrappers/definers regain their 0043/0050/0047 bodies so
+    // migrateDatabase replays 0051 cleanly. lexon_project_access is
+    // policy-referenced, so OR REPLACE keeps the oid rather than dropping
+    // under RLS bindings.
+    await client.query(`
+      CREATE OR REPLACE FUNCTION ops.lexon_project_access(input_org_id uuid, input_project_id uuid, input_user_id uuid)
+      RETURNS text
+      LANGUAGE plpgsql STABLE SECURITY DEFINER
+      SET search_path=pg_catalog,app,auth,pg_temp AS $restore$
+      DECLARE context_org uuid; context_user uuid; owner_id uuid; member_role text;
+      BEGIN
+        context_org:=NULLIF(current_setting('app.org_id',true),'')::uuid;
+        context_user:=NULLIF(current_setting('app.user_id',true),'')::uuid;
+        IF context_org IS NULL OR context_user IS NULL
+          OR input_org_id IS DISTINCT FROM context_org
+          OR input_user_id IS DISTINCT FROM context_user
+          OR input_project_id IS NULL THEN RETURN 'none'; END IF;
+        IF NOT ops.lexon_org_member(input_org_id,input_user_id) THEN RETURN 'none'; END IF;
+        IF ops.lexon_project_denied(input_org_id,input_project_id,input_user_id)
+          THEN RETURN 'none'; END IF;
+        SELECT p.owner_user_id INTO owner_id FROM app.projects p
+          WHERE p.org_id=input_org_id AND p.id=input_project_id;
+        IF NOT FOUND THEN RETURN 'none'; END IF;
+        IF owner_id=input_user_id THEN RETURN 'owner'; END IF;
+        SELECT m.role INTO member_role FROM app.project_members m
+          WHERE m.org_id=input_org_id AND m.project_id=input_project_id
+            AND m.user_id=input_user_id;
+        RETURN COALESCE(member_role,'none');
+      END $restore$;
+      REVOKE ALL ON FUNCTION ops.lexon_project_access(uuid,uuid,uuid) FROM PUBLIC,lexon_auth;
+      GRANT EXECUTE ON FUNCTION ops.lexon_project_access(uuid,uuid,uuid) TO lexon_app;
+    `);
+    await client.query(
+      'DROP FUNCTION ops.lexon_project_access_for(uuid,uuid,uuid);',
+    );
+    await client.query(
+      'DROP FUNCTION ops.lexon_project_access_level(uuid,uuid,uuid);',
+    );
+    await replayMigrationFunctions(client, '0050_chat_audience_access.sql', [
+      'ops.lexon_project_access_for',
+    ]);
+    await replayMigrationFunctions(client, '0047_ethical_wall_audit.sql', [
+      'ops.lexon_project_deny_add',
+    ]);
+    const removed = await client.query(
+      'DELETE FROM drizzle.__drizzle_migrations WHERE created_at=$1::bigint',
+      [migration.when],
+    );
+    if (removed.rowCount !== 1)
+      throw new Error('Expected to remove the 0051 migration journal row');
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
+export async function revertChatAudienceAccess0050ForUpgradeTest(
+  migratorUrl: string,
+): Promise<void> {
+  // The 0051 fix-batch guard is newest — it unwinds first, same
+  // newest-to-oldest rule the rest of the chain follows.
+  await revertFixBatch20051ForUpgradeTest(migratorUrl);
+  const client = new Client({ connectionString: migratorUrl });
+  try {
+    await client.connect();
+    const role = await client.query<{ current_user: string }>(
+      'SELECT current_user',
+    );
+    if (role.rows[0]?.current_user !== 'lexon_migrator')
+      throw new Error('Wrong migration test role');
+    const journal = JSON.parse(
+      await readFile(
+        new URL('../../../../drizzle/meta/_journal.json', import.meta.url),
+        'utf8',
+      ),
+    ) as { entries: Array<{ tag: string; when: number }> };
+    const migration = journal.entries.find(
+      (entry) => entry.tag === '0050_chat_audience_access',
+    );
+    if (!migration) throw new Error('Migration 0050 journal entry missing');
+    await client.query('BEGIN');
+    // Reverses 0050_chat_audience_access: the service-claims access oracle
+    // drops and the audience function regains its 0045 body so
+    // migrateDatabase replays 0050 cleanly.
+    await client.query(
+      'DROP FUNCTION ops.lexon_project_access_for(uuid,uuid,uuid);',
+    );
+    await client.query(
+      'DROP FUNCTION ops.lexon_chat_notification_audience(uuid,uuid);',
+    );
+    await replayMigrationFunctions(client, '0045_fix_batch.sql', [
+      'ops.lexon_chat_notification_audience',
+    ]);
+    const removed = await client.query(
+      'DELETE FROM drizzle.__drizzle_migrations WHERE created_at=$1::bigint',
+      [migration.when],
+    );
+    if (removed.rowCount !== 1)
+      throw new Error('Expected to remove the 0050 migration journal row');
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
+export async function revertProjectDelete0049ForUpgradeTest(
+  migratorUrl: string,
+): Promise<void> {
+  // The 0050 audience-access rewrite is newest — it unwinds first, same
+  // newest-to-oldest rule the rest of the chain follows.
+  await revertChatAudienceAccess0050ForUpgradeTest(migratorUrl);
+  const client = new Client({ connectionString: migratorUrl });
+  try {
+    await client.connect();
+    const role = await client.query<{ current_user: string }>(
+      'SELECT current_user',
+    );
+    if (role.rows[0]?.current_user !== 'lexon_migrator')
+      throw new Error('Wrong migration test role');
+    const journal = JSON.parse(
+      await readFile(
+        new URL('../../../../drizzle/meta/_journal.json', import.meta.url),
+        'utf8',
+      ),
+    ) as { entries: Array<{ tag: string; when: number }> };
+    const migration = journal.entries.find(
+      (entry) => entry.tag === '0049_project_delete',
+    );
+    if (!migration) throw new Error('Migration 0049 journal entry missing');
+    await client.query('BEGIN');
+    // Reverses 0049_project_delete: the definer drops and the validator +
+    // row-trigger dispatch return to their 0048 bodies so migrateDatabase
+    // replays 0049 cleanly.
+    await client.query(
+      'DROP FUNCTION ops.project_delete(uuid,uuid,uuid,integer);',
+    );
+    await client.query('DROP FUNCTION auth.lexon_validate_audit(jsonb);');
+    await replayMigrationFunctions(client, '0048_chat_share_audit.sql', [
+      'auth.lexon_validate_audit',
+      'auth.lexon_validate_audit_row',
+    ]);
+    const removed = await client.query(
+      'DELETE FROM drizzle.__drizzle_migrations WHERE created_at=$1::bigint',
+      [migration.when],
+    );
+    if (removed.rowCount !== 1)
+      throw new Error('Expected to remove the 0049 migration journal row');
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
+export async function revertChatShareAudit0048ForUpgradeTest(
+  migratorUrl: string,
+): Promise<void> {
+  // The 0049 project-delete validator/definer rewrite is newest — it unwinds
+  // first, same newest-to-oldest rule the rest of the chain follows.
+  await revertProjectDelete0049ForUpgradeTest(migratorUrl);
+  const client = new Client({ connectionString: migratorUrl });
+  try {
+    await client.connect();
+    const role = await client.query<{ current_user: string }>(
+      'SELECT current_user',
+    );
+    if (role.rows[0]?.current_user !== 'lexon_migrator')
+      throw new Error('Wrong migration test role');
+    const journal = JSON.parse(
+      await readFile(
+        new URL('../../../../drizzle/meta/_journal.json', import.meta.url),
+        'utf8',
+      ),
+    ) as { entries: Array<{ tag: string; when: number }> };
+    const migration = journal.entries.find(
+      (entry) => entry.tag === '0048_chat_share_audit',
+    );
+    if (!migration) throw new Error('Migration 0048 journal entry missing');
+    await client.query('BEGIN');
+    // Reverses 0048_chat_share_audit: the validator regains its 0047 body
+    // (the share arms drop) and the row trigger returns to its 0037 dispatch
+    // (chat.% back to the AI validator) so migrateDatabase replays 0048.
+    await client.query('DROP FUNCTION auth.lexon_validate_audit(jsonb);');
+    await replayMigrationFunctions(client, '0047_ethical_wall_audit.sql', [
+      'auth.lexon_validate_audit',
+    ]);
+    // The audit-row trigger binds by name and is never re-created after 0005:
+    // OR REPLACE restores the 0037 dispatch, no drop needed.
+    await replayMigrationFunctions(client, '0037_chat_mutation_audit.sql', [
+      'auth.lexon_validate_audit_row',
+    ]);
+    const removed = await client.query(
+      'DELETE FROM drizzle.__drizzle_migrations WHERE created_at=$1::bigint',
+      [migration.when],
+    );
+    if (removed.rowCount !== 1)
+      throw new Error('Expected to remove the 0048 migration journal row');
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
+export async function revertEthicalWallAudit0047ForUpgradeTest(
+  migratorUrl: string,
+): Promise<void> {
+  // The 0048 share-arm validator rewrite is newest — it unwinds first, same
+  // newest-to-oldest rule the rest of the chain follows.
+  await revertChatShareAudit0048ForUpgradeTest(migratorUrl);
+  const client = new Client({ connectionString: migratorUrl });
+  try {
+    await client.connect();
+    const role = await client.query<{ current_user: string }>(
+      'SELECT current_user',
+    );
+    if (role.rows[0]?.current_user !== 'lexon_migrator')
+      throw new Error('Wrong migration test role');
+    const journal = JSON.parse(
+      await readFile(
+        new URL('../../../../drizzle/meta/_journal.json', import.meta.url),
+        'utf8',
+      ),
+    ) as { entries: Array<{ tag: string; when: number }> };
+    const migration = journal.entries.find(
+      (entry) => entry.tag === '0047_ethical_wall_audit',
+    );
+    if (!migration) throw new Error('Migration 0047 journal entry missing');
+    await client.query('BEGIN');
+    // Reverses 0047_ethical_wall_audit: the validator regains its 0046 body
+    // (the deny arms and member_removed reason drop) and deny_add returns to
+    // its 0045 boolean shape so migrateDatabase replays 0047 cleanly.
+    await client.query('DROP FUNCTION auth.lexon_validate_audit(jsonb);');
+    await client.query(
+      'DROP FUNCTION ops.lexon_project_deny_add(uuid,uuid,uuid,uuid);',
+    );
+    await replayMigrationFunctions(client, '0046_project_audit.sql', [
+      'auth.lexon_validate_audit',
+    ]);
+    await replayMigrationFunctions(client, '0045_fix_batch.sql', [
+      'ops.lexon_project_deny_add',
+    ]);
+    const removed = await client.query(
+      'DELETE FROM drizzle.__drizzle_migrations WHERE created_at=$1::bigint',
+      [migration.when],
+    );
+    if (removed.rowCount !== 1)
+      throw new Error('Expected to remove the 0047 migration journal row');
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
+export async function revertProjectAudit0046ForUpgradeTest(
+  migratorUrl: string,
+): Promise<void> {
+  // The 0047 deny-arm validator rewrite is newest — it unwinds first, same
+  // newest-to-oldest rule the rest of the chain follows.
+  await revertEthicalWallAudit0047ForUpgradeTest(migratorUrl);
+  const client = new Client({ connectionString: migratorUrl });
+  try {
+    await client.connect();
+    const role = await client.query<{ current_user: string }>(
+      'SELECT current_user',
+    );
+    if (role.rows[0]?.current_user !== 'lexon_migrator')
+      throw new Error('Wrong migration test role');
+    const journal = JSON.parse(
+      await readFile(
+        new URL('../../../../drizzle/meta/_journal.json', import.meta.url),
+        'utf8',
+      ),
+    ) as { entries: Array<{ tag: string; when: number }> };
+    const migration = journal.entries.find(
+      (entry) => entry.tag === '0046_project_audit',
+    );
+    if (!migration) throw new Error('Migration 0046 journal entry missing');
+    await client.query('BEGIN');
+    // Reverses 0046_project_audit: the validator regains its 0040 body (the
+    // six project event arms drop) so migrateDatabase replays 0046 cleanly.
+    // DROP first — OR REPLACE keeps grants, but the revert mirrors the
+    // migration shape the way the 0045 chain does.
+    await client.query('DROP FUNCTION auth.lexon_validate_audit(jsonb);');
+    await replayMigrationFunctions(client, '0040_platform_console.sql', [
+      'auth.lexon_validate_audit',
+    ]);
+    const removed = await client.query(
+      'DELETE FROM drizzle.__drizzle_migrations WHERE created_at=$1::bigint',
+      [migration.when],
+    );
+    if (removed.rowCount !== 1)
+      throw new Error('Expected to remove the 0046 migration journal row');
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
+export async function revertFixBatch0045ForUpgradeTest(
+  migratorUrl: string,
+): Promise<void> {
+  // The 0046 audit-validator rewrite is newest — it unwinds first, same
+  // newest-to-oldest rule this chain already follows.
+  await revertProjectAudit0046ForUpgradeTest(migratorUrl);
+  const client = new Client({ connectionString: migratorUrl });
+  try {
+    await client.connect();
+    const role = await client.query<{ current_user: string }>(
+      'SELECT current_user',
+    );
+    if (role.rows[0]?.current_user !== 'lexon_migrator')
+      throw new Error('Wrong migration test role');
+    const journal = JSON.parse(
+      await readFile(
+        new URL('../../../../drizzle/meta/_journal.json', import.meta.url),
+        'utf8',
+      ),
+    ) as { entries: Array<{ tag: string; when: number }> };
+    const migration = journal.entries.find(
+      (entry) => entry.tag === '0045_fix_batch',
+    );
+    if (!migration) throw new Error('Migration 0045 journal entry missing');
+    await client.query('BEGIN');
+    // Reverses 0045_fix_batch so migrateDatabase replays it through the real
+    // drizzle path: the notification-audience definer drops outright, the
+    // settle definers regain their 0044 bodies, the activity trigger and the
+    // deny definers regain their 0043 bodies (no threshold, no pg_notify),
+    // and the projects column grant widens back to the 0043 column set.
+    await client.query(`
+      DROP FUNCTION ops.lexon_chat_notification_audience(uuid,uuid);
+      DROP FUNCTION ops.lexon_ai_access_loss_facts(uuid,uuid,uuid);
+      DROP FUNCTION ops.lexon_ai_finalize_access_loss(uuid,uuid,uuid,integer,integer,uuid,bigint);
+      DROP FUNCTION ops.lexon_ai_access_loss_decide(uuid,uuid,uuid,uuid,text);
+      DROP FUNCTION ops.lexon_ai_expire_access_loss(uuid,uuid,uuid,uuid);
+      DROP TRIGGER chat_messages_project_activity ON app.chat_messages;
+      DROP FUNCTION ops.lexon_project_chat_activity();
+      DROP FUNCTION ops.lexon_project_deny_add(uuid,uuid,uuid,uuid);
+      DROP FUNCTION ops.lexon_project_deny_lift(uuid,uuid,uuid,uuid);
+      REVOKE UPDATE ON app.projects FROM lexon_app;
+      GRANT UPDATE (id,org_id,owner_user_id,name,matter_number,practice_area,created_at,updated_at) ON app.projects TO lexon_app;
+    `);
+    await replayMigrationFunctions(client, '0044_project_actor_facts.sql', [
+      'ops.lexon_ai_access_loss_facts',
+      'ops.lexon_ai_finalize_access_loss',
+      'ops.lexon_ai_access_loss_decide',
+      'ops.lexon_ai_expire_access_loss',
+    ]);
+    await replayMigrationFunctions(client, '0043_projects.sql', [
+      'ops.lexon_project_chat_activity',
+      'ops.lexon_project_deny_add',
+      'ops.lexon_project_deny_lift',
+    ]);
+    const removed = await client.query(
+      'DELETE FROM drizzle.__drizzle_migrations WHERE created_at=$1::bigint',
+      [migration.when],
+    );
+    if (removed.rowCount !== 1)
+      throw new Error('Expected to remove the 0045 migration journal row');
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
+export async function revertProjects0043ForUpgradeTest(
+  migratorUrl: string,
+): Promise<void> {
+  // The 0044 access-loss definers (and its ai_mark_chat_deleted rewrite)
+  // unwind first so the 0043 rewind below never orphans a function body that
+  // references ops.lexon_project_access — same newest-to-oldest rule the
+  // 0042 caller documents. The 0045 fix batch rides inside that call.
+  await revertProjectActorFacts0044ForUpgradeTest(migratorUrl);
+  const client = new Client({ connectionString: migratorUrl });
+  try {
+    await client.connect();
+    const role = await client.query<{ current_user: string }>(
+      'SELECT current_user',
+    );
+    if (role.rows[0]?.current_user !== 'lexon_migrator')
+      throw new Error('Wrong migration test role');
+    const journal = JSON.parse(
+      await readFile(
+        new URL('../../../../drizzle/meta/_journal.json', import.meta.url),
+        'utf8',
+      ),
+    ) as { entries: Array<{ tag: string; when: number }> };
+    const migration = journal.entries.find(
+      (entry) => entry.tag === '0043_projects',
+    );
+    if (!migration) throw new Error('Migration 0043 journal entry missing');
+    await client.query('BEGIN');
+    // Reverses 0043_projects so migrateDatabase can replay it (and any older
+    // rewound migration) through the real drizzle path. Order matters:
+    // policies referencing ops.* definers die before the functions, triggers
+    // before their functions, referencing tables before the parents.
+    await client.query(`
+      DROP POLICY chats_access_select ON app.chats;
+      DROP POLICY owner_live_chat_insert ON app.chats;
+      CREATE POLICY owner_live_chat_select ON app.chats FOR SELECT TO lexon_app
+        USING (org_id=NULLIF(current_setting('app.org_id',true),'')::uuid
+          AND owner_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid
+          AND deleted_at IS NULL);
+      CREATE POLICY owner_live_chat_insert ON app.chats FOR INSERT TO lexon_app
+        WITH CHECK (org_id=NULLIF(current_setting('app.org_id',true),'')::uuid
+          AND owner_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid
+          AND deleted_at IS NULL);
+      DROP POLICY chat_run_access_select ON app.chat_runs;
+      CREATE POLICY owner_chat_run_select ON app.chat_runs FOR SELECT TO lexon_app
+        USING (org_id=NULLIF(current_setting('app.org_id',true),'')::uuid
+          AND EXISTS (SELECT 1 FROM app.chats c WHERE c.org_id=chat_runs.org_id
+            AND c.id=chat_runs.chat_id
+            AND c.owner_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid));
+      DROP POLICY chat_message_access_select ON app.chat_messages;
+      DROP POLICY owner_chat_message_insert ON app.chat_messages;
+      DROP POLICY owner_chat_message_update ON app.chat_messages;
+      DROP POLICY owner_chat_message_delete ON app.chat_messages;
+      CREATE POLICY owner_chat_message ON app.chat_messages FOR ALL TO lexon_app
+        USING (org_id=NULLIF(current_setting('app.org_id',true),'')::uuid
+          AND EXISTS (SELECT 1 FROM app.chats c WHERE c.org_id=chat_messages.org_id
+            AND c.id=chat_messages.chat_id AND c.owner_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid
+            AND c.deleted_at IS NULL))
+        WITH CHECK (org_id=NULLIF(current_setting('app.org_id',true),'')::uuid
+          AND EXISTS (SELECT 1 FROM app.chats c WHERE c.org_id=chat_messages.org_id
+            AND c.id=chat_messages.chat_id AND c.owner_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid
+            AND c.deleted_at IS NULL));
+      DROP POLICY ai_runs_access_read ON app.ai_runs;
+      DROP POLICY ai_runs_owner_live_insert ON app.ai_runs;
+      DROP POLICY ai_runs_owner_live_update ON app.ai_runs;
+      DROP POLICY ai_runs_owner_live_delete ON app.ai_runs;
+      CREATE POLICY ai_runs_owner_live_resource ON app.ai_runs AS RESTRICTIVE
+        FOR ALL TO lexon_app
+        USING (
+            (CASE WHEN jsonb_typeof(resolved_config->'resourceIds')='array'
+              THEN jsonb_array_length(resolved_config->'resourceIds')=0
+              WHEN resolved_config->'resourceIds' IS NULL THEN true ELSE false END)
+            OR (initiating_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid AND EXISTS (
+              SELECT 1 FROM app.chat_runs cr JOIN app.chats c
+                ON c.org_id=cr.org_id AND c.id=cr.chat_id
+              WHERE cr.org_id=ai_runs.org_id AND cr.run_id=ai_runs.id
+                AND cr.chat_id::text=ai_runs.resolved_config->'resourceIds'->>0
+                AND CASE WHEN jsonb_typeof(ai_runs.resolved_config->'resourceIds')='array'
+                  THEN jsonb_array_length(ai_runs.resolved_config->'resourceIds')=1 ELSE false END
+                AND c.owner_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid
+                AND c.deleted_at IS NULL))
+            OR (initiating_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid AND status='queued'
+              AND CASE WHEN jsonb_typeof(resolved_config->'resourceIds')='array'
+                THEN jsonb_array_length(resolved_config->'resourceIds')<=32 ELSE false END
+              AND NOT ops.ai_chat_run_is_associated(ai_runs.org_id,
+                NULLIF(current_setting('app.user_id',true),'')::uuid,ai_runs.id))
+          )
+        WITH CHECK (
+            (CASE WHEN jsonb_typeof(resolved_config->'resourceIds')='array'
+              THEN jsonb_array_length(resolved_config->'resourceIds')=0
+              WHEN resolved_config->'resourceIds' IS NULL THEN true ELSE false END)
+            OR (initiating_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid AND EXISTS (
+              SELECT 1 FROM app.chat_runs cr JOIN app.chats c
+                ON c.org_id=cr.org_id AND c.id=cr.chat_id
+              WHERE cr.org_id=ai_runs.org_id AND cr.run_id=ai_runs.id
+                AND cr.chat_id::text=ai_runs.resolved_config->'resourceIds'->>0
+                AND CASE WHEN jsonb_typeof(ai_runs.resolved_config->'resourceIds')='array'
+                  THEN jsonb_array_length(ai_runs.resolved_config->'resourceIds')=1 ELSE false END
+                AND c.owner_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid
+                AND c.deleted_at IS NULL))
+            OR (initiating_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid AND status='queued'
+              AND CASE WHEN jsonb_typeof(resolved_config->'resourceIds')='array'
+                THEN jsonb_array_length(resolved_config->'resourceIds')<=32 ELSE false END
+              AND NOT ops.ai_chat_run_is_associated(ai_runs.org_id,
+                NULLIF(current_setting('app.user_id',true),'')::uuid,ai_runs.id))
+          );
+      DROP POLICY ai_steps_access_read ON app.ai_steps;
+      DROP POLICY ai_steps_owner_run_insert ON app.ai_steps;
+      DROP POLICY ai_steps_owner_run_update ON app.ai_steps;
+      DROP POLICY ai_steps_owner_run_delete ON app.ai_steps;
+      CREATE POLICY ai_steps_owner_run ON app.ai_steps AS RESTRICTIVE
+        FOR ALL TO lexon_app
+        USING (EXISTS (SELECT 1 FROM app.ai_runs r
+          WHERE r.org_id=ai_steps.org_id AND r.id=ai_steps.run_id
+            AND (COALESCE(r.resolved_config->'resourceIds','[]'::jsonb)='[]'::jsonb
+              OR r.initiating_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid)))
+        WITH CHECK (EXISTS (SELECT 1 FROM app.ai_runs r
+          WHERE r.org_id=ai_steps.org_id AND r.id=ai_steps.run_id
+            AND (COALESCE(r.resolved_config->'resourceIds','[]'::jsonb)='[]'::jsonb
+              OR r.initiating_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid)));
+      DROP POLICY ai_checkpoints_access_read ON app.ai_checkpoints;
+      DROP POLICY ai_checkpoints_owner_run_insert ON app.ai_checkpoints;
+      DROP POLICY ai_checkpoints_owner_run_update ON app.ai_checkpoints;
+      DROP POLICY ai_checkpoints_owner_run_delete ON app.ai_checkpoints;
+      CREATE POLICY ai_checkpoints_owner_run ON app.ai_checkpoints AS RESTRICTIVE
+        FOR ALL TO lexon_app
+        USING (EXISTS (SELECT 1 FROM app.ai_runs r
+          WHERE r.org_id=ai_checkpoints.org_id AND r.id=ai_checkpoints.run_id
+            AND (COALESCE(r.resolved_config->'resourceIds','[]'::jsonb)='[]'::jsonb
+              OR r.initiating_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid)))
+        WITH CHECK (EXISTS (SELECT 1 FROM app.ai_runs r
+          WHERE r.org_id=ai_checkpoints.org_id AND r.id=ai_checkpoints.run_id
+            AND (COALESCE(r.resolved_config->'resourceIds','[]'::jsonb)='[]'::jsonb
+              OR r.initiating_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid)));
+      DROP POLICY ai_operations_access_read ON app.ai_operations;
+      DROP POLICY ai_operations_owner_run_insert ON app.ai_operations;
+      DROP POLICY ai_operations_owner_run_update ON app.ai_operations;
+      DROP POLICY ai_operations_owner_run_delete ON app.ai_operations;
+      CREATE POLICY ai_operations_owner_run ON app.ai_operations AS RESTRICTIVE
+        FOR ALL TO lexon_app
+        USING (EXISTS (SELECT 1 FROM app.ai_runs r
+          WHERE r.org_id=ai_operations.org_id AND r.id=ai_operations.run_id
+            AND (COALESCE(r.resolved_config->'resourceIds','[]'::jsonb)='[]'::jsonb
+              OR r.initiating_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid)))
+        WITH CHECK (EXISTS (SELECT 1 FROM app.ai_runs r
+          WHERE r.org_id=ai_operations.org_id AND r.id=ai_operations.run_id
+            AND (COALESCE(r.resolved_config->'resourceIds','[]'::jsonb)='[]'::jsonb
+              OR r.initiating_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid)));
+      DROP POLICY owner_live_chat_create_request_insert ON app.chat_create_requests;
+      CREATE POLICY owner_live_chat_create_request_insert ON app.chat_create_requests
+        FOR INSERT TO lexon_app
+        WITH CHECK (org_id=NULLIF(current_setting('app.org_id',true),'')::uuid
+          AND owner_user_id=NULLIF(current_setting('app.user_id',true),'')::uuid
+          AND EXISTS (SELECT 1 FROM app.chats c WHERE c.org_id=chat_create_requests.org_id
+            AND c.id=chat_create_requests.chat_id AND c.owner_user_id=chat_create_requests.owner_user_id
+            AND c.deleted_at IS NULL));
+      DROP TRIGGER chats_project_stats ON app.chats;
+      DROP TRIGGER chat_messages_project_activity ON app.chat_messages;
+      DROP TRIGGER chat_create_request_project_bind ON app.chat_create_requests;
+      DROP TABLE app.chat_shares;
+      DROP TABLE app.project_instructions;
+      DROP TABLE app.project_denies;
+      DROP TABLE app.project_members;
+      ALTER TABLE app.chats DROP CONSTRAINT chats_project_fk, DROP COLUMN project_id;
+      ALTER TABLE app.chat_create_requests DROP COLUMN project_id;
+      DROP TABLE app.projects;
+      REVOKE UPDATE ON app.chats FROM lexon_app;
+      GRANT UPDATE ON app.chats TO lexon_app;
+      DROP FUNCTION ops.lexon_org_member(uuid,uuid);
+      DROP FUNCTION ops.lexon_org_owner_admin(uuid,uuid);
+      DROP FUNCTION ops.lexon_project_denied(uuid,uuid,uuid);
+      DROP FUNCTION ops.lexon_project_access(uuid,uuid,uuid);
+      DROP FUNCTION ops.lexon_project_deny_add(uuid,uuid,uuid,uuid);
+      DROP FUNCTION ops.lexon_project_deny_lift(uuid,uuid,uuid,uuid);
+      DROP FUNCTION ops.lexon_project_member_count();
+      DROP FUNCTION ops.lexon_project_chat_stats();
+      DROP FUNCTION ops.lexon_project_chat_activity();
+      DROP FUNCTION ops.chat_create_request_project_bind();
+    `);
+    const removed = await client.query(
+      'DELETE FROM drizzle.__drizzle_migrations WHERE created_at=$1::bigint',
+      [migration.when],
+    );
+    if (removed.rowCount !== 1)
+      throw new Error('Expected to remove the 0043 migration journal row');
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
 export async function revertAiOperationKinds0042ForUpgradeTest(
   migratorUrl: string,
 ): Promise<void> {
+  // drizzle's migrator applies only journal entries newer than the last
+  // recorded migration, so 0043 must be unwound first or the caller's
+  // migrateDatabase would skip the pending 0042 replay entirely. Running it
+  // before the 0042 rewind keeps a failed 0042 step self-healing: migrate()
+  // would then replay both pending entries in order.
+  await revertProjects0043ForUpgradeTest(migratorUrl);
   const client = new Client({ connectionString: migratorUrl });
   try {
     await client.connect();

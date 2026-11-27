@@ -148,7 +148,10 @@ function assertInput(tx: TenantSession, input: RunInsert): void {
 
 export class AiRunRepository {
   private readonly steps = new AiStepRepository();
-  async existsForOwnedChat(
+  /** §5 row 10: the existence probe any stream/decision gate uses — ChatRead
+   * scope, so project members and share recipients answer true, denied or
+   * non-members false. */
+  async existsForAccessibleChat(
     tx: TenantSession,
     runId: string,
     userId: string,
@@ -161,7 +164,7 @@ export class AiRunRepository {
     const { client, ctx } = requireSession(tx);
     if (ctx.userId !== userId) return false;
     const scope = buildAuthorizationPredicate({
-      scope: 'owned-chat',
+      scope: 'chat-read',
       orgId: ctx.orgId,
       userId,
       excludeDeleted: true,
@@ -171,8 +174,8 @@ export class AiRunRepository {
        JOIN app.chat_runs cr ON cr.org_id=r.org_id AND cr.run_id=r.id
          AND cr.kind='answer'
        JOIN app.chats c ON c.org_id=cr.org_id AND c.id=cr.chat_id
-       WHERE r.org_id=$1 AND r.id=$2 AND c.owner_user_id=$3
-         AND c.deleted_at IS NULL LIMIT 1`,
+       WHERE r.org_id=$1 AND r.id=$2 AND ${scope.where('c', '$1', '$3')}
+       LIMIT 1`,
       [scope.orgId, runId, scope.userId],
     );
     return result.rowCount === 1;
@@ -191,7 +194,7 @@ export class AiRunRepository {
     const { client, ctx } = requireSession(tx);
     if (ctx.userId !== userId) return null;
     const scope = buildAuthorizationPredicate({
-      scope: 'owned-chat',
+      scope: 'chat-read',
       orgId: ctx.orgId,
       userId,
       excludeDeleted: true,
@@ -213,6 +216,7 @@ export class AiRunRepository {
       error_code: string | null;
       resolved_config: unknown;
       chat_title: string;
+      owner_user_id: string;
       operations: {
         operationId: string;
         kind: string;
@@ -233,6 +237,7 @@ export class AiRunRepository {
          r.stream_snapshot_generation,r.stream_event_id,r.stream_attempt_id,
          r.stream_revision,r.stream_resumable,r.error_code,r.resolved_config,
          c.title AS chat_title,
+         c.owner_user_id,
          COALESCE((
            SELECT jsonb_agg(
              jsonb_build_object(
@@ -268,13 +273,26 @@ export class AiRunRepository {
        LEFT JOIN app.ai_attempts active_attempt
          ON active_attempt.org_id=cp.org_id AND active_attempt.run_id=cp.run_id
         AND active_attempt.id=cp.attempt_id AND active_attempt.active=true
-       WHERE r.org_id=$1 AND r.id=$2 AND c.owner_user_id=$3 AND c.deleted_at IS NULL
+       WHERE r.org_id=$1 AND r.id=$2 AND ${scope.where('c', '$1', '$3')}
          AND (cp.id IS NULL OR active_attempt.id IS NOT NULL)
        LIMIT 1`,
       [scope.orgId, runId, scope.userId],
     );
     const row = result.rows[0];
     if (!row) return null;
+    // F6 §5 row 14: project members/share recipients pass the chat-read
+    // scope but are never owners — operation payloads stay server-side for
+    // them, exactly the fields stripReaderPayloads drops on the chat detail.
+    const readerView = row.owner_user_id !== userId;
+    const operations = readerView
+      ? row.operations.map((operation) => {
+          const core = { ...operation };
+          delete core.input;
+          delete core.display;
+          delete core.output;
+          return core;
+        })
+      : row.operations;
     const config = row.resolved_config;
     const profileSnapshot =
       typeof config === 'object' &&
@@ -302,7 +320,7 @@ export class AiRunRepository {
       Number(maxToolProposals) < 1 ||
       !Number.isSafeInteger(operationLimit) ||
       operationLimit < 1 ||
-      row.operations.length > operationLimit
+      operations.length > operationLimit
     )
       throw new Error('Invalid committed chat operation snapshot bound');
     const attemptId = row.stream_attempt_id;
@@ -319,7 +337,7 @@ export class AiRunRepository {
       });
     // Ops replay as tool parts in stored order so the client rebuilds the
     // rows identically to the live stream (§9); outcome is the wire status.
-    for (const operation of row.operations) {
+    for (const operation of operations) {
       const input =
         operation.input !== null &&
         typeof operation.input === 'object' &&
@@ -350,7 +368,7 @@ export class AiRunRepository {
       revision: row.stream_revision,
       eventId: row.stream_resumable ? row.stream_event_id : null,
       parts,
-      operations: row.operations,
+      operations,
       status: row.status,
       errorCode: row.error_code,
       reasoningDurationMs: row.reasoning_duration_ms,
@@ -359,6 +377,7 @@ export class AiRunRepository {
       snapshot,
       streamGeneration: Number(row.stream_generation),
       resumable: row.stream_resumable,
+      readerView,
     };
   }
 
@@ -380,8 +399,13 @@ export class AiRunRepository {
     )
       return { state: 'missing' };
     const { client, ctx } = requireSession(tx);
-    const scope = buildAuthorizationPredicate(ctx);
     if (ctx.userId !== userId) return { state: 'missing' };
+    const scope = buildAuthorizationPredicate({
+      scope: 'chat-read',
+      orgId: ctx.orgId,
+      userId,
+      excludeDeleted: true,
+    });
     const result = await client.query<{
       status: AiRunStatus;
       run_version: number;
@@ -416,7 +440,12 @@ export class AiRunRepository {
         `SELECT s.id,s.sequence,s.expected_version,s.fence
          FROM app.ai_runs r JOIN app.ai_steps s
            ON s.org_id=r.org_id AND s.run_id=r.id
-         WHERE r.org_id=$1 AND r.id=$2 AND r.initiating_user_id=$3
+         WHERE r.org_id=$1 AND r.id=$2
+           AND (r.initiating_user_id=$3 OR EXISTS (
+             SELECT 1 FROM app.chat_runs cr
+             JOIN app.chats c ON c.org_id=cr.org_id AND c.id=cr.chat_id
+             WHERE cr.org_id=r.org_id AND cr.run_id=r.id AND cr.kind='answer'
+               AND ${scope.where('c', '$1', '$3')}))
            AND ((r.status='failed' AND s.state='failed'
                  AND s.sequence=r.next_sequence-1) OR
                 (r.status='cancelled' AND s.state IN ('pending','claimed')
@@ -601,22 +630,46 @@ export class AiRunRepository {
       }
     }
     if (
-      !row ||
-      !row.step_id ||
-      row.sequence === null ||
-      row.expected_version === null ||
-      row.fence === null
+      row &&
+      row.step_id &&
+      row.sequence !== null &&
+      row.expected_version !== null &&
+      row.fence !== null
     )
-      return undefined;
+      return {
+        orgId: row.org_id,
+        userId: row.user_id,
+        runId: row.run_id,
+        stepId: row.step_id,
+        sequence: Number(row.sequence),
+        expectedVersion: Number(row.expected_version),
+        fence: Number(row.fence),
+        ...(neutral ? { neutral: true } : {}),
+      };
+    // F6 §9: under project access loss the run row is invisible to the
+    // initiator's app-role read; the definer returns the same terminal anchor
+    // (latest committed/awaiting step, else the failed/cancelled anchor).
+    const proof = await client.query<{
+      step_id: string;
+      sequence: number;
+      expected_version: number;
+      fence: number | string;
+    }>(
+      `SELECT step_id,sequence,expected_version,fence
+         FROM ops.lexon_ai_terminal_stream_proof($1,$2,$3)`,
+      [ctx.orgId, ctx.userId, runId],
+    );
+    const anchor = proof.rows[0];
+    if (!anchor) return undefined;
     return {
-      orgId: row.org_id,
-      userId: row.user_id,
-      runId: row.run_id,
-      stepId: row.step_id,
-      sequence: Number(row.sequence),
-      expectedVersion: Number(row.expected_version),
-      fence: Number(row.fence),
-      ...(neutral ? { neutral: true } : {}),
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      runId,
+      stepId: anchor.step_id,
+      sequence: Number(anchor.sequence),
+      expectedVersion: Number(anchor.expected_version),
+      fence: Number(anchor.fence),
+      neutral: true,
     };
   }
 

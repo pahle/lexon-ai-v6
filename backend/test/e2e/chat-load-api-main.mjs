@@ -539,8 +539,8 @@ Object.defineProperty(events, 'revalidation', {
   },
 });
 
-const originalExistsForOwnedChat = events.runs.existsForOwnedChat;
-events.runs.existsForOwnedChat = function (...args) {
+const originalExistsForOwnedChat = events.runs.existsForAccessibleChat;
+events.runs.existsForAccessibleChat = function (...args) {
   const ownerIndex = ownerIndexForUser(args[2]);
   return observeCall(
     this,

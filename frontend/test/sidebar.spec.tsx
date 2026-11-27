@@ -132,6 +132,7 @@ test('sidebar shows only eligible Lexon navigation and safe user identity', asyn
     ['Assistant', '/workspace'],
     ['New chatCtrl Alt N', '/workspace'],
     ['Chats', '/chats'],
+    ['Matters', '/matters'],
     ['Platform', '/platform/accounts'],
   ]);
   // LEX-DS-001 §5.5: the inset shell, no Tools label, and Assistant open by
@@ -449,6 +450,7 @@ test('every active team role gets organization settings; only platform admins ge
       ['Assistant', '/workspace'],
       ['New chatCtrl Alt N', '/workspace'],
       ['Chats', '/chats'],
+      ['Matters', '/matters'],
       ['Platform', '/platform/accounts'],
     ]);
     expect(
@@ -498,6 +500,7 @@ test('every active team role gets organization settings; only platform admins ge
     ['Assistant', '/workspace'],
     ['New chatCtrl Alt N', '/workspace'],
     ['Chats', '/chats'],
+    ['Matters', '/matters'],
   ]);
   expect(view.container.textContent).not.toContain('Organization settings');
   expect(view.container.textContent).not.toContain('Platform');

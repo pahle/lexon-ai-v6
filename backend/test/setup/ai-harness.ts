@@ -4,6 +4,7 @@ import {
   AiStepRepository,
   OutboxRepository,
   RunActorFactsRepository,
+  requireSession,
   TenantDatabase,
 } from '../../src/infrastructure/db/index.js';
 import type { AiConfig } from '../../src/config/ai-config.js';
@@ -23,6 +24,7 @@ import { ChatTitleService } from '../../src/modules/chat/chat-title.service.js';
 import type { CancelSignals } from '../../src/infrastructure/queue/index.js';
 import type { RunStreams } from '../../src/infrastructure/queue/index.js';
 import type { JobEnvelope } from '../../src/infrastructure/db/index.js';
+import { randomUUID } from 'node:crypto';
 
 export interface AiHarnessServices {
   readonly database: TenantDatabase;
@@ -125,7 +127,7 @@ export async function createAiHarness(
     steps,
     coordinator,
     authorization: services.authorization,
-    start(
+    async start(
       actor: RunActor,
       input: {
         profileId: string;
@@ -134,7 +136,39 @@ export async function createAiHarness(
         resourceIds?: readonly string[];
       },
     ) {
-      return runService.start(actor, input);
+      // Production topology: every run is bound to a chat through
+      // chat_runs with resolvedConfig.resourceIds naming that chat — the
+      // write-fence trigger enforces the binding, and the stream proofs
+      // and registry read through the link. Callers that name their own
+      // resourceIds bind their chat themselves; otherwise the harness
+      // stands in a standalone chat the same way ChatService.send does.
+      let chatId: string | undefined;
+      if (!input.resourceIds || input.resourceIds.length === 0) {
+        chatId = randomUUID();
+        await services.database.withTenant(actor, async (tx) => {
+          const { client } = requireSession(tx);
+          await client.query(
+            'INSERT INTO app.chats(id,org_id,owner_user_id) VALUES($1,$2,$3)',
+            [chatId, actor.orgId, actor.userId],
+          );
+        });
+      }
+      const created = await runService.start(actor, {
+        ...input,
+        ...(chatId ? { resourceIds: [chatId] } : {}),
+      });
+      if (chatId) {
+        const { runId } = created as { runId: string };
+        await services.database.withTenant(actor, async (tx) => {
+          const { client } = requireSession(tx);
+          await client.query(
+            `INSERT INTO app.chat_runs(org_id,chat_id,run_id,kind)
+             VALUES($1,$2,$3,'answer')`,
+            [actor.orgId, chatId, runId],
+          );
+        });
+      }
+      return created;
     },
     dispatch(job: JobEnvelope) {
       return coordinator.claim(job);

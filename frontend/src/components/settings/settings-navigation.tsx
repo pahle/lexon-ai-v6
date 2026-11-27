@@ -32,7 +32,10 @@ export function SettingsNavigation({
         { id: 'members', label: 'Members' },
         ...(identity.organization.role === 'owner' ||
         identity.organization.role === 'admin'
-          ? [{ id: 'invitations' as const, label: 'Invitations' }]
+          ? [
+              { id: 'invitations' as const, label: 'Invitations' },
+              { id: 'matters' as const, label: 'Matters' },
+            ]
           : []),
         ...(identity.organization.role === 'owner'
           ? [{ id: 'general' as const, label: 'General' }]

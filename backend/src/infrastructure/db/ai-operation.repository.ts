@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { buildAuthorizationPredicate } from './authorization-predicate.js';
 import { canonicalJson, jsonbTextBytes } from './canonical-json.js';
 import {
+  applyClaimLaneLockTimeout,
   inspectPool,
   requireSession,
   type TenantSession,
@@ -525,5 +526,155 @@ export class AiOperationRepository {
       [ctx.orgId, operationId],
     );
     return result.rowCount === 1;
+  }
+
+  /**
+   * F6 §9 decide path for initiator-invisible runs: the run row is RLS-hidden
+   * from lexon_app once the chat owner loses project access, so the whole
+   * settle (decided op reject + sibling settle + run failed
+   * AI_ACCESS_REVOKED + audit pair + chat invalidate) executes inside the
+   * definer. `found=false` distinguishes an absent/foreign run; `changed=false`
+   * with `found` returns the stored (or refused-live) op outcome unchanged.
+   */
+  async accessLossDecide(
+    tx: TenantSession,
+    input: {
+      runId: string;
+      operationId: string;
+      snapshotHash: string | null;
+      userId: string;
+    },
+  ): Promise<
+    | {
+        found: false;
+      }
+    | {
+        found: true;
+        changed: boolean;
+        operationStatus: string | null;
+        operationDecision: string | null;
+        operationDecidedAt: Date | null;
+        stepId: string | null;
+        stepSequence: number | null;
+        stepExpectedVersion: number | null;
+        stepFence: number | null;
+        runVersion: number | null;
+      }
+    | null
+  > {
+    const { client, ctx } = requireSession(tx);
+    if (
+      ctx.userId !== input.userId ||
+      !uuid.safeParse(input.runId).success ||
+      !uuid.safeParse(input.operationId).success ||
+      (input.snapshotHash !== null &&
+        !/^[0-9a-f]{64}$/.test(input.snapshotHash))
+    )
+      return null;
+    await applyClaimLaneLockTimeout(client);
+    const result = await client.query<{
+      found: boolean;
+      changed: boolean;
+      operation_status: string | null;
+      operation_decision: string | null;
+      operation_decided_at: Date | null;
+      step_id: string | null;
+      step_sequence: number | null;
+      step_expected_version: number | null;
+      step_fence: number | null;
+      run_version: number | null;
+    }>(`SELECT * FROM ops.lexon_ai_access_loss_decide($1,$2,$3,$4,$5)`, [
+      ctx.orgId,
+      input.userId,
+      input.runId,
+      input.operationId,
+      input.snapshotHash,
+    ]);
+    const row = result.rows[0];
+    if (!row || !row.found) return { found: false };
+    return {
+      found: true,
+      changed: row.changed === true,
+      operationStatus: row.operation_status,
+      operationDecision: row.operation_decision,
+      operationDecidedAt: row.operation_decided_at,
+      stepId: row.step_id,
+      stepSequence:
+        row.step_sequence === null ? null : Number(row.step_sequence),
+      stepExpectedVersion:
+        row.step_expected_version === null
+          ? null
+          : Number(row.step_expected_version),
+      stepFence: row.step_fence === null ? null : Number(row.step_fence),
+      runVersion: row.run_version === null ? null : Number(row.run_version),
+    };
+  }
+
+  /**
+   * F6 §9 expiry-sweep access-loss arm: the paused run invisible to the
+   * sweep's initiator-claims read still holds the expired awaiting op, so
+   * the definer repeats the expire CAS, settles the siblings, fails the run
+   * and notifies — the same terminal anchor rules as the decide arm.
+   */
+  async expireAccessLoss(
+    tx: TenantSession,
+    input: {
+      runId: string;
+      operationId: string;
+      userId: string;
+    },
+  ): Promise<
+    | { found: false }
+    | {
+        found: true;
+        changed: boolean;
+        operationKind: string | null;
+        stepId: string | null;
+        stepSequence: number | null;
+        stepExpectedVersion: number | null;
+        stepFence: number | null;
+        runVersion: number | null;
+      }
+    | null
+  > {
+    const { client, ctx } = requireSession(tx);
+    if (
+      ctx.userId !== input.userId ||
+      !uuid.safeParse(input.runId).success ||
+      !uuid.safeParse(input.operationId).success
+    )
+      return null;
+    await applyClaimLaneLockTimeout(client);
+    const result = await client.query<{
+      found: boolean;
+      changed: boolean;
+      operation_kind: string | null;
+      step_id: string | null;
+      step_sequence: number | null;
+      step_expected_version: number | null;
+      step_fence: number | null;
+      run_version: number | null;
+    }>(`SELECT * FROM ops.lexon_ai_expire_access_loss($1,$2,$3,$4)`, [
+      ctx.orgId,
+      input.userId,
+      input.runId,
+      input.operationId,
+    ]);
+    const row = result.rows[0];
+    if (!row || !row.found) return { found: false };
+    return {
+      found: true,
+      changed: row.changed === true,
+      operationKind: row.operation_kind,
+      stepId: row.step_id,
+      stepSequence:
+        row.step_sequence === null ? null : Number(row.step_sequence),
+      stepExpectedVersion:
+        row.step_expected_version === null
+          ? null
+          : Number(row.step_expected_version),
+      stepFence: row.step_fence === null ? null : Number(row.step_fence),
+      runVersion: row.run_version === null ? null : Number(row.run_version),
+    };
   }
 }

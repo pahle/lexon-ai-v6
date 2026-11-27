@@ -256,13 +256,45 @@ async function setup(
     gateway,
   });
   const tenant = ai.tenants[0]!;
+  // Production topology: every run is bound to a chat through chat_runs
+  // with resolvedConfig.resourceIds naming that chat — the write-fence
+  // trigger enforces the binding, and the stream proofs and registry read
+  // through the link. Callers that name their own resourceIds bind their
+  // chat themselves; otherwise the harness stands in a standalone chat.
+  const boundChatId =
+    !options.resourceIds || options.resourceIds.length === 0
+      ? randomUUID()
+      : undefined;
+  if (boundChatId) {
+    await ai.database.withTenant(tenant, async (tx) => {
+      const { client } = requireSession(tx);
+      await client.query(
+        'INSERT INTO app.chats(id,org_id,owner_user_id) VALUES($1,$2,$3)',
+        [boundChatId, tenant.orgId, tenant.userId],
+      );
+    });
+  }
   const created = (await actorScope(tenant, authorization, (actor) =>
     runService.start(actor, {
       profileId: (options.profile ?? f5Profile).id,
       prompt: 'Synthetic prompt',
-      ...(options.resourceIds ? { resourceIds: options.resourceIds } : {}),
+      ...(options.resourceIds
+        ? { resourceIds: options.resourceIds }
+        : boundChatId
+          ? { resourceIds: [boundChatId] }
+          : {}),
     }),
   )) as { runId: string };
+  if (boundChatId) {
+    await ai.database.withTenant(tenant, async (tx) => {
+      const { client } = requireSession(tx);
+      await client.query(
+        `INSERT INTO app.chat_runs(org_id,chat_id,run_id,kind)
+         VALUES($1,$2,$3,'answer')`,
+        [tenant.orgId, boundChatId, created.runId],
+      );
+    });
+  }
   return {
     tenant,
     runId: created.runId,

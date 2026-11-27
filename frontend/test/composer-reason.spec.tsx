@@ -1,7 +1,7 @@
 import { act, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import type { ChatTree } from '@lexon/contracts';
+import type { ChatDetail } from '@lexon/contracts';
 import { ChatView } from '../src/components/chat/chat-view.js';
 import { ChatRuntime } from '../src/components/chat/chat-runtime.js';
 import {
@@ -52,10 +52,11 @@ const userId = '22222222-2222-4222-8222-222222222222';
 const doneId = '33333333-3333-4333-8333-333333333333';
 const runningId = '66666666-6666-4666-8666-666666666666';
 
-function tree(active: boolean): ChatTree {
+function tree(active: boolean): ChatDetail {
   return {
     id: chatId,
     title: 'Fixture',
+    access: 'owner',
     messages: [
       {
         id: userId,
@@ -324,11 +325,11 @@ it('a whitespace-only paste is ignored and a multi-line paste is kept', async ()
 
 it('reload during a run: no run is known while history loads; Stop appears enabled the moment it has loaded and cancels the run', async () => {
   const fetch = stubStream();
-  const resolvers: Array<(value: ChatTree) => void> = [];
+  const resolvers: Array<(value: ChatDetail) => void> = [];
   const client = {
     get: vi.fn(
       () =>
-        new Promise<{ notModified: false; tree: ChatTree; etag: null }>(
+        new Promise<{ notModified: false; tree: ChatDetail; etag: null }>(
           (resolve) => {
             resolvers.push((tree) =>
               resolve({ notModified: false, tree, etag: null }),

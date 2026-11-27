@@ -85,7 +85,8 @@ export class ChatBranchService {
             effort: input.effort,
           });
           const { runId } = await this.runs.startWithin(tx, actor, {
-            profileId: 'chat',
+            // F6 §9: project-bound chats run the project-chat profile.
+            profileId: chat.projectId ? 'project-chat' : 'chat',
             prompt: input.text,
             effort: input.effort,
             resourceIds: [chatId],
@@ -188,7 +189,8 @@ export class ChatBranchService {
 
         try {
           const { runId } = await this.runs.startWithin(tx, actor, {
-            profileId: 'chat',
+            // F6 §9: project-bound chats run the project-chat profile.
+            profileId: chat.projectId ? 'project-chat' : 'chat',
             prompt: userTurn.userText,
             effort: userTurn.effort,
             resourceIds: [chatId],

@@ -181,6 +181,17 @@ export async function createAiFixture(services: Services) {
     if (!tenant) throw new Error('Invalid AI fixture tenant');
     const id = randomUUID();
     return database.withTenant(tenant, async (tx) => {
+      const { client } = requireSession(tx);
+      // Production topology: every run is bound to a chat through
+      // chat_runs with resolvedConfig.resourceIds naming that chat — the
+      // write-fence trigger enforces the binding, and the stream proofs
+      // and registry read through the link — so the fixture stands in a
+      // standalone chat the same way ChatService.send does.
+      const chatId = randomUUID();
+      await client.query(
+        'INSERT INTO app.chats(id,org_id,owner_user_id) VALUES($1,$2,$3)',
+        [chatId, tenant.orgId, tenant.userId],
+      );
       const run = await runs.insert(tx, {
         id,
         orgId: tenant.orgId,
@@ -190,13 +201,18 @@ export async function createAiFixture(services: Services) {
         resolvedConfig: {
           model: 'synthetic/test',
           provider: 'synthetic-provider',
+          resourceIds: [chatId],
         },
         modelId: 'synthetic/test',
         inputText: 'test input',
         inputBudgetTokens: budgets.inputBudgetTokens ?? 1000,
         outputBudgetTokens: budgets.outputBudgetTokens ?? 1000,
       });
-      const { client } = requireSession(tx);
+      await client.query(
+        `INSERT INTO app.chat_runs(org_id,chat_id,run_id,kind)
+         VALUES($1,$2,$3,'answer')`,
+        [tenant.orgId, chatId, id],
+      );
       await client.query(
         `INSERT INTO ops.outbox(id,type,org_id,user_id,payload) VALUES($1,'run.start.v1',$2,$3,$4::jsonb)`,
         [
@@ -403,6 +419,47 @@ export async function createAiFixture(services: Services) {
     },
     insertCrossTenantStep(index: number, runId: string) {
       return insertPendingStep(index, runId);
+    },
+    /** F6 §15: seeds one project + instructions row + project-bound chat per
+     * tenant and instruction scenario so the ProjectContextProvider emits
+     * the seeded text as untrusted context. Returns tenant index →
+     * scenarioId → chatId for run binding. Everything is written as
+     * lexon_migrator so RLS never interferes with seeding. */
+    async seedProjectScenarios(
+      instructions: Readonly<Record<string, string>>,
+    ): Promise<Map<number, Map<string, string>>> {
+      const bound = new Map<number, Map<string, string>>();
+      for (const [index, tenant] of tenants.entries()) {
+        const chats = new Map<string, string>();
+        for (const [scenarioId, text] of Object.entries(instructions)) {
+          const projectId = randomUUID();
+          const chatId = randomUUID();
+          await migrator.query(
+            `INSERT INTO app.projects(id,org_id,owner_user_id,name)
+             VALUES ($1,$2,$3,$4)`,
+            [projectId, tenant.orgId, tenant.userId, `Eval ${scenarioId}`],
+          );
+          await migrator.query(
+            `INSERT INTO app.project_instructions(org_id,project_id,"text",updated_by_user_id)
+             VALUES ($1,$2,$3,$4)`,
+            [tenant.orgId, projectId, text, tenant.userId],
+          );
+          await migrator.query(
+            `INSERT INTO app.chats(id,org_id,owner_user_id,title,project_id)
+             VALUES ($1,$2,$3,$4,$5)`,
+            [
+              chatId,
+              tenant.orgId,
+              tenant.userId,
+              `eval ${scenarioId}`,
+              projectId,
+            ],
+          );
+          chats.set(scenarioId, chatId);
+        }
+        bound.set(index, chats);
+      }
+      return bound;
     },
     seedPendingStep(index: number, runId: string) {
       return insertPendingStep(index, runId);

@@ -161,11 +161,17 @@ export class StepExecutor {
     if (claimed.kind === 'busy')
       return { kind: 'busy', retryAtMs: claimed.retryAtMs };
     if (claimed.kind === 'cancelled') {
-      await this.options.streams?.finish(claimed.reference, {
-        version: 1,
-        runId: job.payload.runId,
-        type: 'finish',
-      });
+      // The access-loss/deleted-chat settle never ran a recover, so the
+      // finish must reset subscribers to the durable terminal snapshot.
+      await this.options.streams?.finish(
+        claimed.reference,
+        {
+          version: 1,
+          runId: job.payload.runId,
+          type: 'finish',
+        },
+        { resetToSnapshot: true },
+      );
       return { kind: 'done' };
     }
     const claim = claimed.claim;
@@ -1879,8 +1885,17 @@ export class StepExecutor {
       { orgId: claim.orgId, userId: claim.userId },
       async (tx) => {
         const run = await this.options.runs.find(tx, claim.runId);
-        if (!run || !(await this.options.steps.lockClaim(tx, claim)))
+        if (!run) {
+          // F6 §9: the run is invisible to the initiator's claim — project
+          // access loss. The definer verifies the claim coordinates against
+          // the locked rows, fails this step + the run AI_ACCESS_REVOKED,
+          // settles every outstanding op and notifies the bound chats. A
+          // refused probe (absent run, stale coords, already terminal) maps
+          // to the same null as a lost claim.
+          await this.options.steps.finalizeAccessLoss(tx, claim);
           return null;
+        }
+        if (!(await this.options.steps.lockClaim(tx, claim))) return null;
         if (
           run.profileId === 'chat-title' &&
           (!this.options.chatTitles ||
@@ -2070,7 +2085,6 @@ export class StepExecutor {
               await client.query(`SELECT pg_notify('lexon_chat_title', $1)`, [
                 JSON.stringify({
                   orgId: claim.orgId,
-                  userId: claim.userId,
                   chatId: pausedChatId,
                 }),
               ]);
@@ -2277,10 +2291,15 @@ export class StepExecutor {
       { orgId: claim.orgId, userId: claim.userId },
       (tx) => this.options.runs.find(tx, claim.runId),
     );
+    // durableRun===null is the F6 access-loss shape: the definer-side
+    // terminal proof inside authorizeTerminal decides whether the finish
+    // may write, so the attempt is a safe no-op for a genuinely absent or
+    // still-live run.
     if (
-      durableRun?.status === 'completed' ||
-      durableRun?.status === 'failed' ||
-      durableRun?.status === 'cancelled'
+      durableRun === null ||
+      durableRun.status === 'completed' ||
+      durableRun.status === 'failed' ||
+      durableRun.status === 'cancelled'
     )
       await this.options.streams?.finish(
         claim,

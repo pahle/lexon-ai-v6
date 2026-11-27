@@ -19,11 +19,20 @@ const overrideKeys = [
   'userId',
   'activeOrganizationId',
 ];
-function rejectsOverride(value: unknown, selectionInput = false): boolean {
+function rejectsOverride(
+  value: unknown,
+  access: Pick<
+    RouteAccess,
+    'allowOrganizationSelection' | 'allowUserIdKey'
+  > = {},
+): boolean {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  return [...overrideKeys, ...(selectionInput ? [] : ['organizationId'])].some(
-    (key) => Object.hasOwn(value, key),
-  );
+  return [
+    ...overrideKeys.filter(
+      (key) => !(key === 'userId' && access.allowUserIdKey),
+    ),
+    ...(access.allowOrganizationSelection ? [] : ['organizationId']),
+  ].some((key) => Object.hasOwn(value, key));
 }
 @Injectable()
 export class TenantGuard implements CanActivate {
@@ -62,10 +71,9 @@ export class TenantGuard implements CanActivate {
     ])
       if (request.headers[name] !== undefined)
         throw new IdentityError('VALIDATION_ERROR', 400);
-    if (
-      rejectsOverride(request.query) ||
-      rejectsOverride(request.body, access.allowOrganizationSelection)
-    )
+    // The userId allowance applies to the body only — a query userId is
+    // never legitimate input on any route.
+    if (rejectsOverride(request.query) || rejectsOverride(request.body, access))
       throw new IdentityError('VALIDATION_ERROR', 400);
     const headers = new Headers();
     for (const [name, value] of Object.entries(request.headers))

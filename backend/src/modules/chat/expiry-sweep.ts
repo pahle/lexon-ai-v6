@@ -16,6 +16,7 @@ import type { RunStreams } from '../../infrastructure/queue/index.js';
 import { AuditService } from '../audit/index.js';
 import type { RunAuthorizationService } from '../identity-access/index.js';
 import { stepJobId } from './step-job-id.js';
+import { isRouting } from './run-routing.js';
 import type { RunRegistry } from './run-registry.js';
 
 export interface OperationExpirySweepLogger {
@@ -47,6 +48,8 @@ type SweepPublication =
       readonly kind: 'resume';
       readonly reference: CommittedStreamReference;
       readonly operationId: string;
+      /** The stored routing was invalid; the resume used the default queue. */
+      readonly invalidRouting?: boolean;
     };
 
 const CANDIDATE_BATCH = 64;
@@ -78,7 +81,7 @@ export class OperationExpirySweep {
             runId: publication.runId,
             type: 'finish',
           });
-        if (publication.kind === 'resume')
+        if (publication.kind === 'resume') {
           await this.options.streams?.publishCommitted(publication.reference, [
             {
               version: 1,
@@ -94,6 +97,15 @@ export class OperationExpirySweep {
               status: 'expired',
             },
           ]);
+          // The skipped override is logged once, ids and a safe code only.
+          if (publication.invalidRouting)
+            this.options.logger?.warn({
+              event: 'ai_operation_expiry_invalid_routing',
+              runId: publication.reference.runId,
+              operationId: publication.operationId,
+              safeCode: 'AI_INTERNAL',
+            });
+        }
       } catch {
         // Queue errors never leak payloads: one fixed safe code per failure.
         this.options.logger?.warn({
@@ -118,7 +130,30 @@ export class OperationExpirySweep {
           runId: candidate.runId,
           operationId: candidate.id,
         });
-        if (!operation) return { kind: 'skipped' };
+        if (!operation) {
+          // F6 §9: the candidate is listed cross-tenant by the definer but
+          // its rows are invisible here — project access loss. The definer
+          // repeats the expire CAS, settles the sibling ops, fails the run
+          // AI_ACCESS_REVOKED, appends the actor-less audit and notifies;
+          // changed=false covers CAS loss and every live-shape refusal.
+          const lost = await this.options.operations.expireAccessLoss(tx, {
+            runId: candidate.runId,
+            operationId: candidate.id,
+            userId: candidate.initiatingUserId,
+          });
+          if (!lost || !lost.found || !lost.changed) return { kind: 'skipped' };
+          const lostReference = await this.options.runs.terminalStreamReference(
+            tx,
+            candidate.runId,
+          );
+          return lostReference
+            ? {
+                kind: 'terminal',
+                runId: candidate.runId,
+                reference: lostReference,
+              }
+            : { kind: 'skipped' };
+        }
         // Actor-less by contract: the §8 validator admits a decided event
         // without actorUserId only when metadata.status is 'expired'.
         await this.audit.append(tx, {
@@ -236,7 +271,11 @@ export class OperationExpirySweep {
           expectedVersion,
         });
         // stepJobId makes the resume at-most-once: a repeated expiry of the
-        // same pause cannot enqueue a second resume for this sequence.
+        // same pause cannot enqueue a second resume for this sequence. An
+        // invalid stored routing is skipped (default queue) and reported
+        // after commit rather than throwing inside the transaction — a throw
+        // would roll back the expiry and re-list the candidate forever.
+        const routed = isRouting(run.resolvedConfig);
         await this.options.outbox.append(
           tx,
           {
@@ -249,7 +288,7 @@ export class OperationExpirySweep {
           },
           {
             id: stepJobId(run.id, sequence),
-            ...(isRouting(run.resolvedConfig)
+            ...(routed
               ? {
                   queue: run.resolvedConfig.queue,
                   priority: run.resolvedConfig.priority,
@@ -274,7 +313,12 @@ export class OperationExpirySweep {
           committedRunVersion: expectedVersion,
           committedStatus: 'running',
         };
-        return { kind: 'resume', reference, operationId: operation.id };
+        return {
+          kind: 'resume',
+          reference,
+          operationId: operation.id,
+          ...(routed ? {} : { invalidRouting: true }),
+        };
       },
     );
   }
@@ -297,7 +341,6 @@ export class OperationExpirySweep {
       await client.query(`SELECT pg_notify('lexon_chat_title', $1)`, [
         JSON.stringify({
           orgId: candidate.orgId,
-          userId: candidate.initiatingUserId,
           chatId: row.chat_id,
         }),
       ]);
@@ -309,15 +352,4 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
-}
-
-function isRouting(value: unknown): value is Record<string, unknown> & {
-  queue: 'ai-interactive' | 'ai-batch';
-  priority: number;
-} {
-  const record = asRecord(value);
-  return (
-    (record.queue === 'ai-interactive' || record.queue === 'ai-batch') &&
-    typeof record.priority === 'number'
-  );
 }

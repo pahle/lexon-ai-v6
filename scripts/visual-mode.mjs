@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 
 export function isSnapshotUpdateEnabled(updateSnapshots) {
@@ -34,6 +34,30 @@ export function pixelLockedViews(index) {
   return Object.fromEntries(
     Object.entries(index.views).filter(([, view]) => isPixelLocked(view)),
   );
+}
+
+/**
+ * Every file under baseline/ must be the pixel golden of an indexed,
+ * pixel-locked view. A non-pixel lock (svg-snapshot, engine-tests) has no
+ * pixel golden by design; a baseline file for it would silently pass
+ * byte-existence checks while never being a sanctioned golden.
+ */
+export function assertBaselineLocks(index, directory) {
+  const baselineDir = resolve(directory, 'baseline');
+  if (!existsSync(baselineDir)) return;
+  for (const file of readdirSync(baselineDir)) {
+    if (!file.endsWith('.png')) continue;
+    const id = file.slice(0, -'.png'.length);
+    const view = index.views[id];
+    if (!view)
+      throw new Error(
+        `baseline/${file} has no indexed view; remove it or index the view first.`,
+      );
+    if (!isPixelLocked(view))
+      throw new Error(
+        `baseline/${file} exists but view "${id}" is ${view.lock} locked and has no pixel golden.`,
+      );
+  }
 }
 
 /**
