@@ -49,7 +49,12 @@ function shardFiles(captureRoot, id) {
   return out;
 }
 
-export function selectPendingCapture({ captureRoot, id, baselinePath }) {
+export function selectPendingCapture({
+  captureRoot,
+  id,
+  baselinePath,
+  reviewPath,
+}) {
   const shards = shardFiles(captureRoot, id);
   if (shards.length === 0)
     throw new Error(`No shard artifact folders under ${captureRoot}`);
@@ -83,10 +88,31 @@ export function selectPendingCapture({ captureRoot, id, baselinePath }) {
       `Pending view "${id}": conflicting captures — non-claiming shards disagree ` +
         `(${others.map((o) => `${o.shard}=${o.hash.slice(0, 10)}`).join(', ')})`,
     );
-  // R: the checked-in copy every non-claimer ships; null when no shard has
-  // the file (first-time views).
-  const checkedInHash = distinctOthers[0] ?? null;
-  if (
+  // R: the checked-in copy every non-claimer ships. When `reviewPath` names
+  // the committed review file it is authoritative; otherwise it is inferred
+  // from the (verified unanimous) non-claimer files.
+  const reviewHash =
+    reviewPath && existsSync(reviewPath)
+      ? sha256(readFileSync(reviewPath))
+      : null;
+  const checkedInHash = reviewHash ?? distinctOthers[0] ?? null;
+  if (reviewHash) {
+    // A non-claimer file that matches neither baseline nor the checked-in
+    // bytes is an unrecorded real capture — never selectable.
+    const stray = others.find((o) => o.hash !== reviewHash);
+    if (stray) {
+      if (baselineHash && claimedHash === baselineHash)
+        throw new Error(
+          `Pending view "${id}": baseline bytes in claiming shard ${claimer.shard} while ` +
+            `${stray.shard} holds a different file — ` +
+            `baseline-vs-baseline compare is not a real capture`,
+        );
+      throw new Error(
+        `Pending view "${id}": ${stray.shard} holds a file matching neither ` +
+          `the claimed pick nor the checked-in bytes — conflicting captures`,
+      );
+    }
+  } else if (
     baselineHash &&
     claimedHash === baselineHash &&
     distinctOthers.some((hash) => hash !== baselineHash)

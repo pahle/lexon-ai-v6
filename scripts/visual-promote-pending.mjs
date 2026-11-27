@@ -61,12 +61,14 @@ export function promotePendingApprovals({
   for (const id of approveIds) {
     const view = index.views[id];
     const baselineRelative = view.path.replace(/^review\//, 'baseline/');
+    const reviewPath = resolve(setDir, view.path);
     const pick = selectPendingCapture({
       captureRoot,
       id,
       baselinePath: existsSync(resolve(setDir, baselineRelative))
         ? resolve(setDir, baselineRelative)
         : null,
+      reviewPath: existsSync(reviewPath) ? reviewPath : null,
     });
     const bytes = readFileSync(pick.path);
     const width = bytes.readUInt32BE(16);
@@ -92,10 +94,13 @@ export function promotePendingApprovals({
     };
   }
   for (const id of clearOnlyIds) {
+    const view = index.views[id];
+    const reviewPath = resolve(setDir, view.path);
     const pick = selectPendingCapture({
       captureRoot,
       id,
       baselinePath: null,
+      reviewPath: existsSync(reviewPath) ? reviewPath : null,
     });
     writeFileSync(
       resolve(setDir, index.views[id].path),
