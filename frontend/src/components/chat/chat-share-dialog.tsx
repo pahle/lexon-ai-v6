@@ -20,7 +20,7 @@ import {
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { XIcon } from 'lucide-react';
+import { UserPlusIcon, XIcon } from 'lucide-react';
 
 const initials = (name: string) =>
   name
@@ -88,8 +88,8 @@ export function ChatShareDialog({
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <p className="text-muted-foreground text-[13px] leading-[1.6]">
-            People you share &ldquo;{chat.title}&rdquo; with can read this chat.
-            They can&rsquo;t reply, edit or delete it.
+            People you share with can read this chat. They can&rsquo;t reply,
+            edit or delete it.
           </p>
           <AddShareRow
             client={client}
@@ -127,6 +127,15 @@ export function ChatShareDialog({
               We could not load who can see this chat.
             </p>
           ) : null}
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Done
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -200,7 +209,9 @@ function AddShareRow({
   return (
     <div className="flex flex-col gap-2">
       <Field>
-        <FieldLabel htmlFor={inputId}>Share with</FieldLabel>
+        <FieldLabel htmlFor={inputId} className="sr-only">
+          Add people by name or email
+        </FieldLabel>
         <div className="flex items-center gap-2">
           {picked ? (
             <span className="bg-muted flex h-9 items-center rounded-lg px-3 text-sm">
@@ -210,18 +221,20 @@ function AddShareRow({
             <Input
               id={inputId}
               value={query}
-              placeholder="Search by name or email"
+              placeholder="Add people by name or email"
               onChange={(event) => setQuery(event.currentTarget.value)}
             />
           )}
           <Button
             type="button"
+            size="sm"
             disabled={!picked || add.isPending}
             onClick={() => {
               setFailed(false);
               add.mutate();
             }}
           >
+            <UserPlusIcon aria-hidden="true" />
             Share
           </Button>
         </div>

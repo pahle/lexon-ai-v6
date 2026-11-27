@@ -37,6 +37,9 @@ export type OpenChat = {
   title: string | null;
   access?: 'owner' | 'reader' | undefined;
   projectBound?: boolean | undefined;
+  /** Matter chip link target + label (r18 mchip); null on standalone chats. */
+  projectId?: string | null | undefined;
+  projectName?: string | null | undefined;
 };
 
 type ListCacheItem = { id: string; title: string; projectName?: string };
@@ -100,6 +103,14 @@ export function useOpenChat(): OpenChat | null {
     () => findListed()?.projectName !== undefined,
     () => false,
   );
+  const listedProjectName = useSyncExternalStore(
+    useCallback(
+      (notify) => queryClient.getQueryCache().subscribe(notify),
+      [queryClient],
+    ),
+    () => findListed()?.projectName ?? null,
+    () => null,
+  );
   const client = useMemo(() => createChatClient({ baseUrl: '/api' }), []);
   const published =
     !!chatTitle &&
@@ -132,6 +143,8 @@ export function useOpenChat(): OpenChat | null {
     title: mine ? mine.title : listedTitle,
     access: mine?.access,
     projectBound: mine?.projectBound ?? listedBound,
+    projectId: mine?.projectId ?? null,
+    projectName: mine?.projectName ?? listedProjectName,
   };
 }
 
@@ -165,6 +178,8 @@ export function ChatFloatingActions({ chat: open }: { chat: OpenChat | null }) {
         title: open.title ?? 'Chat',
         access: open.access ?? 'owner',
         projectBound: open.projectBound ?? false,
+        projectId: open.projectId,
+        projectName: open.projectName,
       }
     : null;
   const pathname = usePathname();
@@ -260,6 +275,12 @@ export function ChatFloatingActions({ chat: open }: { chat: OpenChat | null }) {
                   chat.id,
                   `${identity.organization.id}:${identity.user.id}`,
                   title,
+                  {
+                    access: chat.access,
+                    projectBound: chat.projectBound,
+                    projectId: chat.projectId ?? undefined,
+                    projectName: chat.projectName ?? undefined,
+                  },
                 );
             }}
           />

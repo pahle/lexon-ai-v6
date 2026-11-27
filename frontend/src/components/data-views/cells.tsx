@@ -10,10 +10,11 @@ type Shape = 'person' | 'organization' | 'invitation';
  * revision 16 `.dv-av`): a round initials avatar, an 8px-radius organization
  * tile, or a round dashed invitation avatar with a mail icon.
  */
-export const IdentityAvatar: FC<{ initials?: string; shape?: Shape }> = ({
-  initials,
-  shape = 'person',
-}) => (
+export const IdentityAvatar: FC<{
+  initials?: string;
+  shape?: Shape;
+  icon?: ReactNode;
+}> = ({ initials, shape = 'person', icon }) => (
   <span
     aria-hidden="true"
     data-slot="identity-avatar"
@@ -26,7 +27,11 @@ export const IdentityAvatar: FC<{ initials?: string; shape?: Shape }> = ({
         'border-input text-muted-foreground rounded-full border border-dashed',
     )}
   >
-    {shape === 'invitation' ? <MailIcon className="size-3.5" /> : initials}
+    {shape === 'invitation' ? (
+      <MailIcon className="size-3.5" />
+    ) : (
+      (icon ?? initials)
+    )}
   </span>
 );
 
@@ -35,11 +40,16 @@ export const IdentityCell: FC<{
   name: string;
   secondary?: string;
   initials?: string;
+  icon?: ReactNode;
   shape?: Shape;
   badge?: ReactNode;
-}> = ({ name, secondary, initials, shape = 'person', badge }) => (
+}> = ({ name, secondary, initials, icon, shape = 'person', badge }) => (
   <div className="flex min-w-0 items-center gap-2.5">
-    <IdentityAvatar shape={shape} {...(initials ? { initials } : {})} />
+    <IdentityAvatar
+      shape={shape}
+      {...(initials ? { initials } : {})}
+      {...(icon ? { icon } : {})}
+    />
     <span className="flex min-w-0 flex-col leading-[1.3]">
       <b className="flex items-center gap-1.5 truncate font-medium">
         <span className="truncate">{name}</span>

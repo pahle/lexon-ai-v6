@@ -91,6 +91,7 @@ export class ProjectsController {
   @Get(':projectId/chats') chats(@Param('projectId') projectId: string) {
     return this.projects.listChats(
       currentTenantContext(),
+      currentVerifiedIdentity(),
       UuidSchema.parse(projectId),
     );
   }

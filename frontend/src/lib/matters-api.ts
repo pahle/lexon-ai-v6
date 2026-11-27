@@ -19,6 +19,10 @@ const ProjectChatsSchema = z.strictObject({
     z.strictObject({
       id: contracts.UuidSchema,
       title: z.string(),
+      ownerUserId: contracts.UuidSchema,
+      // r18 Chats-table Owner column; absent when the directory cannot
+      // resolve the owner (departed user, auth call failed).
+      ownerName: z.string().min(1).optional(),
       updatedAt: z.iso.datetime(),
     }),
   ),

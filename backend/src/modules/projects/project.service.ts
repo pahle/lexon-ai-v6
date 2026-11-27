@@ -55,14 +55,21 @@ const notFound = () => new IdentityError('NOT_FOUND', 404);
 const forbidden = () => new IdentityError('ORG_FORBIDDEN', 403);
 const invalid = () => new IdentityError('VALIDATION_ERROR', 422);
 
-function summary(view: ProjectView, ownerName: string): ProjectSummary {
+function summary(
+  view: ProjectView,
+  owner?: { name: string; email?: string },
+): ProjectSummary {
   return {
     version: 1,
     id: view.id,
     name: view.name,
     matterNumber: view.matterNumber,
     practiceArea: view.practiceArea,
-    owner: { userId: view.ownerUserId, name: ownerName },
+    owner: {
+      userId: view.ownerUserId,
+      name: owner?.name ?? '',
+      ...(owner?.email ? { email: owner.email } : {}),
+    },
     myRole: view.access === 'none' ? 'viewer' : view.access,
     memberCount: view.memberCount,
     chatCount: view.chatCount,
@@ -217,7 +224,7 @@ export class ProjectService {
           actorUserId: ctx.userId,
           metadata: { projectId: view.id },
         });
-        return summary(view, directory.get(ctx.userId)?.name ?? '');
+        return summary(view, directory.get(ctx.userId));
       },
     );
   }
@@ -248,7 +255,7 @@ export class ProjectService {
     const last = pageRows.at(-1);
     return ProjectPageSchema.parse({
       items: pageRows.map((row) =>
-        summary(row, directory.get(row.ownerUserId)?.name ?? ''),
+        summary(row, directory.get(row.ownerUserId)),
       ),
       pageInfo: {
         nextCursor:
@@ -275,7 +282,7 @@ export class ProjectService {
       (tx) => this.requireView(tx, projectId),
     );
     return {
-      ...summary(view, directory.get(view.ownerUserId)?.name ?? ''),
+      ...summary(view, directory.get(view.ownerUserId)),
       instructions: view.instructions,
     };
   }
@@ -316,7 +323,7 @@ export class ProjectService {
           actorUserId: ctx.userId,
           metadata: { projectId, fields },
         });
-        return { ...summary(updated, ''), instructions: view.instructions };
+        return { ...summary(updated), instructions: view.instructions };
       },
     );
   }
@@ -354,22 +361,39 @@ export class ProjectService {
 
   async listChats(
     ctx: TenantRequestContext,
+    identity: VerifiedIdentity,
     projectId: string,
-  ): Promise<{ items: { id: string; title: string; updatedAt: string }[] }> {
-    return this.database.withTenant(
+  ): Promise<{
+    items: {
+      id: string;
+      title: string;
+      ownerUserId: string;
+      ownerName?: string;
+      updatedAt: string;
+    }[];
+  }> {
+    const rows = await this.database.withTenant(
       { orgId: ctx.orgId, userId: ctx.userId },
       async (tx) => {
         await this.requireView(tx, projectId);
-        const rows = await this.projects.listChats(tx, projectId);
-        return {
-          items: rows.map((row) => ({
-            id: row.id,
-            title: row.title || 'New chat',
-            updatedAt: row.updated_at.toISOString(),
-          })),
-        };
+        return this.projects.listChats(tx, projectId);
       },
     );
+    // Owner names resolve through the auth directory after the tenant
+    // transaction closes — the same fail-soft rule as #109: a directory
+    // failure yields rows with no ownerName, never a 500.
+    const directory = await this.directory(identity, ctx.orgId);
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        title: row.title || 'New chat',
+        ownerUserId: row.owner_user_id,
+        ...(directory.has(row.owner_user_id)
+          ? { ownerName: directory.get(row.owner_user_id)!.name }
+          : {}),
+        updatedAt: row.updated_at.toISOString(),
+      })),
+    };
   }
 
   async listMembers(
@@ -597,6 +621,11 @@ export class ProjectService {
           name: directory.get(row.user_id)?.name ?? '',
           email: directory.get(row.user_id)?.email ?? '',
           setByUserId: row.set_by_user_id,
+          // r18 "Restricted by <name> · <date>"; absent when the actor's name
+          // no longer resolves — the UI falls back to the email/date alone.
+          ...(directory.has(row.set_by_user_id)
+            ? { setByName: directory.get(row.set_by_user_id)!.name }
+            : {}),
           createdAt: row.created_at.toISOString(),
         }),
       ),

@@ -14,6 +14,7 @@ import type {
 } from '@lexon/contracts';
 import type { MattersApi } from '@/lib/matters-api';
 import type { ChatQueryScope } from '@/lib/chat-queries';
+import { formatDayMonthYear } from '@/lib/date-time';
 import { isTenantScopeCurrent } from '@/lib/tenant-queries';
 import { Button } from '@/components/ui/button';
 import {
@@ -165,6 +166,10 @@ function RestrictAccessDialog({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const orgName =
+    queryClient.getQueryData<{ readonly name?: string }>([
+      'active-organization',
+    ])?.name ?? 'your organization';
   const denies = useQuery({
     queryKey: ['org-matters', scope.orgId, project.id, 'denies'],
     queryFn: () => client.listDenies(project.id),
@@ -195,8 +200,9 @@ function RestrictAccessDialog({
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <p className="text-muted-foreground text-[13px] leading-[1.6]">
-            Restricted members cannot open this matter or its chats. The
-            restriction applies to them alone.
+            Restricted members lose access at once and cannot be added back by
+            the matter owner. Only owners and admins of {orgName} can lift a
+            restriction.
           </p>
           <AddDenyRow
             client={client}
@@ -238,6 +244,11 @@ function RestrictAccessDialog({
               No one is restricted from this matter.
             </p>
           ) : null}
+          <div className="flex justify-end">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Done
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -269,12 +280,14 @@ function DenyRow({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{deny.name}</p>
         <p className="text-muted-foreground truncate text-[13px]">
-          {deny.email}
+          {deny.setByName
+            ? `Restricted by ${deny.setByName} · ${formatDayMonthYear(deny.createdAt)}`
+            : 'Access restricted by your organization'}
         </p>
       </div>
       <Button
         type="button"
-        variant="ghost"
+        variant="outline"
         size="sm"
         disabled={disabled}
         onClick={onLift}
@@ -298,7 +311,6 @@ function AddDenyRow({
 }) {
   const inputId = useId();
   const [query, setQuery] = useState('');
-  const [picked, setPicked] = useState<OrgMemberSummary | null>(null);
   const [failed, setFailed] = useState(false);
   const results = useQuery({
     queryKey: ['matters', 'member-search', 'deny', project.id, query],
@@ -307,9 +319,9 @@ function AddDenyRow({
     retry: false,
   });
   const add = useMutation({
-    mutationFn: () => client.addDeny(project.id, { userId: picked!.userId }),
+    mutationFn: (member: OrgMemberSummary) =>
+      client.addDeny(project.id, { userId: member.userId }),
     onSuccess: async () => {
-      setPicked(null);
       setQuery('');
       setFailed(false);
       await onAdded();
@@ -320,33 +332,17 @@ function AddDenyRow({
   return (
     <div className="flex flex-col gap-2">
       <Field>
-        <FieldLabel htmlFor={inputId}>Restrict a member</FieldLabel>
-        <div className="flex items-center gap-2">
-          {picked ? (
-            <span className="bg-muted flex h-9 items-center rounded-lg px-3 text-sm">
-              {picked.name}
-            </span>
-          ) : (
-            <Input
-              id={inputId}
-              value={query}
-              placeholder="Search by name or email"
-              onChange={(event) => setQuery(event.currentTarget.value)}
-            />
-          )}
-          <Button
-            type="button"
-            disabled={!picked || add.isPending}
-            onClick={() => {
-              setFailed(false);
-              add.mutate();
-            }}
-          >
-            Restrict
-          </Button>
-        </div>
+        <FieldLabel htmlFor={inputId} className="sr-only">
+          Add members by name or email
+        </FieldLabel>
+        <Input
+          id={inputId}
+          value={query}
+          placeholder="Add members by name or email"
+          onChange={(event) => setQuery(event.currentTarget.value)}
+        />
       </Field>
-      {picked ? null : candidates.length && query.trim() ? (
+      {candidates.length && query.trim() && !add.isPending ? (
         <ul
           className="divide-border border-border overflow-hidden rounded-lg border"
           aria-label="Matching members"
@@ -357,8 +353,9 @@ function AddDenyRow({
                 type="button"
                 className="hover:bg-muted flex w-full items-center gap-3 px-3 py-2 text-left"
                 onClick={() => {
-                  setPicked(m);
                   setQuery('');
+                  setFailed(false);
+                  add.mutate(m);
                 }}
               >
                 <span

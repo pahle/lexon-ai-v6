@@ -3,43 +3,76 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
-  MoreHorizontalIcon,
+  ArrowUpIcon,
+  BrainIcon,
+  EyeIcon,
+  LockIcon,
   PencilLineIcon,
   SettingsIcon,
   TrashIcon,
   UsersIcon,
 } from 'lucide-react';
 import type { ChatApi, OrgRole } from '@lexon/contracts';
-import type { MattersApi, ProjectDetail } from '@/lib/matters-api';
+import type {
+  MattersApi,
+  ProjectChatItem,
+  ProjectDetail,
+} from '@/lib/matters-api';
 import {
   ConfirmDialog,
   DataStates,
+  DataTable,
   DataTableCard,
   MutedCell,
-  StatusBadge,
+  PagedFooter,
+  RowMenu,
+  type DataColumn,
+  type RowMenuItem,
 } from '../data-views';
 import { ListFailure } from '../states/list-failure';
 import { LoadingState } from '../states/page-states';
 import { WorkspaceNotFound } from '../states/workspace-not-found';
 import { ChatClientError } from '@/lib/chat-errors';
 import { Button } from '../ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../ui/dropdown-menu';
 import { Textarea } from '../ui/textarea';
 import { Spinner } from '../ui/spinner';
+import { composerClasses } from '@/components/chat/composer-styles';
 import { formatActivityDate } from '@/lib/date-time';
 import type { ChatQueryScope } from '@/lib/chat-queries';
 import { isTenantScopeCurrent } from '@/lib/tenant-queries';
+import { cn } from '@/lib/utils';
 import { MembersDialog } from './members-dialog';
 import { MatterSettingsDialog } from './matter-settings-dialog';
 
 const MAX_INSTRUCTIONS = 8_000;
+
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .map((word) => word[0] ?? '')
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+/** The stacked member avatars in the header row (r18): owner first, then members. */
+function AvatarStack({ names }: { names: string[] }) {
+  return (
+    <span className="inline-flex items-center" aria-hidden="true">
+      {names.slice(0, 3).map((name, index) => (
+        <span
+          key={name}
+          className={cn(
+            'bg-muted text-muted-foreground border-background flex size-6 items-center justify-center rounded-full border-2 text-[10px] font-semibold',
+            index > 0 && '-ml-1.5',
+          )}
+        >
+          {initials(name)}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 /** One matter: chats, instructions and members, gated by the caller's role. */
 export function MatterPage({
@@ -71,6 +104,12 @@ export function MatterPage({
     queryKey: ['matters', scope.orgId, projectId, 'chats'],
     queryFn: () => client.listChats(projectId),
     enabled: project.isSuccess,
+    retry: false,
+  });
+  const members = useQuery({
+    queryKey: ['matters', scope.orgId, projectId, 'members'],
+    queryFn: () => client.listMembers(projectId),
+    enabled: project.isSuccess && teamWorkspace,
     retry: false,
   });
   const invalidateProject = async () => {
@@ -107,125 +146,138 @@ export function MatterPage({
 
   const detail = project.data;
   const canWrite = detail.myRole === 'owner' || detail.myRole === 'editor';
-  const isOwner = detail.myRole === 'owner';
+  const isViewer = detail.myRole === 'viewer';
   const meta = [detail.matterNumber, detail.practiceArea]
     .filter((part) => part !== null)
     .join(' · ');
   const chatItems = chats.data ?? [];
+  const headerNames = [
+    detail.owner.name,
+    ...(members.data ?? []).map((member) => member.name),
+  ];
+  const actionsMenu = (
+    <RowMenu
+      label="Matter actions"
+      items={
+        [
+          {
+            label: 'Matter settings',
+            icon: EyeIcon,
+            onSelect: () => setSettingsOpen(true),
+          },
+          ...(detail.myRole === 'owner'
+            ? [
+                {
+                  label: 'Delete matter',
+                  icon: TrashIcon,
+                  destructive: true,
+                  separatorBefore: true,
+                  onSelect: () => setDeleting(true),
+                } satisfies RowMenuItem,
+              ]
+            : []),
+        ] as RowMenuItem[]
+      }
+    />
+  );
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-6 py-7 max-md:px-4 max-md:py-5">
+    <div className="mx-auto flex w-full max-w-[1120px] flex-1 flex-col gap-4 px-4 pt-5 pb-5 md:gap-5 md:px-6 md:pt-7 md:pb-10">
       <header className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="min-w-0 font-serif text-[32px] leading-[normal] font-normal tracking-[-0.005em]">
+          <h1 className="min-w-0 font-serif text-[26px] leading-[1.15] font-normal tracking-[-0.005em] md:text-[30px]">
             {detail.name}
           </h1>
           {meta ? <MutedCell>{meta}</MutedCell> : null}
         </div>
-        <div className="flex items-center gap-2">
-          {canWrite && teamWorkspace ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setMembersOpen(true)}
-            >
-              <UsersIcon aria-hidden="true" />
-              Members
-            </Button>
-          ) : null}
-          {canWrite ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
+        <div className="flex shrink-0 items-center gap-2">
+          {isViewer ? (
+            <span className="text-muted-foreground px-1 text-sm">Viewer</span>
+          ) : (
+            <>
+              {teamWorkspace ? (
+                <>
+                  <AvatarStack names={headerNames} />
                   <Button
                     type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Matter actions"
-                  />
-                }
-              >
-                <MoreHorizontalIcon aria-hidden="true" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-44">
-                <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
-                  <SettingsIcon aria-hidden="true" data-icon="inline-start" />
-                  Matter settings
-                </DropdownMenuItem>
-                {isOwner ? (
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onClick={() => setDeleting(true)}
+                    variant="outline"
+                    onClick={() => setMembersOpen(true)}
                   >
-                    <TrashIcon aria-hidden="true" data-icon="inline-start" />
-                    Delete matter
-                  </DropdownMenuItem>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <StatusBadge tone="inactive">Viewer</StatusBadge>
+                    <UsersIcon aria-hidden="true" />
+                    Members
+                  </Button>
+                </>
+              ) : null}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Matter settings"
+                className="text-muted-foreground"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <SettingsIcon aria-hidden="true" />
+              </Button>
+              {actionsMenu}
+            </>
           )}
         </div>
       </header>
-      {canWrite ? (
+      {canWrite || !teamWorkspace ? (
         <MatterComposer
           matterName={detail.name}
           projectId={projectId}
           {...(chatClient ? { chatClient } : {})}
           onCreated={(chatId) => router.push(`/chats/${chatId}`)}
         />
-      ) : null}
-      <DataTableCard
-        title="Chats"
-        {...(chats.data ? { count: chats.data.length } : {})}
-        description="Every chat in this matter."
-      >
-        {chats.isPending ? (
-          <DataStates
-            status="loading"
-            pageSize={3}
-            onRetry={() => void chats.refetch()}
-            onReset={() => undefined}
-            emptyText=""
-            thing="chats"
-          />
-        ) : chats.isError ? (
-          <div className="px-4 pt-4 pb-5 md:px-5">
-            <ListFailure
-              thing="the chats in this matter"
+      ) : (
+        <p className="border-border bg-muted/40 text-muted-foreground flex items-center gap-2 rounded-[12px] border px-4 py-3 text-sm">
+          <LockIcon className="size-3.5 shrink-0" aria-hidden="true" />
+          You can view this matter. Ask the owner for edit access to start
+          chats.
+        </p>
+      )}
+      <div className="grid items-start gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] md:gap-5">
+        <DataTableCard
+          title="Chats"
+          {...(chats.data ? { count: chats.data.length } : {})}
+          className="order-2 md:order-1"
+        >
+          {chats.isPending ? (
+            <DataStates
+              status="loading"
+              pageSize={3}
               onRetry={() => void chats.refetch()}
+              onReset={() => undefined}
+              emptyText=""
+              thing="chats"
             />
-          </div>
-        ) : chatItems.length ? (
-          <ul className="divide-border flex flex-col divide-y">
-            {chatItems.map((chat) => (
-              <li key={chat.id}>
-                <Link
-                  href={`/chats/${chat.id}`}
-                  className="hover:bg-muted flex items-center justify-between gap-4 px-4 py-3 md:px-5"
-                >
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {chat.title}
-                  </span>
-                  <MutedCell>
-                    {formatActivityDate(chat.updatedAt, { yesterday: true })}
-                  </MutedCell>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-muted-foreground px-4 pt-4 pb-6 text-[13px] md:px-5">
-            No chats in this matter yet.
-          </p>
-        )}
-      </DataTableCard>
-      <InstructionsCard
-        client={client}
-        detail={detail}
-        onSaved={invalidateProject}
-      />
+          ) : chats.isError ? (
+            <div className="px-4 pt-4 pb-5 md:px-5">
+              <ListFailure
+                thing="the chats in this matter"
+                onRetry={() => void chats.refetch()}
+              />
+            </div>
+          ) : chatItems.length ? (
+            <ChatsTable
+              chats={chatItems}
+              userId={scope.userId}
+              onOpen={(chat) => router.push(`/chats/${chat.id}`)}
+            />
+          ) : (
+            <p className="text-muted-foreground px-4 pt-4 pb-6 text-[13px] md:px-5">
+              No chats in this matter yet.
+            </p>
+          )}
+        </DataTableCard>
+        <InstructionsCard
+          client={client}
+          detail={detail}
+          onSaved={invalidateProject}
+          className="order-1 md:order-2"
+        />
+      </div>
       <MembersDialog
         client={client}
         scope={scope}
@@ -257,7 +309,107 @@ export function MatterPage({
   );
 }
 
-/** First-message composer for a new chat inside the matter. */
+const chatColumns = (
+  userId: string,
+  onOpen: (chat: ProjectChatItem) => void,
+): DataColumn<ProjectChatItem>[] => [
+  {
+    key: 'chat',
+    header: 'Chat',
+    cell: (chat) => <span className="font-medium">{chat.title}</span>,
+  },
+  {
+    key: 'owner',
+    header: 'Owner',
+    width: '140px',
+    muted: true,
+    cell: (chat) => chat.ownerName ?? '—',
+  },
+  {
+    key: 'activity',
+    header: 'Last activity',
+    width: '130px',
+    muted: true,
+    cell: (chat) => formatActivityDate(chat.updatedAt, { yesterday: true }),
+  },
+  {
+    key: 'menu',
+    header: 'Actions',
+    hideHeader: true,
+    width: '56px',
+    cell: (chat) =>
+      chat.ownerUserId === userId ? (
+        <RowMenu
+          label={`Actions for ${chat.title}`}
+          items={[
+            {
+              label: 'Open chat',
+              icon: EyeIcon,
+              onSelect: () => onOpen(chat),
+            },
+          ]}
+        />
+      ) : null,
+  },
+];
+
+function ChatsTable({
+  chats,
+  userId,
+  onOpen,
+}: {
+  chats: ProjectChatItem[];
+  userId: string;
+  onOpen: (chat: ProjectChatItem) => void;
+}) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const pageRows = chats.slice((page - 1) * pageSize, page * pageSize);
+  return (
+    <>
+      <DataTable
+        columns={chatColumns(userId, onOpen)}
+        rows={pageRows}
+        getRowId={(chat) => chat.id}
+        onOpen={onOpen}
+        openLabel={(chat) => `Open ${chat.title}`}
+        sort={{ key: 'activity', direction: 'descending' }}
+        mobileRow={(chat) => ({
+          title: chat.title,
+          meta: `${chat.ownerName ?? '—'} · ${formatActivityDate(chat.updatedAt, { yesterday: true })}`,
+          trailing:
+            chat.ownerUserId === userId ? (
+              <RowMenu
+                label={`Actions for ${chat.title}`}
+                items={[
+                  {
+                    label: 'Open chat',
+                    icon: EyeIcon,
+                    onSelect: () => onOpen(chat),
+                  },
+                ]}
+              />
+            ) : undefined,
+        })}
+      />
+      <PagedFooter
+        page={page}
+        pageSize={pageSize}
+        total={chats.length}
+        onPage={setPage}
+        onPageSize={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+        noun="chat"
+      />
+    </>
+  );
+}
+
+/** First-message composer for a new chat inside the matter — the standard
+ * workspace composer surface (r18 `.comp`), same shell, Deep thinking and
+ * round send control as the thread composer. */
 function MatterComposer({
   matterName,
   projectId,
@@ -270,6 +422,7 @@ function MatterComposer({
   onCreated: (chatId: string) => void;
 }) {
   const [text, setText] = useState('');
+  const [deepThinking, setDeepThinking] = useState(false);
   const [sending, setSending] = useState(false);
   const [failed, setFailed] = useState(false);
   const pendingIdentity = useRef<{
@@ -302,7 +455,7 @@ function MatterComposer({
         userMessageId: identity.userMessageId,
         requestId: identity.requestId,
         text: value,
-        effort: 'high',
+        effort: deepThinking ? 'max' : 'high',
         projectId,
       });
       if (pendingIdentity.current === identity) pendingIdentity.current = null;
@@ -318,29 +471,61 @@ function MatterComposer({
   return (
     <form
       aria-label={`Start a chat in ${matterName}`}
-      className="border-border bg-background flex flex-col gap-2 rounded-[12px] border p-3"
       onSubmit={send}
+      className={composerClasses.shell}
     >
       <Textarea
         value={text}
-        placeholder="Ask Lexon about this matter..."
-        rows={3}
+        placeholder="Start a chat in this matter…"
+        aria-label="Start a chat in this matter"
+        rows={2}
         disabled={sending}
         onChange={(event) => setText(event.currentTarget.value)}
-      />
-      <div className="flex items-center justify-between gap-3">
-        {failed ? (
-          <p role="alert" className="text-destructive text-[13px]">
-            The chat could not be started. Try again.
-          </p>
-        ) : (
-          <span />
+        onKeyDown={(event) => {
+          if (
+            event.key === 'Enter' &&
+            !event.shiftKey &&
+            !event.nativeEvent.isComposing
+          ) {
+            event.preventDefault();
+            event.currentTarget.form?.requestSubmit();
+          }
+        }}
+        className={cn(
+          composerClasses.input,
+          'border-0 shadow-none focus-visible:ring-0',
         )}
-        <Button type="submit" disabled={!text.trim() || sending || !chatClient}>
-          {sending ? <Spinner aria-hidden="true" /> : null}
-          Send
+      />
+      <div className={composerClasses.toolbar}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          aria-label="Deep thinking"
+          aria-pressed={deepThinking}
+          className={cn(
+            composerClasses.deepThinking,
+            deepThinking && composerClasses.deepThinkingPressed,
+          )}
+          onClick={() => setDeepThinking((on) => !on)}
+        >
+          <BrainIcon aria-hidden="true" /> Deep thinking
+        </Button>
+        <Button
+          type="submit"
+          size="icon"
+          disabled={!text.trim() || sending || !chatClient}
+          className={composerClasses.send}
+          aria-label="Send message"
+        >
+          {sending ? <Spinner aria-hidden="true" /> : <ArrowUpIcon />}
         </Button>
       </div>
+      {failed ? (
+        <p role="alert" className="text-destructive text-[13px]">
+          The chat could not be started. Try again.
+        </p>
+      ) : null}
     </form>
   );
 }
@@ -349,10 +534,12 @@ function InstructionsCard({
   client,
   detail,
   onSaved,
+  className,
 }: {
   client: MattersApi;
   detail: ProjectDetail;
   onSaved: () => Promise<unknown>;
+  className?: string;
 }) {
   const canWrite = detail.myRole === 'owner' || detail.myRole === 'editor';
   const [editing, setEditing] = useState(false);
@@ -380,40 +567,62 @@ function InstructionsCard({
 
   return (
     <DataTableCard
-      title="Matter instructions"
-      description="Instructions Lexon applies to every chat in this matter."
+      title="Instructions"
+      {...(className ? { className } : {})}
+      actions={
+        canWrite && !editing ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setValue(instructions);
+              setEditing(true);
+            }}
+          >
+            <PencilLineIcon aria-hidden="true" />
+            Edit
+          </Button>
+        ) : undefined
+      }
     >
       <div className="px-4 pt-3 pb-4 md:px-5">
         {editing ? (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2.5">
             <Textarea
               value={value}
-              rows={8}
+              rows={6}
               aria-label="Matter instructions"
               onChange={(event) => setValue(event.currentTarget.value)}
+              className="min-h-28 leading-[1.55]"
             />
             <div className="flex items-center justify-between gap-3">
+              <MutedCell>
+                Lexon follows these in every chat in this matter.
+              </MutedCell>
               <MutedCell>{`${length.toLocaleString('en-US')} / 8,000`}</MutedCell>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setEditing(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  disabled={length > MAX_INSTRUCTIONS || save.isPending}
-                  onClick={() => {
-                    setFailed(false);
-                    save.mutate();
-                  }}
-                >
-                  {save.isPending ? <Spinner aria-hidden="true" /> : null}
-                  Save
-                </Button>
-              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setEditing(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={length > MAX_INSTRUCTIONS || save.isPending}
+                onClick={() => {
+                  setFailed(false);
+                  save.mutate();
+                }}
+              >
+                {save.isPending ? <Spinner aria-hidden="true" /> : null}
+                Save
+              </Button>
             </div>
             {failed ? (
               <p role="alert" className="text-destructive text-[13px]">
@@ -424,38 +633,23 @@ function InstructionsCard({
         ) : (
           <div className="flex flex-col items-start gap-3">
             {instructions ? (
-              <p className="text-sm whitespace-pre-wrap">{clamped}</p>
+              <p className="text-sm leading-[1.6] whitespace-pre-wrap">
+                {clamped}
+              </p>
             ) : (
               <p className="text-muted-foreground text-[13px]">
                 No instructions yet.
               </p>
             )}
-            <div className="flex items-center gap-2">
-              {Array.from(instructions).length > 320 ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setExpanded((on) => !on)}
-                >
-                  {expanded ? 'Show less' : 'Show more'}
-                </Button>
-              ) : null}
-              {canWrite ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setValue(instructions);
-                    setEditing(true);
-                  }}
-                >
-                  <PencilLineIcon aria-hidden="true" />
-                  Edit
-                </Button>
-              ) : null}
-            </div>
+            {Array.from(instructions).length > 320 ? (
+              <button
+                type="button"
+                className="text-(--lexon-red-text) hover:underline text-[13px] font-medium"
+                onClick={() => setExpanded((on) => !on)}
+              >
+                {expanded ? 'Show less' : 'Show more'}
+              </button>
+            ) : null}
           </div>
         )}
       </div>

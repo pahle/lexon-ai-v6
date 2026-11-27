@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
+import { UserPlusIcon, XIcon } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   DenySummary,
@@ -63,20 +64,22 @@ function MemberRow({
   restricted,
 }: {
   name: string;
-  email?: string;
+  email?: string | undefined;
   roleControl?: React.ReactNode;
   restricted?: string;
 }) {
   return (
-    <li
-      className={cn(
-        'flex items-center gap-3 px-1 py-2',
-        restricted && 'opacity-55',
-      )}
-    >
+    <li className="flex items-center gap-3 px-1 py-2">
       <Avatar name={name} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{name}</p>
+        <p
+          className={cn(
+            'truncate text-sm font-medium',
+            restricted && 'text-muted-foreground',
+          )}
+        >
+          {name}
+        </p>
         <p className="text-muted-foreground truncate text-[13px]">
           {restricted ?? email}
         </p>
@@ -164,11 +167,14 @@ export function MembersDialog({
             aria-label="Matter members"
           >
             <MemberRow
-              name={project.owner.name}
+              name={
+                project.owner.userId === scope.userId
+                  ? `${project.owner.name} (you)`
+                  : project.owner.name
+              }
+              email={project.owner.email}
               roleControl={
-                <Badge variant="outline" className="border-input">
-                  Owner
-                </Badge>
+                <span className="text-muted-foreground text-[13px]">Owner</span>
               }
             />
             {items.map((m) => (
@@ -218,6 +224,15 @@ export function MembersDialog({
               We could not load the members of this matter.
             </p>
           ) : null}
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Done
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -263,12 +278,13 @@ function MemberRoleControl({
       <Button
         type="button"
         variant="ghost"
-        size="sm"
+        size="icon"
         disabled={disabled}
         aria-label={`Remove ${member.name}`}
+        className="text-muted-foreground size-8"
         onClick={onRemove}
       >
-        Remove
+        <XIcon aria-hidden="true" />
       </Button>
     </div>
   );
@@ -288,7 +304,7 @@ function AddMemberRow({
   const inputId = useId();
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<OrgMemberSummary | null>(null);
-  const [role, setRole] = useState<'viewer' | 'editor'>('viewer');
+  const [role, setRole] = useState<'viewer' | 'editor'>('editor');
   const [failed, setFailed] = useState(false);
   const results = useQuery({
     queryKey: ['matters', 'member-search', project.id, query],
@@ -311,7 +327,9 @@ function AddMemberRow({
   return (
     <div className="flex flex-col gap-2">
       <Field>
-        <FieldLabel htmlFor={inputId}>Add member</FieldLabel>
+        <FieldLabel htmlFor={inputId} className="sr-only">
+          Add people by name or email
+        </FieldLabel>
         <div className="flex items-center gap-2">
           {picked ? (
             <span className="bg-muted flex h-9 items-center rounded-lg px-3 text-sm">
@@ -321,7 +339,7 @@ function AddMemberRow({
             <Input
               id={inputId}
               value={query}
-              placeholder="Search by name or email"
+              placeholder="Add people by name or email"
               onChange={(event) => setQuery(event.currentTarget.value)}
             />
           )}
@@ -349,12 +367,14 @@ function AddMemberRow({
           </Select>
           <Button
             type="button"
+            size="sm"
             disabled={!picked || add.isPending}
             onClick={() => {
               setFailed(false);
               add.mutate();
             }}
           >
+            <UserPlusIcon aria-hidden="true" />
             Add
           </Button>
         </div>

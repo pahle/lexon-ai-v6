@@ -478,3 +478,65 @@ reproduce on the current head (45782643479's ramp admitted 490 with
 422 `evicted` closes; 45807647830 was itself 500/500) — peak is at
 baseline, so no audience-lookup/`notifyAccessChanged` root-cause is
 warranted.
+
+## Task 12 — Matters visual states (pending captures, `f6-t12-visual`)
+
+Capture spec `brand-visual-matters.spec.ts` + fixtures
+`matter-state-fixtures.ts` cover the 16 Matters states at revision 18
+(64 views: 2 viewports × 2 themes). The org is real (Kantor Hukum Adil:
+Dewi owner; Andi/Rina/Citra members via invitations, onboarding +
+jobTitle); only the F6 payloads are fixtured (`/api/projects*`,
+`/api/org/projects*`, `/api/org/members/search`, `/api/chats/:id/shares`,
+`/api/chats?scope=shared`). Axe runs on every capture (WCAG tags via
+`captureBrandViews` default). No goldens and no `approval.json` — the CI
+run writes `visual-pending-*` artifacts + `pending-compare` sheets for
+owner eye review.
+
+**Prototype deviation (owner ruling requested on the sheet):** the
+approved r18 prototype dims the restricted member row with
+`opacity:.55`, which fails axe `color-contrast` (name, secondary line,
+and initials badge all below 4.5:1). `members-dialog.tsx` drops the row
+opacity and keeps the name in `text-muted-foreground` + the explicit
+"Access restricted by your organization" line — the distinction stays
+readable and passes WCAG.
+
+**Follow-up recorded from the #108 branch-navigation fix (does not
+block #108):** on regenerate, the streamed repository's new assistant
+entry can record `parentId` = the _previous_ assistant leaf instead of
+the user turn. `onReload` slices the AI SDK flat list at the parent,
+re-pushes the old assistant, and `regenerate()` appends after it; when
+the flat-list rebuild wins the sync race, the external-store mapping
+parents the new answer under the old answer → a flat `user→asst→asst`
+chain with no branch navigator. A **live user does see the flat chain
+while the run streams**: `reconcileCanonicalTerminalMessages` is
+skipped whenever `freshRun` is non-null (`chat-runtime.tsx:370-375`),
+so the wrong parentage stays visible until the run terminates and the
+reconcile reparents it — which post-#108 it now always does. Fixing the
+mid-run parentage at the source (reparent from `freshTree`, or prevent
+the mis-parented append) is a separate PR with RED evidence.
+
+### Task 12 round-4 rebuild (r18 fidelity, owner rulings applied)
+
+Round-3 sheets rejected (62/64 over the 1.5% gate). The rebuild on
+`f6-r18-matters` matches the r18 prototype: matter page gets the full-width
+layout with the standard composer surface, header avatars + Members + gear,
+the Chats table (Chat/Owner/Last activity, own-chats-only row menus,
+PagedFooter), and the Instructions side card with r18 mobile stacking;
+matters list drops the description + Sort for the r18 toolbar and gains the
+briefcase lead + paged footer; members dialog defaults to Editor, removes
+via the x icon, and renders the owner row "(you)" + email; the share and
+restrict dialogs match r18 copy/controls; the chat header gains the matter
+chip (`<matter> › <title>` link, `ChatDetail.projectId`/`projectName` for
+every access level). Project chats expose `ownerUserId`/`ownerName` for the
+Owner column; deny rows expose `setByName` for "Restricted by <name> ·
+<date>".
+
+**Approved deviation (owner ruling):** the restricted member row keeps the
+accessible variant — muted name + "Access restricted by your organization",
+no row-wide opacity — ahead of the prototype docs PR that will adopt it.
+
+**chat-share "could not load" root cause:** capture-fixture bug, not a
+product bug — `installMatterFixtures` returned `{ items: [...] }` for
+`GET /api/chats/:id/shares` while the endpoint returns (and the client
+parses) a bare array. The fixture now mirrors the real payload and the
+dialog shows Rina Kusuma's "Can view" row.

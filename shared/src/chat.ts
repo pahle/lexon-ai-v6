@@ -132,11 +132,12 @@ export type ChatAccess = z.infer<typeof ChatAccessSchema>;
 // GET /chats/:id payload — the tree plus the caller's access level. Kept out
 // of ChatTree itself: access is a per-request authorization fact, not part of
 // the tree's identity, and a ChatDetail stays assignable to ChatTree.
-// `ownerName`/`projectName` are emitted for readers only (F6 §10): the
-// read-only bar renders "Shared by <ownerName>" / "<ownerName>'s chat" and a
-// project-bound chat needs projectName to pick the label. A departed owner's
-// name no longer resolves — the field is absent and the UI falls back to the
-// generic label.
+// `ownerName` is emitted for readers only (F6 §10): the read-only bar renders
+// "Shared by <ownerName>" / "<ownerName>'s chat" and a project-bound chat
+// needs projectName to pick the label. A departed owner's name no longer
+// resolves — the field is absent and the UI falls back to the generic label.
+// `projectId`/`projectName` are emitted for every project-bound chat so the
+// shell header can link the matter chip back to the matter.
 export const ChatDetailSchema = z
   .strictObject({
     ...chatTreeShape,
@@ -146,6 +147,9 @@ export const ChatDetailSchema = z
       .min(1)
       .refine((value) => Array.from(value).length <= 120)
       .optional(),
+    // The matter chip in the shell header (r18): project-bound chats emit the
+    // link target and label for every access level, not readers alone.
+    projectId: uuid.optional(),
     projectName: z
       .string()
       .min(1)

@@ -7,6 +7,7 @@ export const DataTableCard: FC<{
   title?: string;
   description?: string;
   count?: number;
+  actions?: ReactNode;
   toolbar?: ReactNode;
   footer?: ReactNode;
   ruled?: boolean;
@@ -16,6 +17,7 @@ export const DataTableCard: FC<{
   title,
   description,
   count,
+  actions,
   toolbar,
   footer,
   ruled,
@@ -47,6 +49,7 @@ export const DataTableCard: FC<{
             </p>
           ) : null}
         </div>
+        {actions}
       </div>
     ) : null}
     {toolbar}

@@ -3,11 +3,18 @@
 import { useState } from 'react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { EyeIcon, FolderPlusIcon, PlusIcon, TrashIcon } from 'lucide-react';
+import {
+  BriefcaseBusinessIcon,
+  EyeIcon,
+  FolderPlusIcon,
+  PlusIcon,
+  TrashIcon,
+} from 'lucide-react';
 import type { ProjectSummary } from '@lexon/contracts';
 import type { MattersApi } from '@/lib/matters-api';
 import {
   DataListPage,
+  PagedFooter,
   DataStates,
   DataTable,
   DataTableCard,
@@ -25,26 +32,10 @@ import {
 import { ConfirmDialog } from '../data-views';
 import { Button } from '../ui/button';
 import { Spinner } from '../ui/spinner';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select';
 import { formatActivityDate } from '@/lib/date-time';
 import type { ChatQueryScope } from '@/lib/chat-queries';
 import { isTenantScopeCurrent } from '@/lib/tenant-queries';
 import { NewMatterDialog } from './new-matter-dialog';
-
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .map((word) => word[0] ?? '')
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
 
 const ROLE_LABEL = {
   owner: 'Owner',
@@ -74,10 +65,11 @@ export function MattersPage({
   const queryClient = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<ProjectSummary | null>(null);
-  const view = useDataViewParams(['filter', 'sort']);
+  const view = useDataViewParams(['filter']);
   const filter = (view.facets.filter?.[0] ?? 'all') as
     'all' | 'owned' | 'shared';
-  const sort = (view.facets.sort?.[0] ?? 'activity') as 'name' | 'activity';
+  const [pageSize, setPageSize] = useState(25);
+  const sort = 'activity' as const;
   const list = useInfiniteQuery({
     queryKey: ['matters', scope.orgId, filter, sort, view.query],
     initialPageParam: undefined as string | undefined,
@@ -87,7 +79,7 @@ export function MattersPage({
           ...(view.query ? { q: view.query } : {}),
           filter,
           sort,
-          limit: 25,
+          limit: pageSize,
           ...(pageParam ? { cursor: pageParam } : {}),
         },
         signal,
@@ -96,9 +88,7 @@ export function MattersPage({
     retry: false,
   });
   const rows = list.data?.pages.flatMap((page) => page.items) ?? [];
-  const filtered = Boolean(
-    view.query || filter !== 'all' || sort !== 'activity',
-  );
+  const filtered = Boolean(view.query || filter !== 'all');
   const state = list.isPending
     ? 'loading'
     : list.isError
@@ -138,7 +128,7 @@ export function MattersPage({
         <IdentityCell
           name={m.name}
           {...(m.matterNumber ? { secondary: m.matterNumber } : {})}
-          initials={initials(m.name)}
+          icon={<BriefcaseBusinessIcon className="size-3.5" />}
         />
       ),
     },
@@ -189,13 +179,11 @@ export function MattersPage({
     },
   ];
 
-  const resetFilters = () =>
-    view.set({ query: '', facets: { filter: [], sort: [] } });
+  const resetFilters = () => view.set({ query: '', facets: { filter: [] } });
 
   return (
     <DataListPage
       title="Matters"
-      description="Matters group the chats, documents and people working on one client engagement."
       action={
         <Button type="button" onClick={() => setCreating(true)}>
           <PlusIcon aria-hidden="true" />
@@ -216,55 +204,39 @@ export function MattersPage({
             onReset={resetFilters}
             hasFilters={filtered}
             placeholder="Search matters"
-            facets={
-              <Select
-                value={sort}
-                onValueChange={(value) =>
-                  view.set({ facets: { sort: value ? [value] : [] } })
-                }
-              >
-                <SelectTrigger
-                  aria-label="Sort matters"
-                  className="data-[size=default]:h-8 w-auto gap-1.5 px-2.5 text-[13px] [&>svg]:size-3.5!"
-                >
-                  <SelectValue>
-                    {sort === 'name' ? 'Sort: Name' : 'Sort: Activity'}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="activity">Sort: Activity</SelectItem>
-                    <SelectItem value="name">Sort: Name</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            }
           />
         }
         footer={
-          rows.length ? (
+          rows.length && !list.hasNextPage ? (
+            <PagedFooter
+              page={1}
+              pageSize={pageSize}
+              total={rows.length}
+              onPage={() => undefined}
+              onPageSize={setPageSize}
+              noun="matter"
+            />
+          ) : rows.length ? (
             <div className="border-border flex items-center justify-between border-t px-4 py-2.5 md:px-5">
               <MutedCell>
                 {rows.length === 1 ? '1 matter' : `${rows.length} matters`}
               </MutedCell>
-              {list.hasNextPage ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={list.isFetchingNextPage}
-                  onClick={() => void list.fetchNextPage()}
-                >
-                  {list.isFetchingNextPage ? (
-                    <>
-                      <Spinner aria-hidden="true" />
-                      <span className="sr-only">Loading more</span>
-                    </>
-                  ) : (
-                    'Load more matters'
-                  )}
-                </Button>
-              ) : null}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={list.isFetchingNextPage}
+                onClick={() => void list.fetchNextPage()}
+              >
+                {list.isFetchingNextPage ? (
+                  <>
+                    <Spinner aria-hidden="true" />
+                    <span className="sr-only">Loading more</span>
+                  </>
+                ) : (
+                  'Load more matters'
+                )}
+              </Button>
             </div>
           ) : null
         }
@@ -277,7 +249,11 @@ export function MattersPage({
             onOpen={open}
             openLabel={(m) => `Open ${m.name}`}
             mobileRow={(m) => ({
-              lead: <IdentityAvatar initials={initials(m.name)} />,
+              lead: (
+                <IdentityAvatar
+                  icon={<BriefcaseBusinessIcon className="size-3.5" />}
+                />
+              ),
               title: m.name,
               sub: m.matterNumber ?? m.owner.name,
               badge: (
@@ -287,10 +263,11 @@ export function MattersPage({
               ),
               meta: (
                 <MutedCell>
-                  {`${m.chatCount} ${m.chatCount === 1 ? 'chat' : 'chats'} · `}
-                  {formatActivityDate(m.lastActivityAt, {
-                    yesterday: true,
-                  })}
+                  {[
+                    m.practiceArea ?? '—',
+                    m.owner.name,
+                    ROLE_LABEL[m.myRole],
+                  ].join(' · ')}
                 </MutedCell>
               ),
               trailing: rowMenu(m),
