@@ -423,3 +423,58 @@ under observation (1/37 loaded reproductions post-fix).
 stays silent until the affected client reloads (see "Dropped-event
 visibility" above). The follow-up is to emit a chat refresh notification
 on that path so live clients resync without a manual reload.
+
+## Task 11 — §14 list-performance gate + §15 injection evals
+
+**List gate (PR #107, `e1eea5d5`):** 6 surfaces under `lexon_app` RLS on
+the migration-0043 image — 500 projects / 50 members, 300 chats, 30
+shares, 100-project foreign org, member/deny rows, `ANALYZE`. EXPLAIN:
+no seq scan on wall tables `project_members`/`project_denies`, expected
+index present on every surface. HTTP p95 9.9–16.2 ms vs the 300 ms warn
+/ 1000 ms block gates. Shared SQL builders (`projectListSql`,
+`projectOrgListSql`, `chatListSql`) keep the gate on production text.
+Definer inner-cost: `lexon_project_access` 200 calls avg 0.153 ms /
+p95 0.176 ms + PK index proof. Post-0043 re-measure beats pre-project
+baselines (proof-member ~2.9 ms vs ~10.5 ms). Evidence:
+`docs/references/F6-list-gate-2026-11-27.jsonl`.
+
+**Injection evals (PR #107, `e1eea5d5`):** 63/63 across
+`project-instructions-{rename,disclosure,permissions}` — hostile project
+instruction credited via `contextFixtures: 1`, then stopped by the wall
+(rename parked at approval → rejected; disclosure inert; permissions
+claim refused `failed`, `effects: 0`).
+
+**`project_delete` claim-lane (owner-directed replacement):** project
+with 200 chats (mixed owners) + 5 live `ai_runs` (one paused
+`awaiting_approval`), deleted via `DELETE /api/projects` under
+`lexon_app`. Measured:
+
+- Lane hold (`ops.project_delete` advisory xact lock duration inside the
+  tombstone tx, timed from a second connection): **142.44 ms** — ~35×
+  under `CLAIM_LANE_LOCK_TIMEOUT_MS` (5000 ms).
+- Effect on same-org work: 5 concurrent `commit()`s on claimed steps in
+  _other_ same-org chats queued behind the lane and **all succeeded** —
+  waits 89.7–141.5 ms, zero 55P03, zero `unavailable`. Baseline
+  uncontended commit: 9.41 ms. `pg_locks` peak waiters on the lane: 5.
+- Verdict: **PASS** (margin + zero concurrent failures). JSONL:
+  `{"type":"project-delete-claim-lane",...,"laneHoldMs":142.44,
+"commitWaitsMs":[89.7,102.65,141.47,115.98,128.46],
+"commitFailures":[],"peakWaiters":5}`.
+
+**`chat-sse-load` S2 (owner-directed replacement):** the real 500-client
+burst/ramp workflow dispatched 3× on CI at f6-projects head `7356aad9`:
+
+| Run                                                                          | Conclusion    | Ramp peak | Burst peak | Closes                                        |
+| ---------------------------------------------------------------------------- | ------------- | --------- | ---------- | --------------------------------------------- |
+| [45931064274](https://github.com/pahle/lexon-ai-v6/actions/runs/45931064274) | success 9m0s  | 500/500   | 500/500    | all `clientAbort` (24 run + 476 invalidation) |
+| [45931077250](https://github.com/pahle/lexon-ai-v6/actions/runs/45931077250) | success 18m6s | 500/500   | 500/500    | all `clientAbort`                             |
+| [45931961520](https://github.com/pahle/lexon-ai-v6/actions/runs/45931961520) | success 9m3s  | 500/500   | 500/500    | all `clientAbort`                             |
+
+`F4-sse-load.json` plateau: 500 `activeSubscriptions` across all 30
+samples in every run. All three match the F4.4/F4.5 baseline (run
+[45166468664](https://github.com/pahle/lexon-ai-v6/actions/runs/45166468664):
+500/500 both modes, all `clientAbort`). The cited-run dips do not
+reproduce on the current head (45782643479's ramp admitted 490 with
+422 `evicted` closes; 45807647830 was itself 500/500) — peak is at
+baseline, so no audience-lookup/`notifyAccessChanged` root-cause is
+warranted.
