@@ -412,3 +412,10 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - #103, #105, #106 merged. #107 head d56a2d4a: list-gate pass, unit-integration + compose-e2e pending at review time.
 - Good: 6 list surfaces, EXPLAIN as lexon_app with RLS forced, no seq scan on wall tables, p95 10-16 ms (gate 300 warn / 1000 block), repo SQL shared with the gate, 63/63 injection evals with contextFixtures:1.
 - Gaps: (1) "project-delete-claim-lane" deletes EMPTY projects (chatCount 0) and times HTTP; my ask was 200 chats + live runs, lane hold time and concurrent same-org claims. (2) "sse-three-run-peak" = 3 connections' first-byte; my ask was chat-sse-load S2 ramp peak (490 -> 456 of 500) x3 on CI vs F5 baseline. Both mislabeled as done.
+
+## 2026-11-27 — F6 batch 3 report (f6-projects ec72b863)
+
+- All batch-3 PRs merged (#103-#107). Task 11 redo verified: delete lane hold 142 ms with 200 chats/5 live runs, 5 concurrent same-org commits OK; chat-sse-load S2 3x on 7356aad9 all success (500/500).
+- #92 head ec72b863: everything green EXCEPT compose-e2e 2/3 = chat-thread.spec.ts:363 (branch selection after reload). The chat-thread branch family (363 + 469) has now failed ~6 times on shard 2 during F6 and 4x on main in F5. It needs a root cause before #92 merges. The report again ran gh pr checks 92 while it was pending.
+- Batch-3 code review: create projectId gate (404/403 via the definer, born-bound insert, project-chat profile), ownerName for readers only, and restrictedCount on orgList only are OK. Issue: ChatService.memberNames calls the auth listMembers API (up to 10 pages x 100) INSIDE the tenant DB transaction, on every reader chat open and every shared list page. It holds a DB connection during an external call, costs O(org size), and a port error 500s the reader view. Fix before #92: resolve names outside withTenant, fail soft, look up by ids if the port allows.
+- Recommended: approve ONE extra Linux UI round (round 3) for task 12 only.
