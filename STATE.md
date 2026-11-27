@@ -437,3 +437,4 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
   - members dialog: default role Viewer vs Editor, Remove text vs icon, restricted row not dimmed (a11y; implementer asks for a ruling).
 - #110 chat-sse-load red again (S2 ramp peak, run 45949552031); not mentioned in the report.
 - Lesson: tasks 9/10 merged without any prototype comparison; fidelity was first checked at task 12.
+- Owner rulings (2026-11-27): restricted member row = implementer's a11y variant (I must update the prototype + notes in a docs PR); matter chip in the chat header = implement; layouts = match r18; Linux UI round 4 approved for the task-12 recapture only.
