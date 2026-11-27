@@ -136,6 +136,37 @@ export interface ChatSearchSnippetMarkers {
   readonly end: string;
 }
 
+/** §14 gate surface: the chat-list query, built per call from the same
+ * authorization predicate so the repository and the benchmark never drift. */
+export function chatListSql(
+  scope: Pick<ChatAuthorizationPredicate, 'where'>,
+): string {
+  return `SELECT chat.id,chat.title,chat.updated_at,chat.owner_user_id,
+     to_char(chat.last_activity_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS activity_at,
+     latest.created_at AS last_message_at,
+     project.name AS project_name,
+     EXISTS (
+       SELECT 1 FROM app.chat_runs cr
+       JOIN app.ai_runs r ON r.org_id=cr.org_id AND r.id=cr.run_id
+       JOIN app.ai_operations o ON o.org_id=r.org_id AND o.run_id=r.id
+       WHERE cr.org_id=chat.org_id AND cr.chat_id=chat.id
+         AND cr.kind='answer' AND r.status='awaiting_approval'
+         AND o.status='awaiting_approval' AND o.decision IS NULL
+     ) AS awaiting_user
+   FROM app.chats chat
+   LEFT JOIN app.projects project
+     ON project.org_id=chat.org_id AND project.id=chat.project_id
+   LEFT JOIN LATERAL (
+     SELECT message.created_at FROM app.chat_messages message
+     WHERE message.org_id=chat.org_id AND message.chat_id=chat.id
+     ORDER BY message.created_at DESC,message.id DESC LIMIT 1
+   ) latest ON true
+   WHERE ${scope.where('chat', '$1', '$2')}
+     AND ($3::timestamptz IS NULL OR (chat.last_activity_at,chat.id)<($3,$4::uuid))
+   ORDER BY chat.last_activity_at DESC,chat.id DESC
+   LIMIT $5`;
+}
+
 export class ChatSearchRepository {
   /** The sidebar/Chats list. `own` is the OwnedChat scope — the caller's own
    * chats with the project-access disjunction (§5 row 1); `shared` is the
@@ -163,39 +194,13 @@ export class ChatSearchRepository {
       awaiting_user: boolean;
       project_name: string | null;
       owner_user_id: string;
-    }>(
-      `SELECT chat.id,chat.title,chat.updated_at,chat.owner_user_id,
-         to_char(chat.last_activity_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS activity_at,
-         latest.created_at AS last_message_at,
-         project.name AS project_name,
-         EXISTS (
-           SELECT 1 FROM app.chat_runs cr
-           JOIN app.ai_runs r ON r.org_id=cr.org_id AND r.id=cr.run_id
-           JOIN app.ai_operations o ON o.org_id=r.org_id AND o.run_id=r.id
-           WHERE cr.org_id=chat.org_id AND cr.chat_id=chat.id
-             AND cr.kind='answer' AND r.status='awaiting_approval'
-             AND o.status='awaiting_approval' AND o.decision IS NULL
-         ) AS awaiting_user
-       FROM app.chats chat
-       LEFT JOIN app.projects project
-         ON project.org_id=chat.org_id AND project.id=chat.project_id
-       LEFT JOIN LATERAL (
-         SELECT message.created_at FROM app.chat_messages message
-         WHERE message.org_id=chat.org_id AND message.chat_id=chat.id
-         ORDER BY message.created_at DESC,message.id DESC LIMIT 1
-       ) latest ON true
-       WHERE ${scope.where('chat', '$1', '$2')}
-         AND ($3::timestamptz IS NULL OR (chat.last_activity_at,chat.id)<($3,$4::uuid))
-       ORDER BY chat.last_activity_at DESC,chat.id DESC
-       LIMIT $5`,
-      [
-        scope.orgId,
-        scope.userId,
-        cursor?.activityAt ?? null,
-        cursor?.chatId ?? null,
-        limit,
-      ],
-    );
+    }>(chatListSql(scope), [
+      scope.orgId,
+      scope.userId,
+      cursor?.activityAt ?? null,
+      cursor?.chatId ?? null,
+      limit,
+    ]);
     return result.rows;
   }
 

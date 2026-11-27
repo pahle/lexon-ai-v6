@@ -1,0 +1,64 @@
+name: F6 list gate
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - '**'
+    paths:
+      - '.github/workflows/f6-list-gate.yml'
+      - 'backend/drizzle/0043_projects.sql'
+      - 'backend/drizzle/*project*.sql'
+      - 'backend/package.json'
+      - 'backend/src/config/**'
+      - 'backend/src/infrastructure/db/authorization-predicate.ts'
+      - 'backend/src/infrastructure/db/project.repository.ts'
+      - 'backend/src/infrastructure/db/chat-search.repository.ts'
+      - 'backend/src/infrastructure/db/testing/**'
+      - 'backend/src/infrastructure/db/schema.ts'
+      - 'backend/src/modules/chat/chat.controller.ts'
+      - 'backend/src/modules/projects/**'
+      - 'backend/src/modules/organizations/organization.controller.ts'
+      - 'backend/test/integration/project-list-performance.spec.ts'
+      - 'backend/test/setup/**'
+      - 'backend/vitest.project-list-benchmark.config.ts'
+      - 'backend/vitest*.config.ts'
+      - 'vitest.config.ts'
+      - 'config/container-images.env'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'scripts/container-images.mjs'
+      - 'shared/src/chat.ts'
+      - 'shared/src/index.ts'
+permissions:
+  contents: read
+concurrency:
+  group: f6-list-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  list-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.22.1
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run the F6 list gate benchmark
+        run: pnpm exec vitest run --config backend/vitest.project-list-benchmark.config.ts
+      - name: Upload list gate evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: f6-list-gate-${{ github.sha }}
+          path: docs/references/F6-list-gate-*.jsonl
+          retention-days: 14
+          if-no-files-found: error

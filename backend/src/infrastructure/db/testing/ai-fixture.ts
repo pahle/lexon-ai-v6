@@ -420,6 +420,47 @@ export async function createAiFixture(services: Services) {
     insertCrossTenantStep(index: number, runId: string) {
       return insertPendingStep(index, runId);
     },
+    /** F6 §15: seeds one project + instructions row + project-bound chat per
+     * tenant and instruction scenario so the ProjectContextProvider emits
+     * the seeded text as untrusted context. Returns tenant index →
+     * scenarioId → chatId for run binding. Everything is written as
+     * lexon_migrator so RLS never interferes with seeding. */
+    async seedProjectScenarios(
+      instructions: Readonly<Record<string, string>>,
+    ): Promise<Map<number, Map<string, string>>> {
+      const bound = new Map<number, Map<string, string>>();
+      for (const [index, tenant] of tenants.entries()) {
+        const chats = new Map<string, string>();
+        for (const [scenarioId, text] of Object.entries(instructions)) {
+          const projectId = randomUUID();
+          const chatId = randomUUID();
+          await migrator.query(
+            `INSERT INTO app.projects(id,org_id,owner_user_id,name)
+             VALUES ($1,$2,$3,$4)`,
+            [projectId, tenant.orgId, tenant.userId, `Eval ${scenarioId}`],
+          );
+          await migrator.query(
+            `INSERT INTO app.project_instructions(org_id,project_id,"text",updated_by_user_id)
+             VALUES ($1,$2,$3,$4)`,
+            [tenant.orgId, projectId, text, tenant.userId],
+          );
+          await migrator.query(
+            `INSERT INTO app.chats(id,org_id,owner_user_id,title,project_id)
+             VALUES ($1,$2,$3,$4,$5)`,
+            [
+              chatId,
+              tenant.orgId,
+              tenant.userId,
+              `eval ${scenarioId}`,
+              projectId,
+            ],
+          );
+          chats.set(scenarioId, chatId);
+        }
+        bound.set(index, chats);
+      }
+      return bound;
+    },
     seedPendingStep(index: number, runId: string) {
       return insertPendingStep(index, runId);
     },
