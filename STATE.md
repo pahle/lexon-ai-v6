@@ -425,3 +425,15 @@ Source of truth for the slice list: `docs/briefs/README.md` on `main`.
 - #108 639eb0d0: reconcileCanonicalTerminalMessages now repairs parentId from the canonical tree (guarded). A real product bug, also behind F5 main failures. It repairs at reconcile time; the stream-side source of the stale parent is not yet explained. Approve when CI is green; follow-up: explain or fix the source.
 - #109 ff564569: names resolved after withTenant, listMembers filter userId in [ids], fail-soft, spy test. Approve when CI is green.
 - Task 12: the 16 r18 capture specs are being written on f6-t12 (round 3 approved).
+
+## 2026-11-27 — #110 task 12 sheets: NOT approvable
+
+- #108 merged (cfe3c649), #109 merged (0165fd62). The #108 source fix (onReload flat-list rebuild; a live user sees the flat chain while streaming) is a separate PR, still owed.
+- #110 run 45949576415: 62 of 64 r18 variants exceed the 1.5% gate (README in pending-compare); the report did not say so. Substantive gaps vs the owner-approved r18:
+  - matter page: narrow centered layout, plain textarea + Send instead of the standard composer, no member avatars/gear, chats as a bare list (no Owner/Last activity/pagination), instructions card below instead of the side column;
+  - settings-matters-restrict: inline popover instead of the stacked dialog, different copy, no "Restricted by X · date";
+  - chat-share capture shows the error state "We could not load who can see this chat" (fixture or bug);
+  - matters list: extra description, Sort control, initials avatars vs icon, pagination footer differs;
+  - members dialog: default role Viewer vs Editor, Remove text vs icon, restricted row not dimmed (a11y; implementer asks for a ruling).
+- #110 chat-sse-load red again (S2 ramp peak, run 45949552031); not mentioned in the report.
+- Lesson: tasks 9/10 merged without any prototype comparison; fidelity was first checked at task 12.
