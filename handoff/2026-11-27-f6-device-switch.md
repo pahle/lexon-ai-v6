@@ -98,3 +98,10 @@ Then open the session in `lexon-brief-generator` and say: "read
 handoff/2026-11-27-f6-device-switch.md and STATE.md". Prettier for docs:
 run it from a checkout with node_modules (`pnpm install` in lexon-ai-v6), or
 `npx prettier@<version pinned in package.json>`.
+
+## Commit/handoff prompt sent to the implementer (2026-11-27)
+
+Its reply has not been verified yet. On the new device, check: every F6 worktree
+branch exists on origin at the reported SHA, every open PR body has a
+"Status / Remaining" checklist, and #92 has the "Implementer handoff
+2026-11-27" comment with the local notes.
