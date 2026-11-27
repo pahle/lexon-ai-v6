@@ -637,11 +637,13 @@ export class ChatService {
         // render the "Waiting for <owner>" marker, but input/display/output
         // never leave the server for them.
         const readerView = chat.ownerUserId !== actor.userId;
-        // F6 §10: the matter label is a tenant read and stays inside the
-        // transaction; the owner's name is an auth-directory call and must
-        // resolve after the transaction closes.
+        // F6 §10 + the r18 matter chip: the matter label is a tenant read
+        // and stays inside the transaction; the owner's name is an
+        // auth-directory call and must resolve after the transaction closes.
+        // The chip needs the label for every access level (the owner sees it
+        // too), so projectName resolves for owner and reader alike.
         const projectName =
-          readerView && chat.projectId !== null
+          chat.projectId !== null
             ? ((await this.projects.find(tx, chat.projectId))?.name ??
               undefined)
             : undefined;
@@ -659,12 +661,11 @@ export class ChatService {
     const { etag, chat, tree, readerView, projectName } = result;
     // F6 §10: a reader's chrome labels name the owner and, on project
     // chats, the matter ("<owner>'s chat · read-only" / "Shared by
-    // <name>"). Both stay absent for the owner and both degrade to the
-    // generic label when they cannot be resolved.
+    // <name>"). The owner name stays absent for the owner and degrades to
+    // the generic label when it cannot be resolved.
     const readerNames =
       readerView && identity !== undefined
         ? {
-            ...(chat.projectId === null ? {} : { projectName }),
             ownerName: (
               await this.memberNames(
                 identity,
@@ -678,6 +679,9 @@ export class ChatService {
       id: chatId,
       title: chat.title || 'New chat',
       access: readerView ? ('reader' as const) : ('owner' as const),
+      ...(chat.projectId === null || projectName === undefined
+        ? {}
+        : { projectId: chat.projectId, projectName }),
       ...readerNames,
       messages: tree.messages.map((message) => {
         return message.role === 'user'

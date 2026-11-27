@@ -94,6 +94,7 @@ export type ShareAddInput = z.infer<typeof ShareAddInputSchema>;
 const projectOwner = z.strictObject({
   userId: uuid,
   name: DisplayNameSchema,
+  email: EmailAddressSchema.optional(),
 });
 
 export const ProjectSummarySchema = z.strictObject({
@@ -154,6 +155,9 @@ export const DenySummarySchema = z.strictObject({
   name: DisplayNameSchema,
   email: EmailAddressSchema,
   setByUserId: uuid,
+  // "Restricted by <name> · <date>" on the org-admin dialog (r18): the
+  // resolver degrades to absent when the actor's name no longer resolves.
+  setByName: DisplayNameSchema.optional(),
   createdAt: timestamp,
 });
 export type DenySummary = z.infer<typeof DenySummarySchema>;

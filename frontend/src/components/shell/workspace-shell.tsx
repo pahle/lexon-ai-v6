@@ -14,6 +14,7 @@ import { ChatRuntimeProvider } from './chat-runtime-provider';
 import { AuthFrame } from '../auth/auth-frame';
 import { SettingsDialog } from '../settings/settings-dialog';
 import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 
 const PanelHostContext = createContext<HTMLElement | null>(null);
 function SkipLink() {
@@ -125,18 +126,39 @@ export function WorkspaceShell({
                     data-slot="chat-header-divider"
                     className="h-4 w-px shrink-0 bg-border"
                   />
-                  <p
-                    data-slot="chat-header-title"
-                    aria-hidden="true"
-                    className="min-w-0 flex-1 truncate pr-24 text-sm text-foreground"
-                  >
-                    {openChat.title ?? (
-                      <Skeleton
-                        data-slot="chat-header-title-skeleton"
-                        className="mt-1 h-3 w-40"
-                      />
-                    )}
-                  </p>
+                  <div className="flex min-w-0 flex-1 items-center gap-1.5 pr-24 text-sm">
+                    {openChat.projectId && openChat.projectName ? (
+                      <>
+                        <Link
+                          href={`/matters/${openChat.projectId}`}
+                          data-slot="chat-header-matter-chip"
+                          className="border-border text-foreground hover:bg-accent inline-flex max-w-[300px] flex-none items-center gap-1.5 truncate rounded-full border px-2.5 py-[3px] text-[13px] no-underline"
+                        >
+                          <span className="truncate">
+                            {openChat.projectName}
+                          </span>
+                        </Link>
+                        <span
+                          aria-hidden="true"
+                          className="text-muted-foreground flex-none"
+                        >
+                          ›
+                        </span>
+                      </>
+                    ) : null}
+                    <p
+                      data-slot="chat-header-title"
+                      aria-hidden="true"
+                      className="text-foreground min-w-0 flex-1 truncate"
+                    >
+                      {openChat.title ?? (
+                        <Skeleton
+                          data-slot="chat-header-title-skeleton"
+                          className="mt-1 h-3 w-40"
+                        />
+                      )}
+                    </p>
+                  </div>
                 </>
               ) : null}
             </header>

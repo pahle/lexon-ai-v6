@@ -378,15 +378,18 @@ export class ProjectRepository {
   async listChats(
     tx: TenantSession,
     projectId: string,
-  ): Promise<{ id: string; title: string; updated_at: Date }[]> {
+  ): Promise<
+    { id: string; title: string; owner_user_id: string; updated_at: Date }[]
+  > {
     const { client, ctx } = requireSession(tx);
     if (!ctx.userId) return [];
     const result = await client.query<{
       id: string;
       title: string;
+      owner_user_id: string;
       updated_at: Date;
     }>(
-      `SELECT id,title,updated_at FROM app.chats
+      `SELECT id,title,owner_user_id,updated_at FROM app.chats
        WHERE org_id=$1 AND project_id=$2 AND deleted_at IS NULL
        ORDER BY last_activity_at DESC,id`,
       [ctx.orgId, projectId],

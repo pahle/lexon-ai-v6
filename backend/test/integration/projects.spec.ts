@@ -345,8 +345,29 @@ test('a chat created with projectId binds to the project; a viewer cannot bind',
       headers: owner.cookieHeaders,
     });
     expect(chats.status).toBe(200);
-    const bound = ((await chats.json()) as { items: { id: string }[] }).items;
+    const bound = (
+      (await chats.json()) as {
+        items: { id: string; ownerUserId: string; ownerName?: string }[];
+      }
+    ).items;
     expect(bound.map((chat) => chat.id)).toContain(ownedChatId);
+    // r18 Chats-table Owner column: each row carries the owner id and the
+    // resolved name.
+    const boundRow = bound.find((chat) => chat.id === ownedChatId);
+    expect(boundRow?.ownerUserId).toBe(owner.userId);
+    expect(boundRow?.ownerName).toBe('Owner');
+
+    // The owner reads their own chat as 'owner': the detail still carries
+    // projectId/projectName so the shell can render the matter chip.
+    const ownerRead = await fetch(`${origin}/api/chats/${ownedChatId}`, {
+      headers: owner.cookieHeaders,
+    });
+    expect(ownerRead.status).toBe(200);
+    const ownerTree = ChatDetailSchema.parse(await ownerRead.json());
+    expect(ownerTree.access).toBe('owner');
+    expect(ownerTree.projectId).toBe(project.id);
+    expect(ownerTree.projectName).toBe('Bound chats');
+    expect(ownerTree.ownerName).toBeUndefined();
 
     // A project member reads the chat as a reader: the detail carries the
     // owner's name and the project name for the read-only bar labels.
@@ -358,6 +379,7 @@ test('a chat created with projectId binds to the project; a viewer cannot bind',
     expect(viewerTree.access).toBe('reader');
     expect(viewerTree.ownerName).toBe('Owner');
     expect(viewerTree.projectName).toBe('Bound chats');
+    expect(viewerTree.projectId).toBe(project.id);
 
     // A member who lacks owner/editor standing is refused with 403.
     const foreignChatId = randomUUID();

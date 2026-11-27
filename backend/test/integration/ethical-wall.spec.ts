@@ -225,7 +225,13 @@ test('org metadata list, deny add removes the member atomically, and denied call
       (item) => DenySummarySchema.parse(item),
     );
     expect(denyRows).toMatchObject([
-      { userId: member.userId, setByUserId: adminA.userId },
+      {
+        userId: member.userId,
+        setByUserId: adminA.userId,
+        // r18 "Restricted by <name> · <date>": the resolver name rides the
+        // row so the dialog does not guess from the id.
+        setByName: 'AdminA',
+      },
     ]);
 
     // A denied target cannot be re-added — "unavailable".

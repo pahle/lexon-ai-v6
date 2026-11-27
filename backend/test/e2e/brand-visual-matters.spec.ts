@@ -9,6 +9,7 @@ import { captureBrandViews } from './brand-visual-support.js';
 import { descriptor } from './runtime-support.js';
 import { answerStart, openThread } from './brand-visual-chat-support.js';
 import {
+  chatId,
   chatTree,
   installChatFixtures,
   installRunStreamFixture,
@@ -48,6 +49,7 @@ function projectChatDetail() {
     title: 'Bukti surat dan saksi',
     access: 'reader',
     ownerName: budi.name,
+    projectId: sinarId,
     projectName: matterName,
   });
 }
@@ -258,20 +260,8 @@ test('F6 Matter and shared chats', async ({ page, playwright }) => {
   await gotoWorkspace(page, 'Andi');
   const frontend = stack().frontendUrl;
 
-  // matter-chat: the owner's own chat inside the matter.
-  await captureBrandViews(page, 'matter-chat', {
-    open: async () => {
-      env.state = 'answer-complete';
-      await openThread(
-        page,
-        env,
-        'answer-complete',
-        page.getByText(answerStart),
-      );
-    },
-  });
-
-  // chat-share: the Share dialog on a standalone team chat.
+  // chat-share: the Share dialog on a standalone team chat. Captured before
+  // the project-bound detail below, since project chats hide Share.
   await captureBrandViews(page, 'chat-share', {
     open: async () => {
       env.state = 'answer-complete';
@@ -292,6 +282,35 @@ test('F6 Matter and shared chats', async ({ page, playwright }) => {
       await expect(page.getByRole('dialog')).toHaveCount(0);
     },
     keepFocus: true,
+  });
+
+  // matter-chat: the owner's own chat inside the matter — the detail is
+  // project-bound so the r18 header chip "PT Sinar Abadi › title" renders.
+  await installChatDetail(
+    page,
+    ChatDetailSchema.parse({
+      ...chatTree('answer-complete'),
+      id: chatId,
+      title: 'Syarat sah perjanjian (Pasal 1320)',
+      access: 'owner',
+      projectId: sinarId,
+      projectName: matterName,
+    }),
+  );
+  // Re-register the matter fixtures after the chat fixtures so the own-scope
+  // /api/chats list resolves to the matter chats for the Recent sidebar.
+  await installMatterFixtures(page, () => env.state, { items: navItems });
+  await captureBrandViews(page, 'matter-chat', {
+    open: async () => {
+      env.state = 'answer-complete';
+      await openThread(
+        page,
+        env,
+        'answer-complete',
+        page.getByText(answerStart),
+      );
+      await expect(page.getByText(matterName).first()).toBeVisible();
+    },
   });
 
   // matter-chat-readonly: Citra (matter viewer) opens Budi's chat.

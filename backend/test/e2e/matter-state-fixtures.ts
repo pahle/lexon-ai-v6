@@ -65,7 +65,7 @@ const matter = (
   name: string,
   matterNumber: string | null,
   practiceArea: string | null,
-  owner: { userId: string; name: string },
+  owner: { userId: string; name: string; email?: string },
   memberCount: number,
   chatCount: number,
   activityMinusMs: number,
@@ -90,7 +90,7 @@ export const matterList = (myRole: 'owner' | 'editor' | 'viewer' = 'owner') => [
     'PT Sinar Abadi — wanprestasi',
     '045/LIT/2026',
     'Litigation',
-    { userId: andi.userId, name: andi.name },
+    { userId: andi.userId, name: andi.name, email: andi.email },
     4,
     4,
     2 * HOUR,
@@ -101,7 +101,7 @@ export const matterList = (myRole: 'owner' | 'editor' | 'viewer' = 'owner') => [
     'Merger PT Nusantara Logistik',
     '112/CORP/2026',
     'Corporate',
-    { userId: rina.userId, name: rina.name },
+    { userId: rina.userId, name: rina.name, email: rina.email },
     3,
     2,
     DAY,
@@ -112,7 +112,7 @@ export const matterList = (myRole: 'owner' | 'editor' | 'viewer' = 'owner') => [
     'Sengketa merek "Kopi Senja"',
     '087/IP/2026',
     'Intellectual property',
-    { userId: andi.userId, name: andi.name },
+    { userId: andi.userId, name: andi.name, email: andi.email },
     3,
     1,
     2 * DAY,
@@ -123,7 +123,7 @@ export const matterList = (myRole: 'owner' | 'editor' | 'viewer' = 'owner') => [
     'PHK karyawan PT Maju Jaya',
     '019/EMP/2026',
     'Employment',
-    { userId: budi.userId, name: budi.name },
+    { userId: budi.userId, name: budi.name, email: budi.email },
     5,
     3,
     3 * DAY,
@@ -134,7 +134,7 @@ export const matterList = (myRole: 'owner' | 'editor' | 'viewer' = 'owner') => [
     'Due diligence Bank Rakyat Mandiri',
     '130/CORP/2026',
     'Corporate',
-    { userId: dewi.userId, name: dewi.name },
+    { userId: dewi.userId, name: dewi.name, email: dewi.email },
     4,
     5,
     5 * DAY,
@@ -148,7 +148,7 @@ export const personalMatter = () => [
     'Kontrak sewa ruko Tebet',
     null,
     null,
-    { userId: andi.userId, name: andi.name },
+    { userId: andi.userId, name: andi.name, email: andi.email },
     1,
     1,
     DAY,
@@ -159,25 +159,34 @@ export const personalMatter = () => [
 export const matterInstructions =
   'Answer with references to the Indonesian Civil Code (KUHPerdata) and the Civil Procedure rules (HIR). Use Indonesian legal terms in italics. Keep answers short and list the documents we still need.';
 
+// r18 MCHATS owners: Andi, Andi, Budi, Budi.
 export const projectChatRows = [
   {
     id: '00000000-0000-4000-8000-000000000211',
     title: 'Syarat sah perjanjian (Pasal 1320)',
+    ownerUserId: andi.userId,
+    ownerName: andi.name,
     updatedAt: at(2 * HOUR),
   },
   {
     id: '00000000-0000-4000-8000-000000000212',
     title: 'Wanprestasi remedies and damages',
+    ownerUserId: andi.userId,
+    ownerName: andi.name,
     updatedAt: at(DAY),
   },
   {
     id: '00000000-0000-4000-8000-000000000213',
     title: 'Bukti surat dan saksi',
+    ownerUserId: budi.userId,
+    ownerName: budi.name,
     updatedAt: at(3 * DAY),
   },
   {
     id: '00000000-0000-4000-8000-000000000214',
     title: 'Strategi mediasi',
+    ownerUserId: budi.userId,
+    ownerName: budi.name,
     updatedAt: at(5 * DAY),
   },
 ];
@@ -186,11 +195,15 @@ const personalChatRows = [
   {
     id: '00000000-0000-4000-8000-000000000215',
     title: 'Klausul perpanjangan sewa',
+    ownerUserId: andi.userId,
+    ownerName: andi.name,
     updatedAt: at(DAY),
   },
   {
     id: '00000000-0000-4000-8000-000000000216',
     title: 'Deposit dan pengembalian',
+    ownerUserId: andi.userId,
+    ownerName: andi.name,
     updatedAt: at(4 * DAY),
   },
 ];
@@ -452,6 +465,7 @@ export async function installMatterFixtures(
               name: eko.name,
               email: eko.email,
               setByUserId: dewi.userId,
+              setByName: dewi.name,
               createdAt: at(20 * DAY),
             },
           ],
@@ -490,6 +504,37 @@ export async function installMatterFixtures(
       body: JSON.stringify({ items }),
     });
   });
+  await page.route(/\/api\/chats(?:\?|$)/, async (route) => {
+    const url = new URL(route.request().url());
+    if (
+      route.request().method() !== 'GET' ||
+      url.pathname !== '/api/chats' ||
+      url.searchParams.get('scope') === 'shared'
+    )
+      return route.fallback();
+    const state = getState();
+    const rows =
+      state === 'matter-personal' ? personalChatRows : projectChatRows;
+    const projectName =
+      state === 'matter-personal'
+        ? 'Kontrak sewa ruko Tebet'
+        : 'PT Sinar Abadi — wanprestasi';
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: rows.map((row) => ({
+          id: row.id,
+          title: row.title,
+          updatedAt: row.updatedAt,
+          lastMessageAt: row.updatedAt,
+          awaitingUser: false,
+          projectName,
+        })),
+        pageInfo: { nextCursor: null },
+      }),
+    });
+  });
   await page.route(
     /\/api\/chats\/[0-9a-f-]{36}\/shares(?:\/.*)?$/i,
     async (route) => {
@@ -498,18 +543,16 @@ export async function installMatterFixtures(
         return route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({
-            items: [
-              {
-                version: 1,
-                userId: citra.userId,
-                name: citra.name,
-                email: citra.email,
-                grantedByUserId: andi.userId,
-                createdAt: at(2 * DAY),
-              },
-            ],
-          }),
+          body: JSON.stringify([
+            {
+              version: 1,
+              userId: rina.userId,
+              name: rina.name,
+              email: rina.email,
+              grantedByUserId: andi.userId,
+              createdAt: at(2 * DAY),
+            },
+          ]),
         });
       if (method === 'POST')
         return route.fulfill({

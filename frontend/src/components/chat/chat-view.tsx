@@ -145,6 +145,7 @@ function ChatViewSession({
       const prev = current as Partial<{
         access: 'owner' | 'reader';
         ownerName: string;
+        projectId: string;
         projectName: string;
       }> | null;
       if (prev?.access === 'reader' && !('access' in nextTree)) {
@@ -152,6 +153,7 @@ function ChatViewSession({
           ...nextTree,
           access: prev.access,
           ownerName: prev.ownerName,
+          projectId: prev.projectId,
           projectName: prev.projectName,
         } as ChatTree;
       }
@@ -175,6 +177,8 @@ function ChatViewSession({
             setChatTitle(chatId, actorScope, result.tree.title, {
               access: result.tree.access,
               projectBound: result.tree.projectName !== undefined,
+              projectId: result.tree.projectId,
+              projectName: result.tree.projectName,
             });
         }
       })
@@ -208,6 +212,8 @@ function ChatViewSession({
           setChatTitle(chatId, actorScope, result.tree.title, {
             access: result.tree.access,
             projectBound: result.tree.projectName !== undefined,
+            projectId: result.tree.projectId,
+            projectName: result.tree.projectName,
           });
       })
       .catch(() => undefined);

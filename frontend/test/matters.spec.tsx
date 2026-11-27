@@ -129,9 +129,9 @@ it('Matters: list renders matter, number, practice area, owner, role, chats and 
   await view.unmount();
 });
 
-it('Matters: filter tabs and sort control render; the shared filter reaches the API', async () => {
+it('Matters: filter tabs render; the shared filter reaches the API', async () => {
   const list = vi.fn(async () => page([owned]));
-  nav.search = 'filter=shared&sort=name';
+  nav.search = 'filter=shared';
   const view = await render(
     tree(<MattersPage client={api({ list })} scope={scope} />),
   );
@@ -139,9 +139,9 @@ it('Matters: filter tabs and sort control render; the shared filter reaches the 
   expect(view.container.textContent).toContain('All');
   expect(view.container.textContent).toContain('Owned by me');
   expect(view.container.textContent).toContain('Shared with me');
-  expect(view.container.textContent).toContain('Sort');
+  expect(view.container.textContent).not.toContain('Sort');
   expect(list).toHaveBeenCalledWith(
-    expect.objectContaining({ filter: 'shared', sort: 'name' }),
+    expect.objectContaining({ filter: 'shared' }),
     expect.anything(),
   );
   nav.search = '';
@@ -169,6 +169,8 @@ it('Matter page: owner sees the composer and editor controls; instructions rende
       {
         id: '00000000-0000-4000-8000-000000000201',
         title: 'Draft SPA review',
+        ownerUserId: '00000000-0000-4000-8000-0000000000aa',
+        ownerName: 'Amara Wijaya',
         updatedAt: '2026-11-19T09:00:00.000Z',
       },
     ]),
@@ -184,7 +186,7 @@ it('Matter page: owner sees the composer and editor controls; instructions rende
   expect(text).toContain('M-2026-014');
   expect(text).toContain('Chats');
   expect(text).toContain('Draft SPA review');
-  expect(text).toContain('Matter instructions');
+  expect(text).toContain('Instructions');
   expect(text).toContain('Prefer Indonesian law.');
   expect(view.container.querySelector('textarea')).not.toBeNull();
   expect(button(view.container, 'Members')).toBeDefined();
