@@ -59,6 +59,7 @@ export const E2E_SHARD_PLAN = [
     ],
     files: [
       e2e('brand-visual-auth'),
+      e2e('brand-visual-matters'),
       e2e('chat-runtime-proof'),
       e2e('chat-recovery'),
       e2e('indicator-trace'),
